@@ -7,7 +7,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             await attachDebugger(tabId);
             await enableAccessibility(tabId);
             const rootNode = await getRootAXNode(tabId);
-            const { filteredTree, backendDOMNodeIds,totalNodeCount } = await fetchAndFilterAccessibilityTree(tabId, rootNode.node);
+            const { filteredTree, backendDOMNodeIds} = await fetchAndFilterAccessibilityTree(tabId, rootNode.node);
 
             const results = await Promise.all(
                 backendDOMNodeIds.map(async (backendDOMNodeId) => {
@@ -18,7 +18,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             );
 
             console.log("Filtered Tree:", filteredTree);
-            console.log("totalNodeCount",totalNodeCount);
             console.log("Backend DOM Node IDs:", backendDOMNodeIds);
             console.log("Results:", results);
 
@@ -108,58 +107,109 @@ async function getRootAXNode(tabId) {
 
 async function fetchAndFilterAccessibilityTree(tabId, node) {
     let backendDOMNodeIds = [];
-    let totalNodeCount = 0; // Initialize the counter
 
     async function processNode(node) {
+        if (!node) {
+            console.error("Node is null or undefined");
+            return null;
+        }
+
         console.log("Processing Node:", node);
 
-        // Increment the total node count
-        totalNodeCount++;
-
-        // Extract relevant properties
-        let nodeData = {
-            backendDOMNodeId: node.backendDOMNodeId,
-            name: node.name && node.name.value ? node.name.value : null,
-            role: node.role && node.role.value ? node.role.value : null
-        };
-
-        // Check if `name.value` is not an empty string before adding to backendDOMNodeIds
-        if (nodeData.name && nodeData.name.trim() !== "") {
-            console.log("Adding backendDOMNodeId:", nodeData.backendDOMNodeId);
-            backendDOMNodeIds.push(nodeData.backendDOMNodeId);
+        // Handle leaf nodes
+        if (!node.childIds || node.childIds.length === 0) {
+            if (node.name && node.name.value && node.name.value.trim() !== "") {
+                console.log("Adding backendDOMNodeId:", node.backendDOMNodeId);
+                backendDOMNodeIds.push(node.backendDOMNodeId);
+            }
+            return node;
         }
+        console.log("node.backendDOMNodeId",node.childIds[0])
 
-        // Initialize children array
-        nodeData.children = [];
-
-        // Fetch and process child nodes
-        if (node.childIds && node.childIds.length > 0) {
-            for (const childId of node.childIds) {
-                const childNode = await new Promise((resolve, reject) => {
-                    chrome.debugger.sendCommand({ tabId }, "Accessibility.getChildAXNodes", { id: childId }, (childResult) => {
-                        if (chrome.runtime.lastError) {
-                            reject(chrome.runtime.lastError);
-                        } else {
-                            resolve(childResult.nodes[0]);
-                        }
-                    });
-                });
-
-                if (childNode) {
-                    const filteredChildNode = await processNode(childNode);
-                    if (filteredChildNode) {
-                        nodeData.children.push(filteredChildNode);
+        // Process child nodes
+        const childNodes = await new Promise((resolve, reject) => {
+            chrome.debugger.sendCommand({ tabId }, "Accessibility.getChildAXNodes", { id: node.nodeId }, (childResult) => {
+                if (chrome.runtime.lastError) {
+                    console.error("Error fetching child node:", chrome.runtime.lastError);
+                    reject(chrome.runtime.lastError);
+                } else {
+                    if (childResult.nodes && childResult.nodes.length > 0) {
+                        resolve(childResult.nodes);
+                    } else {
+                        console.warn(`No nodes returned for ID: ${node.nodeId}`);
+                        resolve([]);
                     }
                 }
+            });
+        });
+        
+        // Convert the array of nodes to a dictionary where the key is nodeId
+        const childreNodesDictionary = childNodes.reduce((acc, curr) => {
+            if (curr.nodeId) {
+                acc[curr.nodeId] = curr;
             }
+            return acc;
+        }, {});
+        
+        console.log("nodesDictionary", childreNodesDictionary);
+        
+
+        const children = [];
+        for (const childId of node.childIds)
+        {
+            console.log(`Fetching child node with ID: ${childId}`);
+
+            // You need to find the childNode cause the function is very weird
+            const foundChildNode = childreNodesDictionary[childId];
+            if (foundChildNode !== undefined)
+            {
+                console.log(`Fetched child node with ID: ${childId}`);
+                const filteredChildNode = await processNode(foundChildNode);
+                if (filteredChildNode) {
+                    children.push(filteredChildNode);
+                }
+            }
+
         }
 
-        return nodeData;
+        // for (const child of childNodes.nodes) {
+        //     try {
+        //         console.log(`Fetching child node with ID: ${child.backendDOMNodeId}`);
+
+        //         if (children) {
+        //             console.log("Fetched child node:", child.backendDOMNodeId);
+        //             const filteredChildNode = await processNode(child);
+        //             if (filteredChildNode) {
+        //                 children.push(filteredChildNode);
+        //             }
+        //         }
+        //     } catch (error) {
+        //         console.error("Error processing child node:", error);
+        //     }
+        // }
+
+        // // Include the current node if it has a name and a backendDOMNodeId
+        // if (node.name && node.name.value && node.name.value.trim() !== "") {
+        //     console.log("Adding backendDOMNodeId:", node.backendDOMNodeId);
+        //     backendDOMNodeIds.push(node.backendDOMNodeId);
+        // }
+
+        // Attach processed children to the current node
+        return { ...node, children };
     }
 
-    const filteredTree = await processNode(node);
-    return { filteredTree, backendDOMNodeIds, totalNodeCount };
+    try {
+        const filteredTree = await processNode(node);
+        return { filteredTree, backendDOMNodeIds };
+    } catch (error) {
+        console.error("Error processing tree:", error);
+        return { filteredTree: null, backendDOMNodeIds };
+    }
 }
+
+
+
+
 
 
 
