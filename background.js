@@ -171,30 +171,6 @@ async function fetchAndFilterAccessibilityTree(tabId, node) {
             }
 
         }
-
-        // for (const child of childNodes.nodes) {
-        //     try {
-        //         console.log(`Fetching child node with ID: ${child.backendDOMNodeId}`);
-
-        //         if (children) {
-        //             console.log("Fetched child node:", child.backendDOMNodeId);
-        //             const filteredChildNode = await processNode(child);
-        //             if (filteredChildNode) {
-        //                 children.push(filteredChildNode);
-        //             }
-        //         }
-        //     } catch (error) {
-        //         console.error("Error processing child node:", error);
-        //     }
-        // }
-
-        // // Include the current node if it has a name and a backendDOMNodeId
-        // if (node.name && node.name.value && node.name.value.trim() !== "") {
-        //     console.log("Adding backendDOMNodeId:", node.backendDOMNodeId);
-        //     backendDOMNodeIds.push(node.backendDOMNodeId);
-        // }
-
-        // Attach processed children to the current node
         return { ...node, children };
     }
 
@@ -206,11 +182,6 @@ async function fetchAndFilterAccessibilityTree(tabId, node) {
         return { filteredTree: null, backendDOMNodeIds };
     }
 }
-
-
-
-
-
 
 
 async function resolveNodeById(tabId, backendDOMNodeId) {
