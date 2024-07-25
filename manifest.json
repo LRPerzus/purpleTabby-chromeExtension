@@ -1,15 +1,22 @@
 {
-  "manifest_version": 3,
-  "name": "Find Element by backendDOMNodeId",
-  "version": "1.0",
-  "permissions": [
-    "activeTab",
-    "scripting"
-  ],
-  "background": {
-    "service_worker": "background.js"
-  },
-  "action": {
-    "default_popup": "popup.html"
+    "manifest_version": 3,
+    "name": "Accessibility Tree Extension",
+    "version": "1.0",
+    "description": "A Chrome extension to access and display the accessibility tree.",
+    "permissions": [
+      "downloads",
+      "activeTab",
+      "debugger",
+      "scripting"
+    ],
+    "host_permissions": [
+      "<all_urls>"
+    ],
+    "background": {
+      "service_worker": "background.js"
+    },
+    "action": {
+      "default_popup": "popup.html"
+    }
   }
-}
+  

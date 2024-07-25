@@ -1,12 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Find Element</title>
+    <title>Accessibility Tree</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            width: 300px;
+            height: 400px;
+            overflow: auto;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
 </head>
 <body>
-  <input type="text" id="backendDOMNodeId" placeholder="Enter backendDOMNodeId" />
-  <button id="findButton">Find Element</button>
-  <div id="result"></div>
-  <script src="popup.js"></script>
+    <h1>Accessibility Tree</h1>
+    <pre id="treeContent">Loading...</pre>
+    <script src="popup.js"></script>
+    <script src="content.js"></script>
+
 </body>
 </html>
