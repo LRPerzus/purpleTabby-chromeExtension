@@ -5,6 +5,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         await enableAccessibility(request.tabId);
         const rootNode = await getRootAXNode(request.tabId);
         const fullTree = await fetchFullAccessibilityTree(request.tabId, rootNode.node);
+        console.log("Full Tree",fullTree)
         chrome.runtime.sendMessage({ type: "AX_TREE", data: fullTree });
       } catch (error) {
         console.error(error);
