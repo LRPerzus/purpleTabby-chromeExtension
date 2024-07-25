@@ -1,0 +1,1 @@
+In this project we will try to move the functions and the code from Purple Tabby to a chrome extension.
