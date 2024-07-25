@@ -33,6 +33,11 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 type: "DOWNLOAD_AX_TREE",
                 data: json
             });
+
+            chrome.runtime.sendMessage({
+                type: "AX_TREE",
+                data: filteredTree
+            });
         } catch (error) {
             console.error("Error processing AX Tree:", error, JSON.stringify(error));
         } finally {
@@ -116,15 +121,22 @@ async function fetchAndFilterAccessibilityTree(tabId, node) {
 
         console.log("Processing Node:", node);
 
+        // Default values for name and role
+        const nameValue = (node.name && node.name.value && node.name.value.trim() !== "") ? node.name.value : "";
+        const roleValue = (node.role && node.role.value && node.role.value.trim() !== "") ? node.role.value : "";
+
         // Handle leaf nodes
         if (!node.childIds || node.childIds.length === 0) {
-            if (node.name && node.name.value && node.name.value.trim() !== "") {
+            if (nameValue !== "") {
                 console.log("Adding backendDOMNodeId:", node.backendDOMNodeId);
                 backendDOMNodeIds.push(node.backendDOMNodeId);
             }
-            return node;
+            return {
+                nodeId: node.nodeId,
+                name: nameValue,
+                role: roleValue
+            };
         }
-        console.log("node.backendDOMNodeId",node.childIds[0])
 
         // Process child nodes
         const childNodes = await new Promise((resolve, reject) => {
@@ -144,34 +156,35 @@ async function fetchAndFilterAccessibilityTree(tabId, node) {
         });
         
         // Convert the array of nodes to a dictionary where the key is nodeId
-        const childreNodesDictionary = childNodes.reduce((acc, curr) => {
+        const childNodesDictionary = childNodes.reduce((acc, curr) => {
             if (curr.nodeId) {
                 acc[curr.nodeId] = curr;
             }
             return acc;
         }, {});
         
-        console.log("nodesDictionary", childreNodesDictionary);
+        console.log("nodesDictionary", childNodesDictionary);
         
-
         const children = [];
-        for (const childId of node.childIds)
-        {
+        for (const childId of node.childIds) {
             console.log(`Fetching child node with ID: ${childId}`);
 
-            // You need to find the childNode cause the function is very weird
-            const foundChildNode = childreNodesDictionary[childId];
-            if (foundChildNode !== undefined)
-            {
+            const foundChildNode = childNodesDictionary[childId];
+            if (foundChildNode !== undefined) {
                 console.log(`Fetched child node with ID: ${childId}`);
                 const filteredChildNode = await processNode(foundChildNode);
                 if (filteredChildNode) {
                     children.push(filteredChildNode);
                 }
             }
-
         }
-        return { ...node, children };
+
+        return {
+            nodeId: node.nodeId,
+            name: nameValue,
+            role: roleValue,
+            children
+        };
     }
 
     try {
@@ -182,6 +195,7 @@ async function fetchAndFilterAccessibilityTree(tabId, node) {
         return { filteredTree: null, backendDOMNodeIds };
     }
 }
+
 
 
 async function resolveNodeById(tabId, backendDOMNodeId) {
