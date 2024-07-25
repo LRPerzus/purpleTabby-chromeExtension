@@ -1,23 +1,18 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // Listener for incoming messages
-    chrome.runtime.onMessage.addListener((message) => {
-      if (message.type === "AX_TREE") {
-        const treeContainer = document.getElementById('treeContent');
-        if (treeContainer) {
-          treeContainer.textContent = JSON.stringify(message.data, null, 2);
+// popup.js
+
+document.getElementById("findButton").addEventListener("click", () => {
+  const backendDOMNodeId = document.getElementById("backendDOMNodeId").value;
+
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    chrome.runtime.sendMessage(
+      { action: "findElementById", backendDOMNodeId: backendDOMNodeId },
+      (response) => {
+        if (response.success) {
+          document.getElementById("result").textContent = `Element found with nodeId: ${response.nodeId}`;
         } else {
-          console.error("Element with ID 'treeContent' not found.");
+          document.getElementById("result").textContent = `Error: ${response.error}`;
         }
       }
-    });
-  
-    // Request the AX tree when the popup opens
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0] && tabs[0].id) {
-        chrome.runtime.sendMessage({ type: "GET_AX_TREE", tabId: tabs[0].id });
-      } else {
-        console.error("Unable to get the active tab.");
-      }
-    });
+    );
   });
-  
+});
