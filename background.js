@@ -7,7 +7,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             await attachDebugger(tabId);
             await enableAccessibility(tabId);
             const rootNode = await getRootAXNode(tabId);
-            const { filteredTree, backendDOMNodeIds } = await fetchAndFilterAccessibilityTree(tabId, rootNode.node);
+            const { filteredTree, backendDOMNodeIds,totalNodeCount } = await fetchAndFilterAccessibilityTree(tabId, rootNode.node);
 
             const results = await Promise.all(
                 backendDOMNodeIds.map(async (backendDOMNodeId) => {
@@ -18,6 +18,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             );
 
             console.log("Filtered Tree:", filteredTree);
+            console.log("totalNodeCount",totalNodeCount);
             console.log("Backend DOM Node IDs:", backendDOMNodeIds);
             console.log("Results:", results);
 
@@ -107,49 +108,60 @@ async function getRootAXNode(tabId) {
 
 async function fetchAndFilterAccessibilityTree(tabId, node) {
     let backendDOMNodeIds = [];
+    let totalNodeCount = 0; // Initialize the counter
 
     async function processNode(node) {
         console.log("Processing Node:", node);
 
-        if (!node.childIds || node.childIds.length === 0) {
-            if (node.name && node.name.value && node.name.value.trim() !== "") {
-                console.log("Adding backendDOMNodeId:", node.backendDOMNodeId);
-                backendDOMNodeIds.push(node.backendDOMNodeId);
-            }
-            return node;
+        // Increment the total node count
+        totalNodeCount++;
+
+        // Extract relevant properties
+        let nodeData = {
+            backendDOMNodeId: node.backendDOMNodeId,
+            name: node.name && node.name.value ? node.name.value : null,
+            role: node.role && node.role.value ? node.role.value : null
+        };
+
+        // Check if `name.value` is not an empty string before adding to backendDOMNodeIds
+        if (nodeData.name && nodeData.name.trim() !== "") {
+            console.log("Adding backendDOMNodeId:", nodeData.backendDOMNodeId);
+            backendDOMNodeIds.push(nodeData.backendDOMNodeId);
         }
 
-        node.children = [];
-        for (const childId of node.childIds) {
-            const childNode = await new Promise((resolve, reject) => {
-                chrome.debugger.sendCommand({ tabId }, "Accessibility.getChildAXNodes", { id: childId }, (childResult) => {
-                    if (chrome.runtime.lastError) {
-                        reject(chrome.runtime.lastError);
-                    } else {
-                        resolve(childResult.nodes[0]);
-                    }
-                });
-            });
+        // Initialize children array
+        nodeData.children = [];
 
-            if (childNode) {
-                const filteredChildNode = await processNode(childNode);
-                if (filteredChildNode) {
-                    node.children.push(filteredChildNode);
+        // Fetch and process child nodes
+        if (node.childIds && node.childIds.length > 0) {
+            for (const childId of node.childIds) {
+                const childNode = await new Promise((resolve, reject) => {
+                    chrome.debugger.sendCommand({ tabId }, "Accessibility.getChildAXNodes", { id: childId }, (childResult) => {
+                        if (chrome.runtime.lastError) {
+                            reject(chrome.runtime.lastError);
+                        } else {
+                            resolve(childResult.nodes[0]);
+                        }
+                    });
+                });
+
+                if (childNode) {
+                    const filteredChildNode = await processNode(childNode);
+                    if (filteredChildNode) {
+                        nodeData.children.push(filteredChildNode);
+                    }
                 }
             }
         }
 
-        if (node.name && node.name.value && node.name.value.trim() !== "") {
-            console.log("Adding backendDOMNodeId:", node.backendDOMNodeId);
-            backendDOMNodeIds.push(node.backendDOMNodeId);
-        }
-
-        return node;
+        return nodeData;
     }
 
     const filteredTree = await processNode(node);
-    return { filteredTree, backendDOMNodeIds };
+    return { filteredTree, backendDOMNodeIds, totalNodeCount };
 }
+
+
 
 async function resolveNodeById(tabId, backendDOMNodeId) {
     return new Promise((resolve, reject) => {
