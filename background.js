@@ -1,8 +1,31 @@
+import { addXPath } from "./functions/addXpath.js";
+
+chrome.action.onClicked.addListener((tab) => {
+    chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['inject.js']
+    });
+});
+
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-    if (request.type === "GET_AX_TREE") {
+    if (request.type === "OVERLAY_CREATED") {
+        console.log("Overlay created, preparing to request AX tree.");
+
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs[0] && tabs[0].id) {
+                const tabId = tabs[0].id;
+                console.log("Sending GET_AX_TREE message with tabId:", tabId);
+                chrome.tabs.sendMessage(tabId, { type: "Can_Get_Tree", tabId: tabId });
+            } else {
+                console.error("Unable to get the active tab.");
+            }
+        });
+    }
+    else if (request.type === "GET_AX_TREE") {
         console.log("Message received in background script:", request);
         try {
             const tabId = request.tabId;
+            console.log("TabID IN BACKGROUND",tabId)
 
             await attachDebugger(tabId);
             await enableAccessibility(tabId);
@@ -21,23 +44,27 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             console.log("Backend DOM Node IDs:", backendDOMNodeIds);
             console.log("Results:", results);
 
+            // Modify the results
+            const notEmptyNames = [];
+            const allPaths = [];
+            addXPath(filteredTree, "", notEmptyNames,true,allPaths);
+
             // Prepare data for download
             const data = {
                 tree: filteredTree,
-                backendDOMNodeIds: backendDOMNodeIds
+                notEmptyNamesXapths: notEmptyNames
             };
             const json = JSON.stringify(data, null, 2);
 
             // Send the data to the content script or popup
-            chrome.runtime.sendMessage({
-                type: "DOWNLOAD_AX_TREE",
-                data: json
-            });
+            // chrome.runtime.sendMessage({
+            //     type: "DOWNLOAD_AX_TREE",
+            //     data: json
+            // });
 
-            chrome.runtime.sendMessage({
-                type: "AX_TREE",
-                data: filteredTree
-            });
+            chrome.tabs.sendMessage(tabId, { type: "AX_TREE", data: data }); // Use chrome tab cause runtime is not the same
+
+
         } catch (error) {
             console.error("Error processing AX Tree:", error, JSON.stringify(error));
         } finally {
@@ -57,6 +84,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 let debuggerAttached = {};
 
 async function attachDebugger(tabId) {
+    console.log("attachDebugger tabId",tabId)
     if (debuggerAttached[tabId]) return;
 
     return new Promise((resolve, reject) => {

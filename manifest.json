@@ -1,22 +1,28 @@
 {
-    "manifest_version": 3,
-    "name": "Accessibility Tree Extension",
-    "version": "1.0",
-    "description": "A Chrome extension to access and display the accessibility tree.",
-    "permissions": [
-      "downloads",
-      "activeTab",
-      "debugger",
-      "scripting"
-    ],
-    "host_permissions": [
-      "<all_urls>"
-    ],
-    "background": {
-      "service_worker": "background.js"
-    },
-    "action": {
-      "default_popup": "popup.html"
+  "manifest_version": 3,
+  "name": "Accessibility Tree Extension",
+  "version": "1.0",
+  "description": "A Chrome extension to access and display the accessibility tree.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "tabs",
+    "debugger"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_icon": "purpleA11yLogo.png"
+  }, 
+  "web_accessible_resources": [
+    {
+      "resources": ["popup.js", "inject.js"],
+      "matches": ["<all_urls>"]
     }
-  }
-  
+  ]
+}
