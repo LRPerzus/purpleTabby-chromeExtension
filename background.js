@@ -12,7 +12,6 @@ function waitForMessage(tabId, messageType) {
     });
 }
 
-
 chrome.action.onClicked.addListener((tab) => {
     // A11y Tree Listeners
     chrome.scripting.executeScript({
@@ -100,6 +99,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             //     type: "DOWNLOAD_AX_TREE",
             //     data: json
             // });
+            await detachDebugger(tabId);
 
             chrome.tabs.sendMessage(tabId, { type: "AX_TREE", data: data }); 
             // Use chrome tab cause runtime is not the same
@@ -108,19 +108,9 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
         } catch (error) {
             console.error("Error processing AX Tree:", error, JSON.stringify(error));
-        } finally {
-            try {
-                const tabId = request.tabId;
-                await detachDebugger(tabId);
-            } catch (error) {
-                console.error("Error detaching debugger:", error, JSON.stringify(error));
-            }
         }
     }
 });
-
-
-
 
 let debuggerAttached = {};
 
@@ -264,8 +254,6 @@ async function fetchAndFilterAccessibilityTree(tabId, node) {
         return { filteredTree: null, backendDOMNodeIds };
     }
 }
-
-
 
 async function resolveNodeById(tabId, backendDOMNodeId) {
     return new Promise((resolve, reject) => {
