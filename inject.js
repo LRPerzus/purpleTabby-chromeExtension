@@ -124,6 +124,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         } else {
             console.error("Element with ID 'treeContent' not found.");
         }
+        chrome.storage.local.set({ accessibilityTree: message.data.tree }, () => {
+            console.log("Tree data saved to Chrome storage.");
+        });
     }
 });
 
