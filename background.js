@@ -1,9 +1,46 @@
 import { addXPath } from "./functions/addXpath.js";
 
+function waitForMessage(tabId, messageType) {
+    return new Promise((resolve, reject) => {
+        function onMessage(request, sender, sendResponse) {
+            if (sender.tab.id === tabId && request.type === messageType) {
+                chrome.runtime.onMessage.removeListener(onMessage); // Clean up listener
+                resolve();
+            }
+        }
+        chrome.runtime.onMessage.addListener(onMessage);
+    });
+}
+
+
 chrome.action.onClicked.addListener((tab) => {
+    // A11y Tree Listeners
     chrome.scripting.executeScript({
         target: { tabId: tab.id },
-        files: ['inject.js']
+        files: ['./a11yTreeListeners.js']
+    });
+
+    //Get Clickable Listners
+    chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['./getClickableElementsListeners.js']
+    });
+
+    // Wait for both scripts to signal readiness
+    Promise.all([
+        waitForMessage(tab.id, "A11Y_LISTENERS_READY"),
+        waitForMessage(tab.id, "GET_CLICKABLE_READY")
+    ]).then(() => {
+        console.log("Both scripts are ready. Proceeding with further actions.");
+        // Proceed with additional actions
+        // Set the overlay
+        chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['./overlay.js']
+        });
+
+    }).catch(error => {
+        console.error("Error waiting for scripts to be ready:", error);
     });
 });
 
@@ -16,6 +53,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 const tabId = tabs[0].id;
                 console.log("Sending GET_AX_TREE message with tabId:", tabId);
                 chrome.tabs.sendMessage(tabId, { type: "Can_Get_Tree", tabId: tabId });
+                chrome.tabs.sendMessage(tabId, { type: "Can_find_clickable", tabId: tabId });
+
             } else {
                 console.error("Unable to get the active tab.");
             }
@@ -62,7 +101,9 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             //     data: json
             // });
 
-            chrome.tabs.sendMessage(tabId, { type: "AX_TREE", data: data }); // Use chrome tab cause runtime is not the same
+            chrome.tabs.sendMessage(tabId, { type: "AX_TREE", data: data }); 
+            // Use chrome tab cause runtime is not the same
+            // Tabs are used to send back to another script 
 
 
         } catch (error) {

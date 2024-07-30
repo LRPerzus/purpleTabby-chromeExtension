@@ -4,11 +4,9 @@ export function addXPath(json, xpath = '', notEmpty = [], first = false, allpath
         return;
     }
 
-    console.log("Adding path:", xpath);
     allpaths.push(xpath);
 
     if (json.name !== "" && !first) {
-        console.log("Setting XPath for:", json.name, " to ", xpath);
         json.xpath = xpath;
         notEmpty.push(json);
     }
