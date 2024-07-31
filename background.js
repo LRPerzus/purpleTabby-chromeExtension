@@ -1,4 +1,5 @@
 import { addXPath } from "./functions/addXpath.js";
+import { pruneEmptyNodes } from "./functions/pruneEmptyNodes.js";
 
 function waitForMessage(tabId, messageType) {
     return new Promise((resolve, reject) => {
@@ -85,30 +86,46 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             // Modify the results
             const notEmptyNames = [];
             const allPaths = [];
+            pruneEmptyNodes(filteredTree);
             addXPath(filteredTree, "", notEmptyNames,true,allPaths);
+            console.log("notEmptyNames",notEmptyNames);
 
-            // Prepare data for download
+            // Find the Xpaths in the DOM
             const data = {
-                tree: filteredTree,
-                notEmptyNamesXapths: notEmptyNames
-            };
-            const json = JSON.stringify(data, null, 2);
-
-            // Send the data to the content script or popup
-            // chrome.runtime.sendMessage({
-            //     type: "DOWNLOAD_AX_TREE",
-            //     data: json
-            // });
-            await detachDebugger(tabId);
-
-            chrome.tabs.sendMessage(tabId, { type: "AX_TREE", data: data }); 
+                tabId:tabId,
+                notEmptyNames:notEmptyNames
+            }
+            chrome.tabs.sendMessage(tabId, { type: "A11yTree_DOM_XPATHS", data: data }); 
             // Use chrome tab cause runtime is not the same
             // Tabs are used to send back to another script 
+
 
 
         } catch (error) {
             console.error("Error processing AX Tree:", error, JSON.stringify(error));
         }
+    }
+    else if (request.type === "A11yTree_DOM_XPATHS_DONE")
+    {
+        const foundElement = request.data.foundElements;
+        const tabId = request.data.tabId;
+        console.log("foundElement",foundElement)
+         // Prepare data for download
+         const data = {
+            foundElement:foundElement
+        };
+        const json = JSON.stringify(data, null, 2);
+
+        // Send the data to the content script or popup
+        chrome.tabs.sendMessage(tabId,{
+            type: "DOWNLOAD_AX_TREE",
+            data: json
+        });
+
+        chrome.tabs.sendMessage(tabId, { type: "AX_TREE", data: data });  
+        
+        await detachDebugger(tabId);
+
     }
 });
 
