@@ -12,40 +12,141 @@ function waitForMessage(tabId, messageType) {
         chrome.runtime.onMessage.addListener(onMessage);
     });
 }
-
-chrome.action.onClicked.addListener((tab) => {
-    // A11y Tree Listeners
-    chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['./a11yTreeListeners.js']
+async function isDebuggerAttached(tabId) {
+    chrome.debugger.getTargets((targets) => {
+        let attached = false;
+        for (const target of targets) {
+            if (target.tabId === tabId && target.attached) {
+                attached = true;
+                break;
+            }
+        }
+        return (attached);
     });
+}
 
-    //Get Clickable Listners
-    chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['./getClickableElementsListeners.js']
+async function getFromLocal(key) {
+    return new Promise((resolve, reject) => {
+        chrome.storage.local.get([key], function(result) {
+            if (chrome.runtime.lastError) {
+                reject(chrome.runtime.lastError);
+            } else {
+                resolve(result[key]);
+            }
+        });
     });
+}
 
-    // Wait for both scripts to signal readiness
-    Promise.all([
-        waitForMessage(tab.id, "A11Y_LISTENERS_READY"),
-        waitForMessage(tab.id, "GET_CLICKABLE_READY")
-    ]).then(() => {
-        console.log("Both scripts are ready. Proceeding with further actions.");
-        // Proceed with additional actions
+async function areScansFinished(tabId)
+{
+    let A11yTree = null; 
+    let clickAbleElements = null;
+
+    // For A11y Tree
+    try {
+        const foundElements = await getFromLocal("foundElements");
+        if (foundElements && foundElements.length > 0) {
+            A11yTree = foundElements;
+            console.log('A11yTree:', A11yTree);
+            // Do something with A11yTree
+        } else {
+            console.log('foundElements does not exist or is empty');
+        }
+    } catch (error) {
+        console.error('Error retrieving foundElements:', error);
+        // A11yTree remains null if there's an error
+    }
+
+    // For clickable
+    try {
+        const clickable = await getFromLocal("clickableElements");
+        if (clickable && clickable.length > 0) {
+            clickAbleElements = clickable;
+            console.log('clickableElements:', clickAbleElements);
+            // Do something with A11yTree
+        } else {
+            console.log('clickableElements does not exist or is empty');
+        }
+    } catch (error) {
+        console.error('Error retrieving clickableElements:', error);
+        // A11yTree remains null if there's an error
+    }
+
+    if ( A11yTree !== null && clickAbleElements !== null)
+    {
+        console.log("YAY ITS ALL DONE");
+        const data = 
+        {
+            clickAbleElements:clickAbleElements,
+            A11yTree: A11yTree,
+            tabId, tabId
+        }
+        chrome.tabs.sendMessage(tabId, { type: "SCAN_COMEPLETE ", data:data });
+
+    }
+}
+
+let firstClick = true;
+
+chrome.action.onClicked.addListener(async (tab) => {
+
+    console.log("When plugin is clicked debugger is:",await isDebuggerAttached(tab.id))
+
+    if (firstClick === true)
+    {
+        firstClick = false;
+         // A11y Tree Listeners
+        chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['./a11yTreeListeners.js']
+        });
+        //Get Clickable Listners
+        chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['./getClickableElementsListeners.js']
+        });
+
+        // Wait for both scripts to signal readiness
+        Promise.all([
+            waitForMessage(tab.id, "A11Y_LISTENERS_READY"),
+            waitForMessage(tab.id, "GET_CLICKABLE_READY")
+        ]).then(() => {
+            console.log("Both scripts are ready. Proceeding with further actions.");
+            // Proceed with additional actions
+            // Set the overlay
+            chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                files: ['./overlay.js']
+            });
+
+        }).catch(error => {
+            console.error("Error waiting for scripts to be ready:", error);
+        });
+    }
+    else
+    {
+        console.log("ReOpen after closing");
         // Set the overlay
         chrome.scripting.executeScript({
             target: { tabId: tab.id },
             files: ['./overlay.js']
         });
-
-    }).catch(error => {
-        console.error("Error waiting for scripts to be ready:", error);
-    });
+    }
+   
 });
 
+let onOFF = false
+
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-    if (request.type === "OVERLAY_CREATED") {
+    if (request.type === "ON_OFF")
+    {
+        onOFF = request.on;
+        const id = sender.tab.id;
+        console.log("onOFF",onOFF);
+        console.log("tabid",id)
+        console.log("Before I even attach the debugger",await isDebuggerAttached(id))
+    }
+    else if (request.type === "OVERLAY_CREATED") {
         console.log("Overlay created, preparing to request AX tree.");
 
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -64,9 +165,14 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         console.log("Message received in background script:", request);
         try {
             const tabId = request.tabId;
-            console.log("TabID IN BACKGROUND",tabId)
+            console.log("When GET_AX_TREE is triggered debugger is:",isDebuggerAttached(tabId));
 
-            await attachDebugger(tabId);
+            let debuggerAttached = false;
+            if (await isDebuggerAttached(request.tabId) === undefined || !debuggerAttached[tabId] && debuggerAttached[tabId] === false)
+            {
+                await attachDebugger(tabId);
+                debuggerAttached = true;
+            }
             await enableAccessibility(tabId);
             const rootNode = await getRootAXNode(tabId);
             const { filteredTree, backendDOMNodeIds} = await fetchAndFilterAccessibilityTree(tabId, rootNode.node);
@@ -95,6 +201,10 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 tabId:tabId,
                 notEmptyNames:notEmptyNames
             }
+            if (debuggerAttached)
+            {
+                await detachDebugger(tabId);
+            }
             chrome.tabs.sendMessage(tabId, { type: "A11yTree_DOM_XPATHS", data: data }); 
             // Use chrome tab cause runtime is not the same
             // Tabs are used to send back to another script 
@@ -107,6 +217,16 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     }
     else if (request.type === "A11yTree_DOM_XPATHS_DONE")
     {
+        chrome.storage.local.get(['foundElements'], function(result) {
+            if (chrome.runtime.lastError) {
+                console.error(chrome.runtime.lastError);
+            } else {
+                let foundElements = result.foundElements;
+                console.log('Found elements:', foundElements);
+                // Do something with foundElements
+            }
+        });
+        
         const foundElement = request.data.foundElements;
         const tabId = request.data.tabId;
         console.log("foundElement",foundElement)
@@ -116,6 +236,9 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         };
         const json = JSON.stringify(data, null, 2);
 
+        await areScansFinished(tabId);
+
+
         // Send the data to the content script or popup
         chrome.tabs.sendMessage(tabId,{
             type: "DOWNLOAD_AX_TREE",
@@ -123,8 +246,20 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         });
 
         chrome.tabs.sendMessage(tabId, { type: "AX_TREE", data: data });  
-        
-        await detachDebugger(tabId);
+    }
+    else if (request.type === "clickableElements_XPATHS_DONE")
+    {
+        chrome.storage.local.get(['clickableElements'], function(result) {
+            if (chrome.runtime.lastError) {
+                console.error(chrome.runtime.lastError);
+            } else {
+                let clickableElements = result.clickableElements;
+                console.log('Found clickableElements:', clickableElements);
+                // Do something with foundElements
+            }
+        });
+
+        await areScansFinished(request.tabId);
 
     }
 });

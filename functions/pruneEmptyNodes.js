@@ -1,4 +1,4 @@
-export function pruneEmptyNodes(json) {
+export async function pruneEmptyNodes(json) {
     if (json === null) {
         return null;
     }

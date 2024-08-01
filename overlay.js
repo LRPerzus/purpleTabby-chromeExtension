@@ -1,6 +1,7 @@
 function createOverlay() {
     // Create the overlay container
     const overlayContainer = document.createElement('div');
+    overlayContainer.className = "purpleTabby"
     overlayContainer.id = 'overlay-container';
     overlayContainer.style.position = 'fixed';
     overlayContainer.style.top = '50px'; // Adjust as needed
@@ -107,8 +108,6 @@ function addScript(src) {
     script.type = 'module'; // Ensure the script is treated as a module
     document.head.appendChild(script);
 }
-
-console.log("Injecting");
 // Inject the overlay when the script is executed
 if (!document.getElementById("overlay-container"))
 {

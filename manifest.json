@@ -7,7 +7,8 @@
     "activeTab",
     "scripting",
     "tabs",
-    "debugger"
+    "debugger",
+    "storage"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -28,7 +29,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js","a11yTreeToDOM.js"]
+      "js": ["content.js","a11yTreeToDOM.js","onOffSwitch.js","getClickableItems.js","scanningProcess.js"]
     }
   ]
 

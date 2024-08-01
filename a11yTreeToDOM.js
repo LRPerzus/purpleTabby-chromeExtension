@@ -1,3 +1,6 @@
+console.log("a11yTreeToDOM script loaded");
+
+
 function getChildIndex(childString) {
     let match = childString.match(/children\[(\d+)\]/);
     if (match) {

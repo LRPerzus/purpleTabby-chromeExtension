@@ -21,7 +21,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     else if (message.type === "A11yTree_DOM_XPATHS")
     {
         const notEmptyNamesXapths = message.data.notEmptyNames;
-        console.log("HEY HERE")
         const foundElements = a11yTreeToDOM(notEmptyNamesXapths);
         console.log("IN DOM foundElements",foundElements)
         const data =
@@ -29,11 +28,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             foundElements:foundElements,
             tabId : message.data.tabId
         }
-        // chrome.storage.local.set({ foundElements: foundElements }, function() {
-        //     chrome.runtime.sendMessage({ type: "A11yTree_DOM_XPATHS_DONE", data: data });
-        // });        
-        chrome.runtime.sendMessage({ type: "A11yTree_DOM_XPATHS_DONE", data: data });
-        
+        chrome.storage.local.set({ foundElements: foundElements }, function() {
+            chrome.runtime.sendMessage({ type: "A11yTree_DOM_XPATHS_DONE", data: data });
+        });                
     }
 });
 
