@@ -12,10 +12,10 @@ async function getClickableItems() {
             while (currentElement && currentElement.nodeType === Node.ELEMENT_NODE) {
                 // Check if the element is an <a> tag with an href attribute
                 if (currentElement.tagName.toLowerCase() === 'a' && currentElement.hasAttribute('href')) {
-                    return 'ahref';
+                    return 'skip';
                 }
                 if (currentElement.classList && currentElement.classList.contains('purpleTabby')) {
-                    return 'tabbyItem';
+                    return 'skip';
                 }
     
                 let index = 1;
@@ -70,7 +70,7 @@ async function getClickableItems() {
 
     const clickElements = [];
     try {
-        const elements = Array.from(document.querySelectorAll('*'));
+        const elements = Array.from(document.querySelectorAll('body *:not(a[href])'));
         elements.forEach(el => {
             try {
                 const style = window.getComputedStyle(el);
@@ -83,7 +83,7 @@ async function getClickableItems() {
                         }
                     } else {
                         const path = getXPath(el)
-                        if (path !== "ahref" && path !== "tabbyItem")
+                        if (path !== "skip")
                         {
                             clickElements.push(path); // Explicit cast to HTMLElement
                         }

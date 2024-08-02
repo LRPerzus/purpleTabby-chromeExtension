@@ -1,6 +1,23 @@
 import { addXPath } from "./functions/addXpath.js";
 import { pruneEmptyNodes } from "./functions/pruneEmptyNodes.js";
 
+// Function to clear local storage
+function clearLocalStorage() {
+    chrome.storage.local.clear(() => {
+      if (chrome.runtime.lastError) {
+        console.error(`Error clearing local storage: ${chrome.runtime.lastError}`);
+      } else {
+        console.log("Local storage cleared successfully.");
+      }
+    });
+  }
+  
+  // Example: Clear local storage when the extension is installed or updated
+  chrome.runtime.onInstalled.addListener(() => {
+    clearLocalStorage();
+  });
+  
+
 function waitForMessage(tabId, messageType) {
     return new Promise((resolve, reject) => {
         function onMessage(request, sender, sendResponse) {
@@ -45,6 +62,7 @@ async function areScansFinished(tabId)
     // For A11y Tree
     try {
         const foundElements = await getFromLocal("foundElements");
+        console.log("GET FROM LOCAL foundElements", foundElements)
         if (foundElements && foundElements.length > 0) {
             A11yTree = foundElements;
             console.log('A11yTree:', A11yTree);
@@ -60,6 +78,7 @@ async function areScansFinished(tabId)
     // For clickable
     try {
         const clickable = await getFromLocal("clickableElements");
+        console.log("GET FROM LOCAL clickableElements", clickable)
         if (clickable && clickable.length > 0) {
             clickAbleElements = clickable;
             console.log('clickableElements:', clickAbleElements);
@@ -71,7 +90,7 @@ async function areScansFinished(tabId)
         console.error('Error retrieving clickableElements:', error);
         // A11yTree remains null if there's an error
     }
-
+    
     if ( A11yTree !== null && clickAbleElements !== null)
     {
         console.log("YAY ITS ALL DONE");
@@ -81,7 +100,7 @@ async function areScansFinished(tabId)
             A11yTree: A11yTree,
             tabId, tabId
         }
-        chrome.tabs.sendMessage(tabId, { type: "SCAN_COMEPLETE ", data:data });
+        chrome.tabs.sendMessage(tabId, { type: "SCAN_COMEPLETE", data:data });
 
     }
 }
@@ -94,8 +113,10 @@ chrome.action.onClicked.addListener(async (tab) => {
 
     if (firstClick === true)
     {
+        clearLocalStorage();
+
         firstClick = false;
-         // A11y Tree Listeners
+        // A11y Tree Listeners
         chrome.scripting.executeScript({
             target: { tabId: tab.id },
             files: ['./a11yTreeListeners.js']
@@ -104,7 +125,8 @@ chrome.action.onClicked.addListener(async (tab) => {
         chrome.scripting.executeScript({
             target: { tabId: tab.id },
             files: ['./getClickableElementsListeners.js']
-        });
+        });       
+
 
         // Wait for both scripts to signal readiness
         Promise.all([
@@ -244,8 +266,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             type: "DOWNLOAD_AX_TREE",
             data: json
         });
-
-        chrome.tabs.sendMessage(tabId, { type: "AX_TREE", data: data });  
+        
     }
     else if (request.type === "clickableElements_XPATHS_DONE")
     {
@@ -261,6 +282,16 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
         await areScansFinished(request.tabId);
 
+    }
+
+    else if (request.type === "MISSING_FOUND")
+    {
+        const tabId = request.data.tabId;
+         // Send the data to the content script or popup
+         chrome.tabs.sendMessage(tabId,{
+            type: "UPDATE_OVERLAY",
+            data: request.data
+        });
     }
 });
 
