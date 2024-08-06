@@ -113,12 +113,6 @@ function createOverlay() {
     overlayContainer.ondragstart = () => false;
 }
 
-function addScript(src) {
-    const script = document.createElement('script');
-    script.src = chrome.runtime.getURL(src);
-    script.type = 'module'; // Ensure the script is treated as a module
-    document.head.appendChild(script);
-}
 // Inject the overlay when the script is executed
 if (!document.getElementById("overlay-container"))
 {

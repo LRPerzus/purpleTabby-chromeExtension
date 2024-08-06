@@ -1,7 +1,6 @@
 let pageListenerResult = "";
 console.log("scanning process injected");
 
-const missing = [];
 
 function inList(a11yTree, xpath) {
     return a11yTree.some(path => xpath.startsWith(path));
@@ -11,6 +10,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === "SCAN_COMEPLETE")
     {
         console.log("SCAN_COMEPLETE HELLO?")
+        const missing = [];
+
         const tab = message.data.tabId;
         const clickableElements = message.data.clickAbleElements;
         const A11yTree = message.data.A11yTree;
@@ -43,7 +44,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         clickableElements.forEach(elementXpath => {
             if (!inList(A11yTree,elementXpath))
             {
-                
                 missing.push(elementXpath);
             }
         });

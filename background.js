@@ -2,9 +2,18 @@ import { addXPath } from "./functions/addXpath.js";
 import { pruneEmptyNodes } from "./functions/pruneEmptyNodes.js";
 
 // Function to store data for a specific tab
-function storeDataForTab(tabId, data, type, noClicked) {
+function storeDataForTab(tabId, data, type, noClicked = null) {
     // Create a key specific to the tab
-    const key = `tab_${tabId}_${type}_${noClicked}`;
+    let key
+
+    if ( noClicked === null)
+    {
+        key = `tab_${tabId}_${type}`;
+    }
+    else
+    {
+        key = `tab_${tabId}_${type}_${noClicked}`;
+    }
 
     // Store data in chrome.storage.local
     chrome.storage.local.set({ [key]: data }, () => {
@@ -23,7 +32,7 @@ async function updateNoClicksTabID(tabId, change = false) {
     // Check if the key exists and get its current value
     chrome.storage.local.get(keyClicks, (result) => {
         console.log("updateNoClicksTabID result:",result);
-        if (result.length === 0) {
+        if (result[keyClicks]) {
             // Key exists
             let currentCount = result[keyClicks];
 
@@ -148,46 +157,42 @@ async function areScansFinished(tabId)
     let A11yTree = null; 
     let clickAbleElements = null;
     const currentClick = await getFromLocal(tabId,"noClicks")
+    console.log("currentClick",currentClick);
     if (firstClick[tabId] === false)
     {
         console.log("HEY I Already clicked once")
-        Promise.all([
-            waitForMessage(tabId, "A11yTree_Stored"),
-            waitForMessage(tabId, "clickable_stored")
-        ]).then(async () => {
-             // For A11y Tree
-            try {
-                const foundElements = await getFromLocal(tabId,"foundElements",currentClick);
-                console.log("GET FROM LOCAL foundElements", foundElements)
-                if (foundElements && foundElements.length > 0) {
-                    A11yTree = foundElements;
-                    console.log('A11yTree:', A11yTree);
-                    // Do something with A11yTree
-                } else {
-                    console.log('foundElements does not exist or is empty');
-                }
-            } catch (error) {
-                console.error('Error retrieving foundElements:', error);
-                // A11yTree remains null if there's an error
+        try {
+            const foundElements = await getFromLocal(tabId,"foundElements",currentClick);
+            console.log("GET FROM LOCAL foundElements", foundElements)
+            if (foundElements && foundElements.length > 0) {
+                A11yTree = foundElements;
+                console.log('A11yTree:', A11yTree);
+                // Do something with A11yTree
+            } else {
+                console.log('foundElements does not exist or is empty');
             }
+        } catch (error) {
+            console.error('Error retrieving foundElements:', error);
+            // A11yTree remains null if there's an error
+        }
 
-            // For clickable
-            try {
-                const clickable = await getFromLocal(tabId,"clickableElements",currentClick);
-                console.log("GET FROM LOCAL clickableElements", clickable)
-                if (clickable && clickable.length > 0) {
-                    clickAbleElements = clickable;
-                    console.log('clickableElements:', clickAbleElements);
-                    // Do something with A11yTree
-                } else {
-                    console.log('clickableElements does not exist or is empty');
-                }
-            } catch (error) {
-                console.error('Error retrieving clickableElements:', error);
-                // A11yTree remains null if there's an error
+        // For clickable
+        try {
+            const clickable = await getFromLocal(tabId,"clickableElements",currentClick);
+            console.log("GET FROM LOCAL clickableElements", clickable)
+            if (clickable && clickable.length > 0) {
+                clickAbleElements = clickable;
+                console.log('clickableElements:', clickAbleElements);
+                // Do something with A11yTree
+            } else {
+                console.log('clickableElements does not exist or is empty');
             }
+        } catch (error) {
+            console.error('Error retrieving clickableElements:', error);
+            // A11yTree remains null if there's an error
+        }
 
-            if ( A11yTree !== null && clickAbleElements !== null)
+        if ( A11yTree !== null && clickAbleElements !== null)
             {
                 console.log("YAY ITS ALL DONE");
                 const data = 
@@ -199,10 +204,6 @@ async function areScansFinished(tabId)
                 chrome.tabs.sendMessage(tabId, { type: "SCAN_COMEPLETE", data:data });
 
             }
-
-        }).catch(error => {
-            console.error("Error waiting for scripts to be ready:", error);
-        });
     }
     else {
          // For A11y Tree
@@ -238,17 +239,18 @@ async function areScansFinished(tabId)
         }
 
         if ( A11yTree !== null && clickAbleElements !== null)
-        {
-            console.log("YAY ITS ALL DONE");
-            const data = 
             {
-                clickAbleElements:clickAbleElements,
-                A11yTree: A11yTree,
-                tabId, tabId
-            }
-            chrome.tabs.sendMessage(tabId, { type: "SCAN_COMEPLETE", data:data });
+                console.log("YAY ITS ALL DONE");
+                const data = 
+                {
+                    clickAbleElements:clickAbleElements,
+                    A11yTree: A11yTree,
+                    tabId, tabId
+                }
+                chrome.tabs.sendMessage(tabId, { type: "SCAN_COMEPLETE", data:data });
 
-        }
+            }
+
     }
     
 }
@@ -260,8 +262,9 @@ chrome.action.onClicked.addListener(async (tab) => {
     console.log("When plugin is clicked debugger is:",await isDebuggerAttached(tab.id))
     console.log("firstClick",firstClick)
 
-    if (!(tab.id in firstClick) || firstClick[tab.id] !== true)
+    if (!(tab.id in firstClick))
     {
+        console.log("This is the first click");
         firstClick[tab.id] = true;
         await clearDataForTab(tab.id);
 
@@ -307,6 +310,9 @@ chrome.action.onClicked.addListener(async (tab) => {
     {
         console.log("ReOpen after closing");
         firstClick[tab.id] = false
+        
+        // updates
+        await updateNoClicksTabID(tab.id,true);
 
         // Set the overlay
         chrome.scripting.executeScript({
@@ -352,7 +358,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (tabs[0] && tabs[0].id) {
                 const tabId = tabs[0].id;
-                console.log("Sending GET_AX_TREE message with tabId:", tabId);
+                console.log("Sending Can get messages to tabId:", tabId);
                 chrome.tabs.sendMessage(tabId, { type: "Can_Get_Tree", tabId: tabId });
                 chrome.tabs.sendMessage(tabId, { type: "Can_find_clickable", tabId: tabId });
 
@@ -470,7 +476,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
     else if (request.type === "MISSING_FOUND")
     {
-        storeDataForTab(request.data.tabId,request.data.missing,"missingXpath")
+        storeDataForTab(request.data.tabId,request.data.missing,"missingXpath");
         const tabId = request.data.tabId;
          // Send the data to the content script or popup
          chrome.tabs.sendMessage(tabId,{
