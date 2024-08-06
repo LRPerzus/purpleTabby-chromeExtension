@@ -51,11 +51,15 @@ function createOverlay() {
 
     const highlightButton = document.createElement('button');
     highlightButton.id = 'highlightItemsA11yTree';
-    highlightButton.className = 'hidden';
     highlightButton.textContent = 'Highlight Items (A11y Tree)';
+    highlightButton.style.display = 'none'; // Add hidden style
     contentBox.appendChild(highlightButton);
 
-    const treeContent = document.createElement('pre');
+    const treeContent = document.createElement('textarea');
+    // Set the width and height
+    treeContent.style.width = '300px';
+    treeContent.style.height = '200px';
+    
     treeContent.id = 'treeContent';
     treeContent.textContent = 'Loading...';
     contentBox.appendChild(treeContent);
@@ -66,10 +70,17 @@ function createOverlay() {
     // Append the overlay container to the body
     document.body.appendChild(overlayContainer);
 
-    // Add event listener to the close button
+    // Add event listener
     closeButton.addEventListener('click', () => {
         document.getElementById('overlay-container').remove();
     });
+
+    highlightButton.addEventListener('click', () => {
+        if (chrome.runtime && chrome.runtime.sendMessage) {
+            chrome.runtime.sendMessage({ type: "HIGHLIGHT_MISSING"});
+        }
+    });
+
 
     // Make the overlay movable
     let isDragging = false;

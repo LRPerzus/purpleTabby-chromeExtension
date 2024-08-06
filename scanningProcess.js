@@ -4,7 +4,7 @@ console.log("scanning process injected");
 const missing = [];
 
 function inList(a11yTree, xpath) {
-    return a11yTree.some(path => path.includes(xpath));
+    return a11yTree.some(path => xpath.startsWith(path));
 }
   
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -59,21 +59,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     else if (message.type === "UPDATE_OVERLAY")
     {
-        console.log("HELLO UPDATE_OVERLAY")
+        console.log("HELLO UPDATE_OVERLAY")        
+
+
         const treeContainer = document.getElementById('treeContent');
-        if (treeContainer) {
+        const highlightButton = document.querySelector(".purpleTabby #highlightItemsA11yTree");
+
+        if (treeContainer && highlightButton) {
+            // Unhide button
+            highlightButton.style.display = 'block'; // Add hidden style
+
             // Clear it
-            treeContainer.innerHTML = "";
+            treeContainer.value = ""; // Clear the textarea content
 
-            const noMissing = document.createElement("div");
-            noMissing.textContent = `There are ${message.data.missing.length} elements missing from the tree.`;
-            const missingXpaths = document.createElement("div");
-            missingXpaths.textContent = JSON.stringify(message.data.missing, null, 2);
-            treeContainer.appendChild(noMissing);
-            treeContainer.appendChild(missingXpaths);
+            // Create content
+            const noMissingMessage = `There are ${message.data.missing.length} elements missing from the tree.\n`;
+            const missingXpaths = JSON.stringify(message.data.missing, null, 2); // Format JSON with indentation
 
-
-        } else {
+            // Set content to textarea
+            treeContainer.value = noMissingMessage + missingXpaths;
+        }
+        else {
             console.error("Element with ID 'treeContent' not found.");
         }
     }

@@ -101,36 +101,55 @@ function a11yTreeToDOM(notEmptyNamesXapths)
     
                         child = childrenOfElement[indexOfChild];
                         style = child.getBoundingClientRect();
-                        visibale = (style.width === 0 && style.height === 0);
+                        visibale = (style.width === 0 || style.height === 0);
                         let isItNone = window.getComputedStyle(child).display === "none";
                         console.log("Hey visbale?:", visibale);
                         console.log("Current section of the Xpath", element);
                         console.log("Looking into", child);
+                        console.log("end?",end)
                         console.log("indexOfChild >= changesChildIndex", indexOfChild >= changesChildIndex);
                         console.log("indexOfChild", indexOfChild);
                         console.log("changesChildIndex", changesChildIndex);
                         console.log("isItNone", isItNone);
     
                         // Check if the child's tag name is in the list of tag names
-                        if (skipTags.includes(child.tagName.toLowerCase()) && indexOfChild >= childIndex) {
+                        if (skipTags.includes(child.tagName.toLowerCase()) && indexOfChild <= childIndex) {
                             // Check if the index of this child is less than the specified childIndex
                             console.log("In skiptags array");
                             if (changesChildIndex + 1 <= childrenOfElement.length - 1) {
                                 changesChildIndex++;
                             }
                         } else if (child.shadowRoot) {
+                            console.log("It has shadowroot")
                             end = true;
                         } else if (child.hasAttribute("rel")) {
                             if (child.getAttribute("rel").toLowerCase() === "stylesheet") { // Some links are stylesheets
                                 changesChildIndex++;
                             }
                         } else if ((visibale && child.shadowRoot) || window.getComputedStyle(child).display === "none") {
+                            console.log("Visiable or ShadowRoot")
                             changesChildIndex++;
-                        } else if (xpathsTraverseIndex + 1 !== xpaths.length && child.innerHTML.trim() === "" && child.tagName.toLowerCase() !== "hr") {
+                        } else if (xpathsTraverseIndex + 1 !== xpaths.length 
+                            && child.innerHTML.trim() === "" 
+                            && child.tagName.toLowerCase() !== "hr" 
+                            && indexOfChild >= childIndex // we are at or futuredown (due to other adding conditions)
+                            ) {
                             console.log("Empty innerHTML");
                             changesChildIndex++;
-                        } else if (child !== null && child !== undefined && (indexOfChild >= changesChildIndex)) { // If it passes all conditions
-                            end = true;
+                        } else if (child !== null && child !== undefined) { // If it passes all conditions and is a possible element
+                            if (changesChildIndex !== childIndex)
+                            {
+                                console.log("changesChildIndex !== childIndex",changesChildIndex !== childIndex)
+                                if (indexOfChild >= changesChildIndex)
+                                {
+                                    end = true;
+                                }
+                            }
+                            else if (indexOfChild >= changesChildIndex)
+                            {
+                                console.log("hey indexOfChild >= changesChildIndex:",indexOfChild >= changesChildIndex)
+                                end = true;
+                            }
                         }
     
                         if (!end) {

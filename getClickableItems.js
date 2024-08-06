@@ -43,11 +43,6 @@ async function getClickableItems() {
                 }
             }
     
-            // Make sure to handle the case when the element is the root
-            if (xPath.startsWith('/')) {
-                xPath = xPath.substring(1); // Remove leading '/'
-            }
-    
             return xPath || '/';
         } catch (error) {
             console.error('Error in getXPath:', error);
