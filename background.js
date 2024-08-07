@@ -1,5 +1,4 @@
 import { addXPath } from "./functions/addXpath.js";
-import { pruneEmptyNodes } from "./functions/pruneEmptyNodes.js";
 
 // Function to store data for a specific tab
 function storeDataForTab(tabId, data, type, noClicked = null) {
@@ -382,15 +381,17 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             await enableAccessibility(tabId);
             const rootNode = await getRootAXNode(tabId);
             console.log("rootNode",rootNode.node)
-            const {filteredTree} = await fetchAndFilterAccessibilityTree(tabId, rootNode.node);
+            const {filteredTree,backendDOMNodeIds} = await fetchAndFilterAccessibilityTree(tabId, rootNode.node);
 
-            // const results = await Promise.all(
-            //     backendDOMNodeIds.map(async (backendDOMNodeId) => {
-            //         console.log("Looking at backendDOMNodeId", backendDOMNodeId);
-            //         const result = await resolveNodeById(tabId, backendDOMNodeId);
-            //         return { backendDOMNodeId, result };
-            //     })
-            // );
+            await enableDOMDomain(tabId)
+            console.log("backendDOMNodeIds",backendDOMNodeIds)
+
+            // Testing to see if i can use this nodeId to manipulate
+            const test = await getDOMDocument(tabId);
+            console.log("WHOLE DOM TREE",test)
+            const domDictionary = await collectDOMNodes(tabId)   
+            console.log("domDictionary",domDictionary) 
+            await settingAttributeNode(tabId,backendDOMNodeIds,domDictionary);
 
             console.log("Filtered Tree:", filteredTree);
             // console.log("Backend DOM Node IDs:", backendDOMNodeIds);
@@ -409,7 +410,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 notEmptyNames:notEmptyNames
             }
             if (debuggerAttached)
-            {
+            {   
+                console.log("Dettaching")
                 await detachDebugger(tabId);
             }
             // Send the data to the content script or popup
@@ -421,7 +423,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             chrome.tabs.sendMessage(tabId, { type: "A11yTree_DOM_XPATHS", data: data }); 
             // Use chrome tab cause runtime is not the same
             // Tabs are used to send back to another script 
-
 
 
         } catch (error) {
@@ -588,7 +589,16 @@ async function fetchAndFilterAccessibilityTree(tabId, node) {
 
         // Collect backendDOMNodeIds for nodes with names
         if (node.name && node.name.value && node.name.value.trim() !== "") {
-            backendDOMNodeIds.push(node.backendDOMNodeId);
+            let id = parseInt(node.nodeId)
+            if (id < 0)
+            {
+                id = parseInt(node.parentId)
+            }
+            console.log("Pushing to backendDOMNodeID:",id);
+            if (!backendDOMNodeIds.includes(id))
+            {
+                backendDOMNodeIds.push(id);
+            }
         }
 
         return nodeObject;
@@ -602,18 +612,131 @@ async function fetchAndFilterAccessibilityTree(tabId, node) {
         return { filteredTree: null, backendDOMNodeIds };
     }
 }
-
-
-// Function to get the accessibility tree
-// Do not use this is bad not good :(
-function getAccessibilityTree(tabId) {
+// Enable the DOM domain
+function enableDOMDomain(tabId) {
     return new Promise((resolve, reject) => {
-      chrome.debugger.sendCommand({ tabId: tabId }, 'Accessibility.getFullAXTree', {}, (result) => {
+      chrome.debugger.sendCommand({tabId: tabId}, 'DOM.enable', {}, () => {
         if (chrome.runtime.lastError) {
-          reject(new Error(`Command failed: ${chrome.runtime.lastError.message}`));
-        } else {
-          resolve(result);
+          return reject(chrome.runtime.lastError);
         }
+        resolve();
       });
     });
   }
+
+  async function setAttributeValue(tabId, nodeId) {
+    const name = "purple_tabby_a11yTree";
+    const value = "true";
+
+    // Step 1: Set the attribute
+    await new Promise((resolve, reject) => {
+        chrome.debugger.sendCommand({ tabId }, 'DOM.setAttributeValue', {
+            nodeId,
+            name,
+            value
+        }, (result) => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+            }
+
+            resolve(result);
+        });
+    });
+
+    // Step 2: Verify the attribute was set correctly
+    return new Promise((resolve, reject) => {
+        chrome.debugger.sendCommand({ tabId }, 'DOM.getAttributes', { nodeId }, (result) => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+            }
+
+            const attributes = result.attributes;
+            const attribute = attributes.find(attr => attr.name === name);
+            
+            if (attribute && attribute.value === value) {
+                resolve(true);
+            } else {
+                resolve(false);
+            }
+        });
+    });
+}
+
+async function getDOMDocument(tabId) {
+    return new Promise((resolve, reject) => {
+        chrome.debugger.sendCommand({ tabId }, 'DOM.getDocument', {depth:-1}, (result) => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+            }
+
+            resolve(result);
+        });
+    });
+}
+
+
+async function collectDOMNodes(tabId) {
+    const nodeMap = {}; // Dictionary to store backendNodeId and nodeId pairs
+
+    function traverseNode(node) {
+        try{
+            // Add backendNodeId and nodeId to the dictionary
+            console.log("traverseNode node.nodeId",node.nodeId)
+            if (node.backendNodeId) {
+                nodeMap[node.backendNodeId] = node.nodeId;
+            }
+
+            // Process children recursively
+            if (Array.isArray(node.children)) {
+                for (const child of node.children) {
+                    traverseNode(child);
+                }
+            } else if (node.children) {
+                console.warn("Node.children is not an array:", node);
+            }
+        }
+        catch (error){
+            console.error("Error traverseNode:", error);
+
+        }
+        
+    }
+
+    // Start traversal from the root node
+    try {
+        const document = await getDOMDocument(tabId);
+        console.log("Whole Tree",document);
+        traverseNode(document.root);
+    } catch (error) {
+        console.error("Error collecting DOM nodes:", error);
+    }
+
+    return nodeMap;
+}
+
+async function settingAttributeNode(tabId, backendDOMNodeIds, domDictionary) {
+    // Create an array of promises for setting attributes
+    const promises = backendDOMNodeIds.map(async backendId => {
+        try {
+            console.log("settingAttributeNode", backendId);
+            const correspondingNodeId = domDictionary[backendId];
+            console.log("correspondingNodeId", correspondingNodeId);
+
+            if (correspondingNodeId) {
+                const attribute = await setAttributeValue(tabId, correspondingNodeId);
+                console.log("set attribute?", attribute);
+            } else {
+                console.log("settingAttributeNode Erm it does not exists");
+
+            }
+        } catch (error) {
+            console.log(`settingAttributeNode Error: ${error}`);
+        }
+    });
+
+    // Wait for all promises to complete
+    await Promise.allSettled(promises);
+}
