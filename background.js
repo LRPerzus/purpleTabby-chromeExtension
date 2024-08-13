@@ -379,48 +379,35 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 debuggerAttached = true;
             }
             await enableAccessibility(tabId);
-            const rootNode = await getRootAXNode(tabId);
-            console.log("rootNode",rootNode.node)
-            const {filteredTree,backendDOMNodeIds} = await fetchAndFilterAccessibilityTree(tabId, rootNode.node);
-
             await enableDOMDomain(tabId)
-            console.log("backendDOMNodeIds",backendDOMNodeIds)
 
             // Testing to see if i can use this nodeId to manipulate
-            const test = await getDOMDocument(tabId);
-            console.log("WHOLE DOM TREE",test)
+            const fullA11yTree = await getFullAXTree(tabId);
+            console.log("WHOLE A11y TREE",fullA11yTree);
+            // collecting only the DOMids with names
+            const onlyNames = await fullA11yTreeFilter(fullA11yTree.nodes);
+            console.log("filtered tree A11y Whole:",onlyNames);
             const domDictionary = await collectDOMNodes(tabId)   
             console.log("domDictionary",domDictionary) 
-            await settingAttributeNode(tabId,backendDOMNodeIds,domDictionary);
-
-            console.log("Filtered Tree:", filteredTree);
-            // console.log("Backend DOM Node IDs:", backendDOMNodeIds);
-            // console.log("Results:", results);
-
-            // Modify the results
-            const notEmptyNames = [];
-            const allPaths = [];
-            // await pruneEmptyNodes(filteredTree);
-            await addXPath(filteredTree, "", notEmptyNames,true,allPaths);
-            console.log("notEmptyNames",notEmptyNames);
+            await settingAttributeNode(tabId,onlyNames,domDictionary);
 
             // Find the Xpaths in the DOM
             const data = {
                 tabId:tabId,
-                notEmptyNames:notEmptyNames
             }
             if (debuggerAttached)
             {   
                 console.log("Dettaching")
                 await detachDebugger(tabId);
             }
-            // Send the data to the content script or popup
-            chrome.tabs.sendMessage(tabId,{
-                type: "DOWNLOAD_AX_TREE",
-                data: {filteredTree:filteredTree}
-            });
 
-            chrome.tabs.sendMessage(tabId, { type: "A11yTree_DOM_XPATHS", data: data }); 
+            // // After setting the attribute we send out a call to one of the injected js
+            // chrome.tabs.sendMessage(tabId,{
+            //     type: "DOWNLOAD_AX_TREE",
+            //     data: {filteredTree:filteredTree}
+            // });
+
+            chrome.tabs.sendMessage(tabId, { type: "FULL_A11yTree_DOM_XPATHS", data: data }); 
             // Use chrome tab cause runtime is not the same
             // Tabs are used to send back to another script 
 
@@ -666,7 +653,7 @@ function enableDOMDomain(tabId) {
 
 async function getDOMDocument(tabId) {
     return new Promise((resolve, reject) => {
-        chrome.debugger.sendCommand({ tabId }, 'DOM.getDocument', {depth:-1}, (result) => {
+        chrome.debugger.sendCommand({ tabId }, 'DOM.getDocument', {depth:-1, pierce:true}, (result) => {
             if (chrome.runtime.lastError) {
                 reject(new Error(chrome.runtime.lastError.message));
                 return;
@@ -684,9 +671,18 @@ async function collectDOMNodes(tabId) {
     function traverseNode(node) {
         try{
             // Add backendNodeId and nodeId to the dictionary
-            console.log("traverseNode node.nodeId",node.nodeId)
             if (node.backendNodeId) {
                 nodeMap[node.backendNodeId] = node.nodeId;
+            }
+
+            if (Array.isArray(node.shadowRoots))
+            {
+                console.log("traverseNode shadowRoot exsists")
+                for (const child of node.shadowRoots) {
+                    traverseNode(child);
+                }
+            } else {
+                console.warn("No shadowRoot is not an array:", node);
             }
 
             // Process children recursively
@@ -719,7 +715,7 @@ async function collectDOMNodes(tabId) {
 
 async function settingAttributeNode(tabId, backendDOMNodeIds, domDictionary) {
     // Create an array of promises for setting attributes
-    const promises = backendDOMNodeIds.map(async backendId => {
+    const promises = Object.keys(backendDOMNodeIds).map(async backendId => {
         try {
             console.log("settingAttributeNode", backendId);
             const correspondingNodeId = domDictionary[backendId];
@@ -739,4 +735,42 @@ async function settingAttributeNode(tabId, backendDOMNodeIds, domDictionary) {
 
     // Wait for all promises to complete
     await Promise.allSettled(promises);
+}
+async function getFullAXTree(tabId) {
+    return new Promise((resolve, reject) => {
+        chrome.debugger.sendCommand({ tabId }, 'Accessibility.getFullAXTree', {}, (result) => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+            } else {
+                resolve(result);
+            }
+        });
+    });
+}
+
+async function fullA11yTreeFilter(fullA11yTree) {
+    const backEndIdWithName = {};
+    console.log("fullA11yTreeFilter", fullA11yTree);
+    const listOfRolesThatWillBeSeen = ["button"]
+    let count = 0
+    for (const obj of fullA11yTree) {
+        /* 
+            Switch to this if want to swtich back 
+            (obj.name.value !== "" || listOfRolesThatWillBeSeen.includes(obj.role.value))
+        */
+        if (obj.name && obj.name.value !== "" ) {
+            if (obj.role && obj.role.value === "StaticText" && obj.parentId !== "")
+            {
+                obj.backendDOMNodeId = parseInt(obj.parentId);
+            }
+            backEndIdWithName[obj.backendDOMNodeId] = `${obj.name.value} ${count}`;
+        }
+        else
+        {
+            console.log("fullA11yTreeFilter cannot get xpath from element?")
+        }
+        count++;
+    }
+
+    return backEndIdWithName;
 }

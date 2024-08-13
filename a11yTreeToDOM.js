@@ -203,3 +203,33 @@ function a11yTreeToDOM(notEmptyNamesXapths)
     return elementsFound;
 
 }
+
+function findAllWithAttribute(selector, root = document) {
+    const elements = Array.from(root.querySelectorAll(selector));
+
+    // Search through shadow roots recursively
+    const shadowHosts = root.querySelectorAll('*');
+    shadowHosts.forEach(el => {
+        if (el.shadowRoot) {
+            elements.push(...findAllWithAttribute(selector, el.shadowRoot));
+        }
+    });
+
+    return elements;
+}
+
+function a11yTreeToDOM()
+{
+    const elementsWithPurpleTabby = findAllWithAttribute('[purple_tabby_a11yTree]');
+    console.log()
+    const foundElements = []
+    elementsWithPurpleTabby.forEach(element => {
+        const xpath = getXPath(element)
+        if (xpath)
+        {
+            foundElements.push(xpath);
+        }
+    });
+    console.log("a11yTreeToDOM foundElements",foundElements)
+    return foundElements;
+}

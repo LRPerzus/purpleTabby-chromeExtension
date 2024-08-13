@@ -31,6 +31,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         chrome.runtime.sendMessage({ type: "A11yTree_DOM_XPATHS_DONE", data: data });
     }
+    else if (message.type === "FULL_A11yTree_DOM_XPATHS")
+    {
+        const foundElements = a11yTreeToDOM();
+        const data =
+        {
+            foundElements:foundElements,
+            tabId : message.data.tabId
+        }
+        chrome.runtime.sendMessage({ type: "A11yTree_DOM_XPATHS_DONE", data: data });
+    }
     else if (message.type === "A11yTree_Stored")
     {
         chrome.runtime.sendMessage({ type: "A11yTree_Stored"});
