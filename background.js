@@ -261,10 +261,10 @@ chrome.action.onClicked.addListener(async (tab) => {
     console.log("When plugin is clicked debugger is:",await isDebuggerAttached(tab.id))
     console.log("firstClick",firstClick)
 
-    if (!(tab.id in firstClick))
+    if (!(tab.id in firstClick) || firstClick[tab.id] !== tab.url)
     {
         console.log("This is the first click");
-        firstClick[tab.id] = true;
+        firstClick[tab.id] = tab.url;
         await clearDataForTab(tab.id);
 
         // attaches the number of clicks
