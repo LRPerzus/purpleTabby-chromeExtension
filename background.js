@@ -1,261 +1,10 @@
-import { addXPath } from "./functions/addXpath.js";
-
-// Function to store data for a specific tab
-function storeDataForTab(tabId, data, type, noClicked = null) {
-    // Create a key specific to the tab
-    let key
-
-    if ( noClicked === null)
-    {
-        key = `tab_${tabId}_${type}`;
-    }
-    else
-    {
-        key = `tab_${tabId}_${type}_${noClicked}`;
-    }
-
-    // Store data in chrome.storage.local
-    chrome.storage.local.set({ [key]: data }, () => {
-        if (chrome.runtime.lastError) {
-            console.error(`Error storing data for tab ${tabId}: ${chrome.runtime.lastError}`);
-        } else {
-            console.log(`Data stored for tab ${tabId}.`);
-        }
-    });
-}
-
-//function store and increase the number no of scans
-async function updateNoClicksTabID(tabId, change = false) {
-    const keyClicks = `tab_${tabId}_noClicks`;
-
-    // Check if the key exists and get its current value
-    chrome.storage.local.get(keyClicks, (result) => {
-        console.log("updateNoClicksTabID result:",result);
-        if (result[keyClicks]) {
-            // Key exists
-            let currentCount = result[keyClicks];
-
-            if (change) {
-                currentCount += 1;
-                // Store the updated value back in local storage
-                chrome.storage.local.set({ [keyClicks]: currentCount }, () => {
-                    console.log(`Updated noClicks`);
-                });
-            } else {
-                console.log(`${keyClicks} exists: ${currentCount}`);
-            }
-        } else {
-            // Key does not exist
-            // Initialize and set the key with value 1
-            chrome.storage.local.set({ [keyClicks]: 1 }, () => {
-                console.log(`Initialized noClicks: 1`);
-            });
-        }
-    });
-}
-
-
-
-// Function to clear local storage
-// Function to clear data for a specific tab
-async function clearDataForTab(tabId) {
-    // Define the key pattern for the tab
-    const keyPattern = `tab_${tabId}`;
-
-    // Retrieve all keys
-    chrome.storage.local.get(null, (items) => {
-        if (chrome.runtime.lastError) {
-            console.error(`Error retrieving storage items: ${chrome.runtime.lastError}`);
-            return;
-        }
-
-        // Filter keys that match the tab pattern
-        const keysToRemove = Object.keys(items).filter(key => key.startsWith(keyPattern));
-
-        // Remove all matching keys
-        if (keysToRemove.length > 0) {
-            chrome.storage.local.remove(keysToRemove, () => {
-                if (chrome.runtime.lastError) {
-                    console.error(`Error removing data for tab ${tabId}: ${chrome.runtime.lastError}`);
-                } else {
-                    console.log(`Data cleared for tab ${tabId}.`);
-                }
-            });
-        } else {
-            console.log(`No data found for tab ${tabId}.`);
-        }
-    });
-}
-
-function clearLocalStorage() {
-    chrome.storage.local.clear(() => {
-      if (chrome.runtime.lastError) {
-        console.error(`Error clearing local storage: ${chrome.runtime.lastError}`);
-      } else {
-        console.log("Local storage cleared successfully.");
-      }
-    });
-  }
-  
-// Example: Clear local storage when the extension is installed or updated
-chrome.runtime.onInstalled.addListener(() => {
-    clearLocalStorage();
-});
-  
-
-function waitForMessage(tabId, messageType) {
-    return new Promise((resolve, reject) => {
-        function onMessage(request, sender, sendResponse) {
-            if (sender.tab.id === tabId && request.type === messageType) {
-                chrome.runtime.onMessage.removeListener(onMessage); // Clean up listener
-                resolve();
-            }
-        }
-        chrome.runtime.onMessage.addListener(onMessage);
-    });
-}
-async function isDebuggerAttached(tabId) {
-    chrome.debugger.getTargets((targets) => {
-        let attached = false;
-        for (const target of targets) {
-            if (target.tabId === tabId && target.attached) {
-                attached = true;
-                break;
-            }
-        }
-        return (attached);
-    });
-}
-
-async function getFromLocal(tabId, key, noclicks = false) {
-    // Create a key specific to the tab
-    let tabKey
-    if (noclicks !== false)
-    {
-        tabKey =  `tab_${tabId}_${key}_${noclicks}`
-    }
-    else 
-    {
-        tabKey = `tab_${tabId}_${key}`;
-    }
-
-    return new Promise((resolve, reject) => {
-        chrome.storage.local.get([tabKey], function(result) {
-            if (chrome.runtime.lastError) {
-                reject(chrome.runtime.lastError);
-            } else {
-                resolve(result[tabKey]);
-            }
-        });
-    });
-}
-
-
-async function areScansFinished(tabId)
-{
-    let A11yTree = null; 
-    let clickAbleElements = null;
-    const currentClick = await getFromLocal(tabId,"noClicks")
-    console.log("currentClick",currentClick);
-    if (firstClick[tabId] === false)
-    {
-        console.log("HEY I Already clicked once")
-        try {
-            const foundElements = await getFromLocal(tabId,"foundElements",currentClick);
-            console.log("GET FROM LOCAL foundElements", foundElements)
-            if (foundElements && foundElements.length > 0) {
-                A11yTree = foundElements;
-                console.log('A11yTree:', A11yTree);
-                // Do something with A11yTree
-            } else {
-                console.log('foundElements does not exist or is empty');
-            }
-        } catch (error) {
-            console.error('Error retrieving foundElements:', error);
-            // A11yTree remains null if there's an error
-        }
-
-        // For clickable
-        try {
-            const clickable = await getFromLocal(tabId,"clickableElements",currentClick);
-            console.log("GET FROM LOCAL clickableElements", clickable)
-            if (clickable && clickable.length > 0) {
-                clickAbleElements = clickable;
-                console.log('clickableElements:', clickAbleElements);
-                // Do something with A11yTree
-            } else {
-                console.log('clickableElements does not exist or is empty');
-            }
-        } catch (error) {
-            console.error('Error retrieving clickableElements:', error);
-            // A11yTree remains null if there's an error
-        }
-
-        if ( A11yTree !== null && clickAbleElements !== null)
-            {
-                console.log("YAY ITS ALL DONE");
-                const data = 
-                {
-                    clickAbleElements:clickAbleElements,
-                    A11yTree: A11yTree,
-                    tabId, tabId
-                }
-                chrome.tabs.sendMessage(tabId, { type: "SCAN_COMEPLETE", data:data });
-
-            }
-    }
-    else {
-         // For A11y Tree
-        try {
-            const foundElements = await getFromLocal(tabId,"foundElements",currentClick);
-            console.log("GET FROM LOCAL foundElements", foundElements)
-            if (foundElements && foundElements.length > 0) {
-                A11yTree = foundElements;
-                console.log('A11yTree:', A11yTree);
-                // Do something with A11yTree
-            } else {
-                console.log('foundElements does not exist or is empty');
-            }
-        } catch (error) {
-            console.error('Error retrieving foundElements:', error);
-            // A11yTree remains null if there's an error
-        }
-
-        // For clickable
-        try {
-            const clickable = await getFromLocal(tabId,"clickableElements",currentClick);
-            console.log("GET FROM LOCAL clickableElements", clickable)
-            if (clickable && clickable.length > 0) {
-                clickAbleElements = clickable;
-                console.log('clickableElements:', clickAbleElements);
-                // Do something with A11yTree
-            } else {
-                console.log('clickableElements does not exist or is empty');
-            }
-        } catch (error) {
-            console.error('Error retrieving clickableElements:', error);
-            // A11yTree remains null if there's an error
-        }
-
-        if ( A11yTree !== null && clickAbleElements !== null)
-            {
-                console.log("YAY ITS ALL DONE");
-                const data = 
-                {
-                    clickAbleElements:clickAbleElements,
-                    A11yTree: A11yTree,
-                    tabId, tabId
-                }
-                chrome.tabs.sendMessage(tabId, { type: "SCAN_COMEPLETE", data:data });
-
-            }
-
-    }
-    
-}
-
+// Set Variables
 let firstClick = {};
+let onOFF = false
+let debuggerAttached = {};
 
+
+// --- Plugin Icon on the top click functions
 chrome.action.onClicked.addListener(async (tab) => {
 
     console.log("When plugin is clicked debugger is:",await isDebuggerAttached(tab.id))
@@ -322,18 +71,9 @@ chrome.action.onClicked.addListener(async (tab) => {
    
 });
 
-let onOFF = false
-
+// --- Event Listeners
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-    if (request.type === "ON_OFF")
-    {
-        onOFF = request.on;
-        const id = sender.tab.id;
-        console.log("onOFF",onOFF);
-        console.log("tabid",id)
-        console.log("Before I even attach the debugger",await isDebuggerAttached(id))
-    }
-    else if (request.type === "HIGHLIGHT_MISSING")
+    if (request.type === "HIGHLIGHT_MISSING")
     {
         console.log("HIGHLIGHT_MISSING Received")
         const missingXpath = await getFromLocal(sender.tab.id,"missingXpath");
@@ -352,7 +92,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         
     }
     else if (request.type === "OVERLAY_CREATED") {
-        console.log("Overlay created, preparing to request AX tree.");
+        console.log("Overlay created, preparing to request AX tree and clickableElements.");
 
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (tabs[0] && tabs[0].id) {
@@ -474,8 +214,11 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     }
 });
 
-let debuggerAttached = {};
+// -- Functions
 
+/* 
+    Function to attach debugger to a tab
+*/
 async function attachDebugger(tabId) {
     console.log("attachDebugger tabId",tabId)
     if (debuggerAttached[tabId]) return;
@@ -492,6 +235,9 @@ async function attachDebugger(tabId) {
     });
 }
 
+/* 
+    Function to dettach debugger to a tab
+*/
 async function detachDebugger(tabId) {
     if (!debuggerAttached[tabId]) return;
 
@@ -507,6 +253,11 @@ async function detachDebugger(tabId) {
     });
 }
 
+/* 
+    Function to enable Accessibility so that the A11yTree can get
+    using Debugger commands
+    Note* Debugger needs to attached before in order for commands to be sent
+*/
 async function enableAccessibility(tabId) {
     return new Promise((resolve, reject) => {
         chrome.debugger.sendCommand({ tabId }, "Accessibility.enable", {}, () => {
@@ -519,87 +270,9 @@ async function enableAccessibility(tabId) {
     });
 }
 
-async function getRootAXNode(tabId) {
-    return new Promise((resolve, reject) => {
-        chrome.debugger.sendCommand({ tabId }, "Accessibility.getRootAXNode", {}, (result) => {
-            if (chrome.runtime.lastError) {
-                reject(chrome.runtime.lastError);
-            } else {
-                resolve(result);
-            }
-        });
-    });
-}
-
-async function fetchAndFilterAccessibilityTree(tabId, node) {
-    let backendDOMNodeIds = [];
-
-    async function processNode(node) {
-        if (!node) {
-            console.error("Node is null or undefined");
-            return null;
-        }
-        console.log("Processing node:",node.nodeId)
-        console.log(node)
-
-        // Create a new JS object with nodeId, role, and name
-        const nodeObject = {
-            nodeId: node.nodeId,
-            role: (node.role && node.role.value && node.role.value.trim() !== "") ? node.role.value : "",
-            name: (node.name && node.name.value && node.name.value.trim() !== "") ? node.name.value : ""
-        };
-
-        // Process child nodes if they exist
-        if (node.childIds && node.childIds.length > 0) {
-            const childNodes = await new Promise((resolve, reject) => {
-                chrome.debugger.sendCommand({ tabId }, "Accessibility.getChildAXNodes", { id: node.nodeId }, (childResult) => {
-                    if (chrome.runtime.lastError) {
-                        console.error("Error fetching child node:", chrome.runtime.lastError);
-                        reject(chrome.runtime.lastError);
-                    } else {
-                        resolve(childResult.nodes || []);
-                    }
-                });
-            });
-
-            nodeObject.children = [];
-            for (const childId of node.childIds) {
-                const foundChildNode = childNodes.find(child => child.nodeId === childId);
-                if (foundChildNode) {
-                    const processedChild = await processNode(foundChildNode);
-                    if (processedChild) {
-                        nodeObject.children.push(processedChild);
-                    }
-                }
-            }
-        }
-
-        // Collect backendDOMNodeIds for nodes with names
-        if (node.name && node.name.value && node.name.value.trim() !== "") {
-            let id = parseInt(node.nodeId)
-            if (id < 0)
-            {
-                id = parseInt(node.parentId)
-            }
-            console.log("Pushing to backendDOMNodeID:",id);
-            if (!backendDOMNodeIds.includes(id))
-            {
-                backendDOMNodeIds.push(id);
-            }
-        }
-
-        return nodeObject;
-    }
-
-    try {
-        const filteredTree = await processNode(node);
-        return { filteredTree, backendDOMNodeIds };
-    } catch (error) {
-        console.error("Error processing tree:", error);
-        return { filteredTree: null, backendDOMNodeIds };
-    }
-}
-// Enable the DOM domain
+/* 
+    Function to Enable the DOM domain 
+*/
 function enableDOMDomain(tabId) {
     return new Promise((resolve, reject) => {
       chrome.debugger.sendCommand({tabId: tabId}, 'DOM.enable', {}, () => {
@@ -611,7 +284,21 @@ function enableDOMDomain(tabId) {
     });
   }
 
-  async function setAttributeValue(tabId, nodeId) {
+  
+/* 
+    Function to set attribute purple_tabby_a11yTree to DOM items via Debugger DOM commands
+    Reason: 
+        We want to find the direct items from the A11yTree using the backendDomId we can find the node of the DOM.
+        Once we find the corresponding node we can set our own unique attribute so that we can extract them directly
+    
+    Parameters:
+        tabId: the tabId you want to affect
+        nodeId: the nodeId of which you want to add the attribute
+    
+    Returns:
+        True or False if its been attached (Currently broken)
+*/
+async function setAttributeValue(tabId, nodeId) {
     const name = "purple_tabby_a11yTree";
     const value = "true";
 
@@ -651,6 +338,9 @@ function enableDOMDomain(tabId) {
     });
 }
 
+/* 
+    Function to Enable the DOM domain 
+*/
 async function getDOMDocument(tabId) {
     return new Promise((resolve, reject) => {
         chrome.debugger.sendCommand({ tabId }, 'DOM.getDocument', {depth:-1, pierce:true}, (result) => {
@@ -755,7 +445,7 @@ async function fullA11yTreeFilter(fullA11yTree) {
     let count = 0
     for (const obj of fullA11yTree) {
         /* 
-            Switch to this if want to swtich back 
+            Switch to this if want to swtich back to only noticing stuff thats would not automatically be detected
             (obj.name.value !== "" || listOfRolesThatWillBeSeen.includes(obj.role.value))
         */
         if (obj.name && obj.name.value !== "" ) {
@@ -773,4 +463,269 @@ async function fullA11yTreeFilter(fullA11yTree) {
     }
 
     return backEndIdWithName;
+}
+
+// Function to store data for a specific tab
+function storeDataForTab(tabId, data, type, noClicked = null) {
+    // Create a key specific to the tab
+    let key
+
+    if ( noClicked === null)
+    {
+        key = `tab_${tabId}_${type}`;
+    }
+    else
+    {
+        key = `tab_${tabId}_${type}_${noClicked}`;
+    }
+
+    // Store data in chrome.storage.local
+    chrome.storage.local.set({ [key]: data }, () => {
+        if (chrome.runtime.lastError) {
+            console.error(`Error storing data for tab ${tabId}: ${chrome.runtime.lastError}`);
+        } else {
+            console.log(`Data stored for tab ${tabId}.`);
+        }
+    });
+}
+
+//function store and increase the number no of scans
+async function updateNoClicksTabID(tabId, change = false) {
+    const keyClicks = `tab_${tabId}_noClicks`;
+
+    // Check if the key exists and get its current value
+    chrome.storage.local.get(keyClicks, (result) => {
+        console.log("updateNoClicksTabID result:",result);
+        if (result[keyClicks]) {
+            // Key exists
+            let currentCount = result[keyClicks];
+
+            if (change) {
+                currentCount += 1;
+                // Store the updated value back in local storage
+                chrome.storage.local.set({ [keyClicks]: currentCount }, () => {
+                    console.log(`Updated noClicks`);
+                });
+            } else {
+                console.log(`${keyClicks} exists: ${currentCount}`);
+            }
+        } else {
+            // Key does not exist
+            // Initialize and set the key with value 1
+            chrome.storage.local.set({ [keyClicks]: 1 }, () => {
+                console.log(`Initialized noClicks: 1`);
+            });
+        }
+    });
+}
+
+// Function to clear local storage data for a specific tab
+async function clearDataForTab(tabId) {
+    // Define the key pattern for the tab
+    const keyPattern = `tab_${tabId}`;
+
+    // Retrieve all keys
+    chrome.storage.local.get(null, (items) => {
+        if (chrome.runtime.lastError) {
+            console.error(`Error retrieving storage items: ${chrome.runtime.lastError}`);
+            return;
+        }
+
+        // Filter keys that match the tab pattern
+        const keysToRemove = Object.keys(items).filter(key => key.startsWith(keyPattern));
+
+        // Remove all matching keys
+        if (keysToRemove.length > 0) {
+            chrome.storage.local.remove(keysToRemove, () => {
+                if (chrome.runtime.lastError) {
+                    console.error(`Error removing data for tab ${tabId}: ${chrome.runtime.lastError}`);
+                } else {
+                    console.log(`Data cleared for tab ${tabId}.`);
+                }
+            });
+        } else {
+            console.log(`No data found for tab ${tabId}.`);
+        }
+    });
+}
+// Function to clear local storage for everything
+function clearLocalStorage() {
+    chrome.storage.local.clear(() => {
+      if (chrome.runtime.lastError) {
+        console.error(`Error clearing local storage: ${chrome.runtime.lastError}`);
+      } else {
+        console.log("Local storage cleared successfully.");
+      }
+    });
+  }
+  
+// Example: Clear local storage when the extension is installed or updated
+chrome.runtime.onInstalled.addListener(() => {
+    clearLocalStorage();
+});
+  
+
+// Function to wait for two messengers to be sent fully then it will allow for further continuation of the code;
+function waitForMessage(tabId, messageType) {
+    return new Promise((resolve, reject) => {
+        function onMessage(request, sender, sendResponse) {
+            if (sender.tab.id === tabId && request.type === messageType) {
+                chrome.runtime.onMessage.removeListener(onMessage); // Clean up listener
+                resolve();
+            }
+        }
+        chrome.runtime.onMessage.addListener(onMessage);
+    });
+}
+
+// Function to check if a dubugger instance is attached to a tab
+async function isDebuggerAttached(tabId) {
+    chrome.debugger.getTargets((targets) => {
+        let attached = false;
+        for (const target of targets) {
+            if (target.tabId === tabId && target.attached) {
+                attached = true;
+                break;
+            }
+        }
+        return (attached);
+    });
+}
+
+/* 
+    Function to get the data from local storage 
+    Parameters:
+        tabId : the tab id
+        key: the type of storage you need i.e. clickableElements or A11yTree Elements
+        noClicks: I added a possibility to store information on the number of clicks like which click is this
+*/
+
+async function getFromLocal(tabId, key, noclicks = false) {
+    // Create a key specific to the tab
+    let tabKey
+    if (noclicks !== false)
+    {
+        tabKey =  `tab_${tabId}_${key}_${noclicks}`
+    }
+    else 
+    {
+        tabKey = `tab_${tabId}_${key}`;
+    }
+
+    return new Promise((resolve, reject) => {
+        chrome.storage.local.get([tabKey], function(result) {
+            if (chrome.runtime.lastError) {
+                reject(chrome.runtime.lastError);
+            } else {
+                resolve(result[tabKey]);
+            }
+        });
+    });
+}
+
+/*
+    Function that is used after each finished message for A11y Tree and get clickableElements to check if the scan is finished
+    It checks if in the local storage stores both A11yTree and clickableElements.
+*/
+async function areScansFinished(tabId)
+{
+    let A11yTree = null; 
+    let clickAbleElements = null;
+    const currentClick = await getFromLocal(tabId,"noClicks")
+    console.log("currentClick",currentClick);
+    if (firstClick[tabId] === false)
+    {
+        console.log("HEY I Already clicked once")
+        try {
+            const foundElements = await getFromLocal(tabId,"foundElements",currentClick);
+            console.log("GET FROM LOCAL foundElements", foundElements)
+            if (foundElements && foundElements.length > 0) {
+                A11yTree = foundElements;
+                console.log('A11yTree:', A11yTree);
+                // Do something with A11yTree
+            } else {
+                console.log('foundElements does not exist or is empty');
+            }
+        } catch (error) {
+            console.error('Error retrieving foundElements:', error);
+            // A11yTree remains null if there's an error
+        }
+
+        // For clickable
+        try {
+            const clickable = await getFromLocal(tabId,"clickableElements",currentClick);
+            console.log("GET FROM LOCAL clickableElements", clickable)
+            if (clickable && clickable.length > 0) {
+                clickAbleElements = clickable;
+                console.log('clickableElements:', clickAbleElements);
+                // Do something with A11yTree
+            } else {
+                console.log('clickableElements does not exist or is empty');
+            }
+        } catch (error) {
+            console.error('Error retrieving clickableElements:', error);
+            // A11yTree remains null if there's an error
+        }
+
+        if ( A11yTree !== null && clickAbleElements !== null)
+            {
+                console.log("YAY ITS ALL DONE");
+                const data = 
+                {
+                    clickAbleElements:clickAbleElements,
+                    A11yTree: A11yTree,
+                    tabId, tabId
+                }
+                chrome.tabs.sendMessage(tabId, { type: "SCAN_COMEPLETE", data:data });
+
+            }
+    }
+    else {
+         // For A11y Tree
+        try {
+            const foundElements = await getFromLocal(tabId,"foundElements",currentClick);
+            console.log("GET FROM LOCAL foundElements", foundElements)
+            if (foundElements && foundElements.length > 0) {
+                A11yTree = foundElements;
+                console.log('A11yTree:', A11yTree);
+                // Do something with A11yTree
+            } else {
+                console.log('foundElements does not exist or is empty');
+            }
+        } catch (error) {
+            console.error('Error retrieving foundElements:', error);
+            // A11yTree remains null if there's an error
+        }
+
+        // For clickable
+        try {
+            const clickable = await getFromLocal(tabId,"clickableElements",currentClick);
+            console.log("GET FROM LOCAL clickableElements", clickable)
+            if (clickable && clickable.length > 0) {
+                clickAbleElements = clickable;
+                console.log('clickableElements:', clickAbleElements);
+                // Do something with A11yTree
+            } else {
+                console.log('clickableElements does not exist or is empty');
+            }
+        } catch (error) {
+            console.error('Error retrieving clickableElements:', error);
+            // A11yTree remains null if there's an error
+        }
+
+        if ( A11yTree !== null && clickAbleElements !== null)
+            {
+                console.log("YAY ITS ALL DONE");
+                const data = 
+                {
+                    clickAbleElements:clickAbleElements,
+                    A11yTree: A11yTree,
+                    tabId, tabId
+                }
+                chrome.tabs.sendMessage(tabId, { type: "SCAN_COMEPLETE", data:data });
+
+            }
+
+    }
+    
 }

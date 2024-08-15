@@ -1,3 +1,8 @@
+/*
+  This code was used as a test to figure out message sendings 
+*/
+
+
 // Run immediately after injection
 console.log("popup.js being injected");
 

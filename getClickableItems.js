@@ -1,56 +1,6 @@
 console.log("getClickableItems Injected");
 
 async function getClickableItems() {
-    // Get the XPath of the element
-    const getXPath = (element) => {
-        try {
-            if (!element) return '';
-    
-            let xPath = '';
-            let currentElement = element;
-    
-            while (currentElement && currentElement.nodeType === Node.ELEMENT_NODE) {
-                // Check if the element is an <a> tag with an href attribute
-                if (currentElement.tagName.toLowerCase() === 'a' && currentElement.hasAttribute('href')) {
-                    return 'skip';
-                }
-                if (currentElement.classList && currentElement.classList.contains('purpleTabby')) {
-                    return 'skip';
-                }
-    
-                let index = 1;
-                let sibling = currentElement.previousElementSibling;
-    
-                // Count preceding siblings with the same tag name
-                while (sibling) {
-                    if (sibling.tagName === currentElement.tagName) {
-                        index++;
-                    }
-                    sibling = sibling.previousElementSibling;
-                }
-    
-                const tagName = currentElement.tagName.toLowerCase();
-                const id = `[${index}]`;
-                xPath = `/${tagName}${id}${xPath}`;
-    
-                // Move to parent element
-                if (currentElement.parentNode instanceof ShadowRoot) {
-                    const hostElement = currentElement.parentNode.host;
-                    xPath = '/shadowRoot' + xPath;
-                    currentElement = hostElement;
-                } else {
-                    currentElement = currentElement.parentNode;
-                }
-            }
-    
-            return xPath || '/';
-        } catch (error) {
-            console.error('Error in getXPath:', error);
-            return '';
-        }
-    };
-    
-
     // Function to check if an element is visible
     const isVisible = (el) => {
         try {

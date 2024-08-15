@@ -10,44 +10,6 @@ function getChildIndex(childString) {
     }
 }
 
-// Get the XPath of the element
-const getXPath = (element) => {
-    if (!element) return '';
-
-    let xPath = '';
-    let currentElement = element;
-
-    while (currentElement && currentElement.nodeType === Node.ELEMENT_NODE) {
-        let index = 1;
-        let sibling = currentElement.previousElementSibling;
-
-        // Count preceding siblings with the same tag name
-        while (sibling) {
-            if (sibling.tagName === currentElement.tagName) {
-                index++;
-            }
-            sibling = sibling.previousElementSibling;
-        }
-
-        const tagName = currentElement.tagName.toLowerCase();
-        const id = `[${index}]`;
-        xPath = '/' + tagName + id + xPath;
-
-        // Check if the current element is inside a shadow DOM
-        if (currentElement.parentNode instanceof ShadowRoot) {
-            const hostElement = currentElement.parentNode.host;
-            xPath = '/shadowRoot' + xPath;
-            currentElement = hostElement;
-        } else {
-            currentElement = currentElement.parentNode;
-        }
-    }
-
-    return xPath;
-};
-
-
-
 function a11yTreeToDOM(notEmptyNamesXapths)
 {
     // Set variables
@@ -202,34 +164,4 @@ function a11yTreeToDOM(notEmptyNamesXapths)
     });
     return elementsFound;
 
-}
-
-function findAllWithAttribute(selector, root = document) {
-    const elements = Array.from(root.querySelectorAll(selector));
-
-    // Search through shadow roots recursively
-    const shadowHosts = root.querySelectorAll('*');
-    shadowHosts.forEach(el => {
-        if (el.shadowRoot) {
-            elements.push(...findAllWithAttribute(selector, el.shadowRoot));
-        }
-    });
-
-    return elements;
-}
-
-function a11yTreeToDOM()
-{
-    const elementsWithPurpleTabby = findAllWithAttribute('[purple_tabby_a11yTree]');
-    console.log()
-    const foundElements = []
-    elementsWithPurpleTabby.forEach(element => {
-        const xpath = getXPath(element)
-        if (xpath)
-        {
-            foundElements.push(xpath);
-        }
-    });
-    console.log("a11yTreeToDOM foundElements",foundElements)
-    return foundElements;
 }
