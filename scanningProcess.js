@@ -15,29 +15,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const tab = message.data.tabId;
         const clickableElements = message.data.clickAbleElements;
         const A11yTree = message.data.A11yTree;
-
-        // // Listener for a new tab opening
-        // chrome.tabs.onCreated.addListener((tab) => {
-        //     console.log('New tab opened:', tab);
-        //     pageListenerResult = "link"
-        //     // You can perform actions based on the new tab information
-        // });
-        
-        // // Listener for a tab becoming active
-        // chrome.tabs.onActivated.addListener((activeInfo) => {
-        //     chrome.tabs.get(activeInfo.tabId, (tab) => {
-        //     console.log('Tab activated:', tab);
-        //     // You can perform actions based on the active tab information
-        //     });
-        // });
-        
-        // // Listener for changes in a tab's URL
-        // chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-        //     if (changeInfo.url) {
-        //     console.log('Tab URL changed:', changeInfo.url);
-        //     // You can perform actions based on the new URL
-        //     }
-        // });
         console.log("YAY SCAN COMPLETE");
 
         // checks if its not in A11y Tree
@@ -64,10 +41,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         const treeContainer = document.getElementById('treeContent');
         const highlightButton = document.querySelector(".purpleTabby #highlightItemsA11yTree");
+        const rescanButton = document.querySelector(".purpleTabby #rescanButton");
+
 
         if (treeContainer && highlightButton) {
             // Unhide button
-            highlightButton.style.display = 'block'; // Add hidden style
+            highlightButton.style.display = 'block';
+            rescanButton.style.display = 'block';
 
             // Clear it
             treeContainer.value = ""; // Clear the textarea content

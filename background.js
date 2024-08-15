@@ -57,9 +57,9 @@ chrome.action.onClicked.addListener(async (tab) => {
     else
     {
         console.log("ReOpen after closing");
-        firstClick[tab.id] = false
+        firstClick[tab.id] = tab.url;
         
-        // updates
+        // updates the number
         await updateNoClicksTabID(tab.id,true);
 
         // Set the overlay
@@ -90,6 +90,15 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         }
         chrome.tabs.sendMessage(id, { type: "HIGHLIGHT", data:data });
         
+    }
+    else if (request.type === "RESCAN_INNIT")
+    {
+        console.log("Rescanning");
+        firstClick[sender.tab.id] = sender.tab.url;
+        
+        // updates the number
+        await updateNoClicksTabID(sender.tab.id,true);
+        chrome.tabs.sendMessage(sender.tab.id, { type: "START_RESCANNING" , tabId:sender.tab.id});
     }
     else if (request.type === "OVERLAY_CREATED") {
         console.log("Overlay created, preparing to request AX tree and clickableElements.");

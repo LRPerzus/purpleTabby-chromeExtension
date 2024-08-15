@@ -55,6 +55,13 @@ function createOverlay() {
     highlightButton.style.display = 'none'; // Add hidden style
     contentBox.appendChild(highlightButton);
 
+
+    const rescanButton = document.createElement('button');
+    rescanButton.textContent = 'Rescan';
+    rescanButton.style.display = 'none'; // Add hidden style
+    rescanButton.id = 'rescanButton';
+    contentBox.appendChild(rescanButton);
+
     const treeContent = document.createElement('textarea');
     // Set the width and height
     treeContent.style.width = '300px';
@@ -76,9 +83,23 @@ function createOverlay() {
     });
 
     highlightButton.addEventListener('click', () => {
-        if (chrome.runtime && chrome.runtime.sendMessage) {
+        // See if this is closing
+        const itemsMissing = document.querySelectorAll(".purple_Tabby_Missing");
+        if (itemsMissing.length > 0)
+        {
+            console.log("Already Highlighted Removing")
+            itemsMissing.forEach(item => {
+                item.classList.remove("purple_Tabby_Missing");
+              });
+        }
+        else if (chrome.runtime && chrome.runtime.sendMessage) {
             chrome.runtime.sendMessage({ type: "HIGHLIGHT_MISSING"});
         }
+    });
+
+    rescanButton.addEventListener('click', function() {
+        treeContent.value = ""; // Clear the textarea content
+        chrome.runtime.sendMessage({ type: "RESCAN_INNIT" });
     });
 
 
