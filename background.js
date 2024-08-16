@@ -134,7 +134,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             const fullA11yTree = await getFullAXTree(tabId);
             console.log("WHOLE A11y TREE",fullA11yTree);
             // collecting only the DOMids with names
-            const onlyNames = await fullA11yTreeFilter(fullA11yTree.nodes);
+            const onlyNames = await fullA11yTreeFilter(tabId,fullA11yTree.nodes);
             console.log("filtered tree A11y Whole:",onlyNames);
             const domDictionary = await collectDOMNodes(tabId)   
             console.log("domDictionary",domDictionary) 
@@ -150,11 +150,13 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 await detachDebugger(tabId);
             }
 
-            // // After setting the attribute we send out a call to one of the injected js
-            // chrome.tabs.sendMessage(tabId,{
-            //     type: "DOWNLOAD_AX_TREE",
-            //     data: {filteredTree:filteredTree}
-            // });
+            const json = JSON.stringify(fullA11yTree, null, 2);
+
+            // Send the data to the content script or popup
+            chrome.tabs.sendMessage(tabId,{
+                type: "DOWNLOAD_Name_A11yTree",
+                data: json
+            });
 
             chrome.tabs.sendMessage(tabId, { type: "FULL_A11yTree_DOM_XPATHS", data: data }); 
             // Use chrome tab cause runtime is not the same
@@ -180,21 +182,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         const foundElement = request.data.foundElements;
         const tabId = request.data.tabId;
         console.log("foundElement",foundElement)
-         // Prepare data for download
-         const data = {
-            foundElement:foundElement
-        };
-        const json = JSON.stringify(data, null, 2);
 
-        await areScansFinished(tabId);
-
-
-        // Send the data to the content script or popup
-        chrome.tabs.sendMessage(tabId,{
-            type: "DOWNLOAD_Name_A11yTree",
-            data: json
-        });
-        
+        await areScansFinished(tabId);        
     }
     else if (request.type === "clickableElements_XPATHS_DONE")
     {
@@ -220,6 +209,16 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             type: "UPDATE_OVERLAY",
             data: request.data
         });
+    }
+
+    else if (request.type === "A11YFIXES_INNIT")
+    {
+        const tabId = sender.tab.id;
+        const missingXpaths = await getFromLocal(tabId,"missingXpath");
+
+        console.log("A11YFIXES_INNIT missingXpaths:",missingXpaths);
+        chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:missingXpaths});
+
     }
 });
 
@@ -417,16 +416,20 @@ async function settingAttributeNode(tabId, backendDOMNodeIds, domDictionary) {
     const promises = Object.keys(backendDOMNodeIds).map(async backendId => {
         try {
             console.log("settingAttributeNode", backendId);
-            const correspondingNodeId = domDictionary[backendId];
+            let correspondingNodeId = domDictionary[backendId];
             console.log("correspondingNodeId", correspondingNodeId);
 
+            // Not found in the DOM TRY using the parentId cause sometimes A11yTree might get ::before nodes
             if (correspondingNodeId) {
-                const attribute = await setAttributeValue(tabId, correspondingNodeId);
-                console.log("set attribute?", attribute);
+                console.log("OK GOOD NO ISSUE")
             } else {
-                console.log("settingAttributeNode Erm it does not exists");
-
+                console.log("settingAttributeNode Erm it does not exists domDictionary:",backendId);
+                const parentOfBackendId = backendDOMNodeIds[backendId].parentId;
+                correspondingNodeId = domDictionary[parentOfBackendId];
             }
+            const attribute = await setAttributeValue(tabId, correspondingNodeId);
+            console.log("set attribute?", attribute);
+
         } catch (error) {
             console.log(`settingAttributeNode Error: ${error}`);
         }
@@ -447,7 +450,24 @@ async function getFullAXTree(tabId) {
     });
 }
 
-async function fullA11yTreeFilter(fullA11yTree) {
+async function queryAXTreeByBackendNodeId(tabId, backendNodeId) {
+    return new Promise((resolve, reject) => {
+        const params = {
+            backendNodeId // Only include backendNodeId in the parameters
+        };
+
+        chrome.debugger.sendCommand({ tabId }, 'Accessibility.queryAXTree', params, (result) => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+            }
+
+            resolve(result);
+        });
+    });
+}
+
+async function fullA11yTreeFilter(tabId,fullA11yTree) {
     const backEndIdWithName = {};
     console.log("fullA11yTreeFilter", fullA11yTree);
     const listOfRolesThatWillBeSeen = ["button"]
@@ -457,12 +477,21 @@ async function fullA11yTreeFilter(fullA11yTree) {
             Switch to this if want to swtich back to only noticing stuff thats would not automatically be detected
             (obj.name.value !== "" || listOfRolesThatWillBeSeen.includes(obj.role.value))
         */
-        if (obj.name && obj.name.value !== "" ) {
+        if (obj.name && obj.name.value !== "" && obj.name.value !== "uninteresting") {
             if (obj.role && obj.role.value === "StaticText" && obj.parentId !== "")
             {
                 obj.backendDOMNodeId = parseInt(obj.parentId);
+                const parentNode = (await queryAXTreeByBackendNodeId(tabId,obj.backendDOMNodeId)).nodes;
+                console.log("fullA11yTreeFilter update to the parentIds",obj.backendDOMNodeId);
+                console.log("fullA11yTreeFilter parentNode",parentNode)
+                obj.parentId = parseInt(parentNode[0].parentId);
+                console.log("The change",obj.parentId);
             }
-            backEndIdWithName[obj.backendDOMNodeId] = `${obj.name.value} ${count}`;
+            backEndIdWithName[obj.backendDOMNodeId] = 
+            {
+                value:`${obj.name.value} ${count}`,
+                parentId: obj.parentId
+            };
         }
         else
         {
@@ -723,17 +752,17 @@ async function areScansFinished(tabId)
         }
 
         if ( A11yTree !== null && clickAbleElements !== null)
+        {
+            console.log("YAY ITS ALL DONE");
+            const data = 
             {
-                console.log("YAY ITS ALL DONE");
-                const data = 
-                {
-                    clickAbleElements:clickAbleElements,
-                    A11yTree: A11yTree,
-                    tabId, tabId
-                }
-                chrome.tabs.sendMessage(tabId, { type: "SCAN_COMEPLETE", data:data });
-
+                clickAbleElements:clickAbleElements,
+                A11yTree: A11yTree,
+                tabId, tabId
             }
+            chrome.tabs.sendMessage(tabId, { type: "SCAN_COMEPLETE", data:data });
+
+        }
 
     }
     

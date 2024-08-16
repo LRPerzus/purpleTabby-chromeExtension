@@ -62,6 +62,13 @@ function createOverlay() {
     rescanButton.id = 'rescanButton';
     contentBox.appendChild(rescanButton);
 
+
+    const A11yFixes = document.createElement('button');
+    A11yFixes.textContent = 'A11yFixes';
+    A11yFixes.style.display = 'none'; // Add hidden style
+    A11yFixes.id = 'A11yFixes';
+    contentBox.appendChild(A11yFixes);
+
     const treeContent = document.createElement('textarea');
     // Set the width and height
     treeContent.style.width = '300px';
@@ -100,6 +107,10 @@ function createOverlay() {
     rescanButton.addEventListener('click', function() {
         treeContent.value = ""; // Clear the textarea content
         chrome.runtime.sendMessage({ type: "RESCAN_INNIT" });
+    });
+
+    A11yFixes.addEventListener('click', function() {
+        chrome.runtime.sendMessage({ type: "A11YFIXES_INNIT" });
     });
 
 
