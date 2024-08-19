@@ -7,9 +7,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   {
     const clickableElements = await getClickableItems();
     const tabId = message.tabId;
-    console.log("Can_find_clickable tabId",tabId);
-    console.log("clickableElements",clickableElements);
-    
+    console.log("Can_find_clickable tabId",tabId);    
     chrome.runtime.sendMessage({ type: "clickableElements_XPATHS_DONE", clickableElements:clickableElements,tabId:tabId });
   }
   else if (message.type === "clickable_stored")

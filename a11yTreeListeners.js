@@ -61,11 +61,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 function findAllWithAttribute(selector, root = document) {
     const elements = Array.from(root.querySelectorAll(selector));
 
-    // Search through shadow roots recursively
-    const shadowHosts = root.querySelectorAll('*');
-    shadowHosts.forEach(el => {
+    // Search through both shadow roots and iframes/frames recursively
+    const allElements = root.querySelectorAll('*');
+    allElements.forEach(el => {
+        // Check for shadow DOM and recursively search
         if (el.shadowRoot) {
             elements.push(...findAllWithAttribute(selector, el.shadowRoot));
+        }
+
+        // Check for iframes/frames and recursively search
+        if (el.tagName.toLowerCase() === 'iframe' || el.tagName.toLowerCase() === 'frame') {
+            try {
+                const iframeDocument = el.contentDocument || el.contentWindow.document;
+                if (iframeDocument) {
+                    elements.push(...findAllWithAttribute(selector, iframeDocument));
+                }
+            } catch (error) {
+                console.warn('Cross-origin iframe or other error:', error);
+            }
         }
     });
 
@@ -76,6 +89,7 @@ function findAllWithAttribute(selector, root = document) {
 function a11yTreeToDOM()
 {
     const elementsWithPurpleTabby = findAllWithAttribute('[purple_tabby_a11yTree]');
+    console.log("a11yTreeToDOM_elementsWithPurpleTabby",elementsWithPurpleTabby)
     console.log()
     const foundElements = []
     elementsWithPurpleTabby.forEach(element => {

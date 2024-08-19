@@ -82,8 +82,30 @@ function createOverlay() {
     overlayContainer.appendChild(contentBox);
 
     // Append the overlay container to the body
-    document.body.appendChild(overlayContainer);
-
+    let currentNode = document.body
+    if (document.body) {
+        // The <body> element exists
+        if ( document.body.nodeName.toLowerCase() === 'frameset') {
+             // if currentNode is a <frameset>
+              // Move the variable outside the frameset then appendChild the component
+              while (currentNode.nodeName.toLowerCase()=== 'frameset' ) {
+                currentNode = currentNode.parentElement
+              }
+              currentNode.appendChild(overlayContainer);
+        }
+        else {
+            // currentNode is a <body>
+            currentNode.appendChild(overlayContainer);
+          }
+    }
+    else if (document.head) {
+        document.head.insertAdjacentElement('afterend', overlayContainer);
+    }
+    else {
+        // Neither <body> nor <head> nor <html> exists
+        // Append the variable to the document
+        document.documentElement.appendChild(overlayContainer);
+    }
     // Add event listener
     closeButton.addEventListener('click', () => {
         document.getElementById('overlay-container').remove();

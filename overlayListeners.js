@@ -5,7 +5,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.data !== "undefined"  ) {
         const missingXpaths = message.data;
         missingXpaths.forEach(xpath => {
-          const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+          let currentNode = document.body;
+          let result;
+          // Just in case of FrameSet
+          if (document.body.tagName.toLowerCase() === "frameset")
+          {
+            const frameOrIframeElement = document.body.querySelectorAll('iframe, frame');
+            frameOrIframeElement.forEach(frame => {
+                currentNode = frame.contentDocument;
+
+                // Evaluate the XPath expression to find the parent node
+                result = document.evaluate(xpath, currentNode, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+            });
+          }
+          else
+          {
+            result = document.evaluate(xpath, currentNode, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+          }
+
           const element = result.singleNodeValue;
           console.log("elements",element)
 

@@ -3,11 +3,11 @@ let firstClick = {};
 let onOFF = false
 let debuggerAttached = {};
 
-
 // --- Plugin Icon on the top click functions
 chrome.action.onClicked.addListener(async (tab) => {
 
     console.log("When plugin is clicked debugger is:",await isDebuggerAttached(tab.id))
+
     console.log("firstClick",firstClick)
 
     if (!(tab.id in firstClick) || firstClick[tab.id] !== tab.url)
@@ -130,16 +130,17 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             await enableAccessibility(tabId);
             await enableDOMDomain(tabId)
 
-            // Testing to see if i can use this nodeId to manipulate
-            const fullA11yTree = await getFullAXTree(tabId);
-            console.log("WHOLE A11y TREE",fullA11yTree);
-            // collecting only the DOMids with names
-            const onlyNames = await fullA11yTreeFilter(tabId,fullA11yTree.nodes);
-            console.log("filtered tree A11y Whole:",onlyNames);
+            // Full DOM DICT TREE
             const domDictionary = await collectDOMNodes(tabId)   
             console.log("domDictionary",domDictionary) 
-            await settingAttributeNode(tabId,onlyNames,domDictionary);
 
+            // Frames inside a page
+            const frameTree = await getFrameTree(tabId);
+            console.log("FrameTree",frameTree);
+
+            // Read each Frame
+            await processFrameTrees(tabId,frameTree,domDictionary);
+           
             // Find the Xpaths in the DOM
             const data = {
                 tabId:tabId,
@@ -150,13 +151,13 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 await detachDebugger(tabId);
             }
 
-            const json = JSON.stringify(fullA11yTree, null, 2);
+            // const json = JSON.stringify(fullA11yTree, null, 2);
 
-            // Send the data to the content script or popup
-            chrome.tabs.sendMessage(tabId,{
-                type: "DOWNLOAD_Name_A11yTree",
-                data: json
-            });
+            // // Send the data to the content script or popup
+            // chrome.tabs.sendMessage(tabId,{
+            //     type: "DOWNLOAD_Name_A11yTree",
+            //     data: json
+            // });
 
             chrome.tabs.sendMessage(tabId, { type: "FULL_A11yTree_DOM_XPATHS", data: data }); 
             // Use chrome tab cause runtime is not the same
@@ -223,6 +224,47 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 });
 
 // -- Functions
+async function processFrameTrees(tabId, frameTree,domDictionary) {
+    const promises = frameTree.map(async frameId => {
+        const fullA11yTree = await getFullAXTree(tabId, frameId);
+        console.log("WHOLE A11y TREE", fullA11yTree);
+
+        // Collecting only the DOM ids with names
+        const onlyNames = await fullA11yTreeFilter(tabId, fullA11yTree.nodes);
+        console.log("Filtered tree A11y Whole:", onlyNames);
+
+        // Setting attributes on nodes
+        await settingAttributeNode(tabId, onlyNames, domDictionary);
+    });
+
+    // Wait for all the promises to resolve
+    await Promise.all(promises);
+    console.log("All frames processed.");
+}
+/*
+    To get the FrameIds of a page entirely 
+*/
+async function getFrameTree(tabId) {
+    return new Promise((resolve, reject) => {
+        chrome.debugger.sendCommand({ tabId }, 'Page.getFrameTree', {}, (response) => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError));
+            } else {
+                const frameIds = [];
+                const collectFrameIds = (frameTree) => {
+                    frameIds.push(frameTree.frame.id);
+                    if (frameTree.childFrames) {
+                        for (const child of frameTree.childFrames) {
+                            collectFrameIds(child);
+                        }
+                    }
+                };
+                collectFrameIds(response.frameTree);
+                resolve(frameIds);
+            }
+        });
+    });
+}
 
 /* 
     Function to attach debugger to a tab
@@ -370,6 +412,7 @@ async function collectDOMNodes(tabId) {
         try{
             // Add backendNodeId and nodeId to the dictionary
             if (node.backendNodeId) {
+                console.log("Adding to the dict",node.backendNodeId)
                 nodeMap[node.backendNodeId] = node.nodeId;
             }
 
@@ -384,12 +427,18 @@ async function collectDOMNodes(tabId) {
             }
 
             // Process children recursively
-            if (Array.isArray(node.children)) {
+            if (node.children && node.children.length > 0) {
                 for (const child of node.children) {
                     traverseNode(child);
                 }
-            } else if (node.children) {
-                console.warn("Node.children is not an array:", node);
+            } else if (node.frameId && node.contentDocument)// For frames and Iframes ETC
+            {
+                if(Array.isArray(node.contentDocument.children) && node.contentDocument.children.length >0)
+                {
+                    for (const child of node.contentDocument.children) {
+                        traverseNode(child);
+                    }
+                }
             }
         }
         catch (error){
@@ -438,9 +487,10 @@ async function settingAttributeNode(tabId, backendDOMNodeIds, domDictionary) {
     // Wait for all promises to complete
     await Promise.allSettled(promises);
 }
-async function getFullAXTree(tabId) {
+
+async function getFullAXTree(tabId,frameId) {
     return new Promise((resolve, reject) => {
-        chrome.debugger.sendCommand({ tabId }, 'Accessibility.getFullAXTree', {}, (result) => {
+        chrome.debugger.sendCommand({ tabId }, 'Accessibility.getFullAXTree', {frameId:frameId}, (result) => {
             if (chrome.runtime.lastError) {
                 reject(new Error(chrome.runtime.lastError.message));
             } else {
