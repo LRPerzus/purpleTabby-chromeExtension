@@ -41,43 +41,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.log("SCAN_COMEPLETE A11yTree",A11yTree)
 
         // Checks if it's not in A11yTree and doesn't have children with the specific attribute
-        clickableElements.forEach(elementXpath => {
+        clickableElements.forEach(element  => {
             try {
+                const elementXpath = element.path;
+                // console.log("elementXpath",elementXpath)
                 let bodyNode = document.body;
                 let parentResult = null;
 
-                while (parentResult === null)
+                if (element.framePath !== "")
                 {
-                    if (document.body.tagName.toLowerCase() === "frameset")
-                    {
-                        const frameOrIframeElement = document.body.querySelectorAll('iframe, frame');
-                        frameOrIframeElement.forEach(frame => {
-                            console.log("frame",frame)
-                            bodyNode = frame.contentDocument;
-                            // Evaluate the XPath expression to find the parent node
-                            parentResult = document.evaluate(
-                                elementXpath, // XPath expression
-                                bodyNode, // Context node (document root)
-                                null, // Namespace resolver (null if not needed)
-                                XPathResult.FIRST_ORDERED_NODE_TYPE, // Result type to get the first matching node
-                                null // Result object (null if not reusing an existing result)
-                            );
-                            console.log("parentResult",parentResult);
-                        });
-
-                    }
-                    else
-                    {
-                        parentResult = document.evaluate(
-                            elementXpath, // XPath expression
+                    const frameNavi = element.framePath.split("->");
+                    frameNavi.forEach(frame => {
+                        const frameBody = document.evaluate(
+                            frame, // XPath expression
                             bodyNode, // Context node (document root)
                             null, // Namespace resolver (null if not needed)
                             XPathResult.FIRST_ORDERED_NODE_TYPE, // Result type to get the first matching node
                             null // Result object (null if not reusing an existing result)
                         );
-                        console.log("parentResult",parentResult);
-                    }
+
+                        if (frameBody.singleNodeValue !== null)
+                        {
+                            // console.log("move body",frameBody.singleNodeValue);
+                            bodyNode = frameBody.singleNodeValue.contentDocument;
+                        }
+                    });
                 }
+
+                parentResult = document.evaluate(
+                    elementXpath, // XPath expression
+                    bodyNode, // Context node (document root)
+                    null, // Namespace resolver (null if not needed)
+                    XPathResult.FIRST_ORDERED_NODE_TYPE, // Result type to get the first matching node
+                    null // Result object (null if not reusing an existing result)
+                );
+                console.log("parentResult",parentResult);
                 
                 
         
@@ -106,7 +104,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     }
                 }
             } catch (error) {
-                console.error(`An error occurred while processing XPath '${elementXpath}':`, error);
+                console.error(`An error occurred while processing XPath:`, error);
             }
         });
         console.log("MISSING:",missing);

@@ -3,32 +3,35 @@ console.log("getClickableItems Injected");
 async function getClickableItems() {
     const clickElements = [];
 
-    async function traverseDOM(node) {
+    async function traverseDOM(node, framePath = "") {
         // If the current node is an iframe or frame, handle it separately
         if (node.nodeName.toLowerCase() === "iframe" || node.nodeName.toLowerCase() === "frame") {
             try {
                 // Access the contentDocument of the frame/iframe
                 const frameDocument = node.contentDocument || node.contentWindow.document;
                 if (frameDocument) {
+                    const newFramePath = framePath ? `${framePath}->${getXPath(node)}` : getXPath(node);
                     // Recursively process the content of the iframe/frame
-                    await traverseDOM(frameDocument.body);
+                    await traverseDOM(frameDocument.body, newFramePath);
                 }
             } catch (e) {
                 console.warn('Unable to access frame document due to cross-origin restrictions:', e);
             }
         } else {
             // Process the current node if it's not a frame/iframe
-            await processElement(node, clickElements);
+            await processElement(node, clickElements, framePath);
 
             // Recursively traverse through the child nodes
             for (let child of node.children) {
-                await traverseDOM(child);
+                await traverseDOM(child, framePath);
             }
         }
     }
 
     try {
         let currentNode = document.body;
+        let framePath = "";
+
         if (currentNode.nodeName.toLowerCase() === "frameset") {
             // If the body is a frameset, navigate through frames to find the actual body tag
             const frames = Array.from(document.querySelectorAll('frame, iframe'));
@@ -38,6 +41,7 @@ async function getClickableItems() {
                     const frameDocument = frame.contentDocument || frame.contentWindow.document;
                     if (frameDocument && frameDocument.body.nodeName.toLowerCase() === 'body') {
                         currentNode = frameDocument.body;
+                        framePath = getXPath(frame); // Set the initial framePath
                         break; // Stop searching after finding the first body
                     }
                 } catch (e) {
@@ -47,7 +51,7 @@ async function getClickableItems() {
         }
 
         // Start the traversal from the current node (which is either document.body or a frame's body)
-        await traverseDOM(currentNode);
+        await traverseDOM(currentNode, framePath);
         console.log('All elements processed.');
     } catch (error) {
         console.error('Error in querying elements:', error);
@@ -56,6 +60,7 @@ async function getClickableItems() {
     console.log("Testing", clickElements);
     return clickElements;
 }
+
 // Function to check if an element is visible
 const isVisible = (el) => {
     try {
@@ -68,25 +73,30 @@ const isVisible = (el) => {
     }
 };
 
-async function isItPointer(el, clickElements) {
+async function isItPointer(el, clickElements, framePath = "") {
     const style = window.getComputedStyle(el);
     const path = getXPath(el);
 
     if ((style.cursor === 'pointer') && isVisible(el) && !el.parentElement.closest('[aria-hidden]')) {
-        
         if (el.tagName.toLowerCase() === 'a') {
             if (!el.hasAttribute('href')) {
-                console.log("Did it get here?");
-                console.log("Did it get here? path", path);
-                clickElements.push(path);
+                clickElements.push(
+                    {
+                        path: path,
+                        framePath: framePath
+                    }
+                );
             }
         } else {
             if (path !== "skip") {
-                clickElements.push(path);
+                clickElements.push(
+                    {
+                        path: path,
+                        framePath: framePath
+                    }
+                );
             }
         }
-    } else {
-        console.log("FAIL style.cursor === 'pointer' && isVisible(el)");
     }
 
     if (el.shadowRoot) {
@@ -95,7 +105,10 @@ async function isItPointer(el, clickElements) {
             try {
                 const style = window.getComputedStyle(element);
                 if (style.cursor === 'pointer' && isVisible(element) && !element.closest('[aria-hidden]')) {
-                    clickElements.push(getXPath(element));
+                    clickElements.push({
+                        path: getXPath(element),
+                        framePath: framePath
+                    });
                 }
             } catch (error) {
                 console.error('Error in shadow root element:', error);
@@ -103,8 +116,9 @@ async function isItPointer(el, clickElements) {
         });
     }
 }
+
 // Function to process each element and return a promise
-const processElement = async (el, clickElements, elements) => {
+const processElement = async (el, clickElements, framePath = "") => {
     try {
         // Check if the element is an Iframe or Frame
         if (el.nodeName.toLowerCase() === "iframe" || el.nodeName.toLowerCase() === "frame") {
@@ -123,7 +137,7 @@ const processElement = async (el, clickElements, elements) => {
         }
 
         // Check if the element is a pointer (or any other condition you need)
-        await isItPointer(el, clickElements);
+        await isItPointer(el, clickElements, framePath);
     } catch (error) {
         console.error('Error in processing element:', error);
     }
