@@ -50,7 +50,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 {
                     if (document.body.tagName.toLowerCase() === "frameset")
                     {
-                        console.log("notFrameset")
                         const frameOrIframeElement = document.body.querySelectorAll('iframe, frame');
                         frameOrIframeElement.forEach(frame => {
                             bodyNode = frame.contentDocument;
