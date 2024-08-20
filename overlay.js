@@ -32,8 +32,8 @@ function createOverlay() {
     closeButton.id = 'close-button';
     closeButton.textContent = 'Close';
     closeButton.style.position = 'absolute';
-    closeButton.style.top = '10px';
-    closeButton.style.right = '10px';
+    closeButton.style.top = '5%';
+    closeButton.style.right = '10%';
     closeButton.style.backgroundColor = 'red';
     closeButton.style.color = 'white';
     closeButton.style.border = 'none';
@@ -47,6 +47,7 @@ function createOverlay() {
     // Add header and other elements
     const header = document.createElement('h1');
     header.textContent = 'Accessibility Tree';
+    header.style.padding="10px";
     contentBox.appendChild(header);
 
     const highlightButton = document.createElement('button');
