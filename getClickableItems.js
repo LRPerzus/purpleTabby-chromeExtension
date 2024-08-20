@@ -2,20 +2,41 @@ console.log("getClickableItems Injected");
 
 async function getClickableItems() {
     const clickElements = [];
+
+    async function traverseDOM(node) {
+        // If the current node is an iframe or frame, handle it separately
+        if (node.nodeName.toLowerCase() === "iframe" || node.nodeName.toLowerCase() === "frame") {
+            try {
+                // Access the contentDocument of the frame/iframe
+                const frameDocument = node.contentDocument || node.contentWindow.document;
+                if (frameDocument) {
+                    // Recursively process the content of the iframe/frame
+                    await traverseDOM(frameDocument.body);
+                }
+            } catch (e) {
+                console.warn('Unable to access frame document due to cross-origin restrictions:', e);
+            }
+        } else {
+            // Process the current node if it's not a frame/iframe
+            await processElement(node, clickElements);
+
+            // Recursively traverse through the child nodes
+            for (let child of node.children) {
+                await traverseDOM(child);
+            }
+        }
+    }
+
     try {
-        let currentNode = document.body
-        console.log("currentNode",currentNode);
+        let currentNode = document.body;
         if (currentNode.nodeName.toLowerCase() === "frameset") {
             // If the body is a frameset, navigate through frames to find the actual body tag
             const frames = Array.from(document.querySelectorAll('frame, iframe'));
-        
+
             for (let frame of frames) {
                 try {
-                    // Access the contentDocument of each frame
                     const frameDocument = frame.contentDocument || frame.contentWindow.document;
-        
-                    // Check if the frame's document has a body
-                    if (frameDocument && frameDocument.body && frameDocument.body.nodeName.toLowerCase() === 'body') {
+                    if (frameDocument && frameDocument.body.nodeName.toLowerCase() === 'body') {
                         currentNode = frameDocument.body;
                         break; // Stop searching after finding the first body
                     }
@@ -24,24 +45,15 @@ async function getClickableItems() {
                 }
             }
         }
-        const elements = Array.from(currentNode.querySelectorAll('*:not(a[href])'));
-        console.log("getClickableItems elements",elements)
-        // Create an array of promises for processing each element
-        const promises = elements.map(el => processElement(el,clickElements,elements));
-        // Use Promise.all to wait for all promises to resolve
-        Promise.all(promises)
-            .then(() => {
-                console.log('All elements processed.');
-            })
-            .catch(error => {
-                console.error('Error processing elements:', error);
-            });
 
+        // Start the traversal from the current node (which is either document.body or a frame's body)
+        await traverseDOM(currentNode);
+        console.log('All elements processed.');
     } catch (error) {
         console.error('Error in querying elements:', error);
     }
 
-    console.log("Testing",clickElements)
+    console.log("Testing", clickElements);
     return clickElements;
 }
 // Function to check if an element is visible
