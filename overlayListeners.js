@@ -28,6 +28,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
           if (element) {
             element.classList.add("purple_Tabby_Missing");
+            element.style.border = "10px solid purple";
           }
         });
       }

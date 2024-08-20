@@ -70,10 +70,10 @@ const isVisible = (el) => {
 
 async function isItPointer(el, clickElements) {
     const style = window.getComputedStyle(el);
+    const path = getXPath(el);
 
-    if ((style.cursor === 'pointer') && isVisible(el)) {
-        const path = getXPath(el);
-
+    if ((style.cursor === 'pointer') && isVisible(el) && !el.parentElement.closest('[aria-hidden]')) {
+        
         if (el.tagName.toLowerCase() === 'a') {
             if (!el.hasAttribute('href')) {
                 console.log("Did it get here?");
@@ -94,7 +94,7 @@ async function isItPointer(el, clickElements) {
         shadowRootItems.forEach(element => {
             try {
                 const style = window.getComputedStyle(element);
-                if (style.cursor === 'pointer' && isVisible(element)) {
+                if (style.cursor === 'pointer' && isVisible(element) && !element.closest('[aria-hidden]')) {
                     clickElements.push(getXPath(element));
                 }
             } catch (error) {
