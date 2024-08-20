@@ -527,8 +527,8 @@ async function fullA11yTreeFilter(tabId,fullA11yTree) {
             Switch to this if want to swtich back to only noticing stuff thats would not automatically be detected
             (obj.name.value !== "" || listOfRolesThatWillBeSeen.includes(obj.role.value))
         */
-        if ((obj.name && obj.name.value !== "" && obj.name.value !== "uninteresting") || !obj.ignored) {
-            if (obj.role && obj.role.value === "StaticText" && obj.parentId !== "")
+        if ((obj.name && obj.name.value !== "" && obj.name.value !== "uninteresting")) {
+            if (obj.role && (obj.role.value === "StaticText" )&& obj.parentId !== "")
             {
                 obj.backendDOMNodeId = parseInt(obj.parentId);
                 const parentNode = (await queryAXTreeByBackendNodeId(tabId,obj.backendDOMNodeId)).nodes;
@@ -542,6 +542,7 @@ async function fullA11yTreeFilter(tabId,fullA11yTree) {
             {
                 name = obj.name.value
             }
+
             backEndIdWithName[obj.backendDOMNodeId] = 
             {
                 value:`${name} ${count}`,

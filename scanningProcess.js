@@ -19,10 +19,10 @@ function inList(a11yTree, xpath) {
     {
         condition = true
     }
-    else if(containsATag(xpath) || containsButtonTag(xpath) )
-    {
-        condition = true
-    }
+    // else if(containsATag(xpath) || containsButtonTag(xpath) )
+    // {
+    //     condition = true
+    // }
 
     return condition;
 }
@@ -52,6 +52,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     {
                         const frameOrIframeElement = document.body.querySelectorAll('iframe, frame');
                         frameOrIframeElement.forEach(frame => {
+                            console.log("frame",frame)
                             bodyNode = frame.contentDocument;
                             // Evaluate the XPath expression to find the parent node
                             parentResult = document.evaluate(
