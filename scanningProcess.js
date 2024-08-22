@@ -26,10 +26,11 @@ function inList(a11yTree, xpath) {
         condition = true
     }
 
-    else if(containsATag(xpath) || containsButtonTag(xpath) || containsInputTag(xpath) )
-    {
-        condition = true
-    }
+    // Too specific to one area cause we could have <a> <div> with a stop propigation
+    // else if(containsATag(xpath) || containsButtonTag(xpath) || containsInputTag(xpath) )
+    // {
+    //     condition = true
+    // }
 
     return condition;
 }

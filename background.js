@@ -131,8 +131,26 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             await enableDOMDomain(tabId)
 
             // Full DOM DICT TREE
-            const domDictionary = await collectDOMNodes(tabId)   
-            console.log("domDictionary",domDictionary) 
+            const { nodeMap, resolveNodes, eventListnersList } = await collectDOMNodes(tabId);
+            const domDictionary = nodeMap; 
+            console.log("domDictionary",domDictionary); 
+            console.log("resolveNodes",resolveNodes);
+            console.log("eventListnersList",eventListnersList)
+
+            // Set Attribute tabby-has-listener = "true"
+            await addAttributeEventList(tabId,domDictionary,eventListnersList)
+
+
+            // const firstKey = Object.keys(domDictionary)[0];
+            // const nodeId = await resolveNode(tabId,domDictionary[firstKey]);
+            // console.log("resolveNode_nodeId",nodeId.objectId);
+            // if (nodeId)
+            // {
+            //     const eventList = await getFullEventListeners(tabId,nodeId.objectId);
+            //     console.log("eventList",eventList);
+            // }
+
+
 
             // Frames inside a page
             const frameTree = await getFrameTree(tabId);
@@ -273,6 +291,20 @@ async function getFrameTree(tabId) {
 }
 
 /* 
+    Function to attach attribute to elements with eventListners
+*/
+async function addAttributeEventList(tabId, domDictionary, eventListnersList) {
+    const promises = Object.keys(eventListnersList).map(async (backendDOMNodeId) => {
+        const correspondingNodeId = domDictionary[backendDOMNodeId];
+        return setAttributeValue(tabId, correspondingNodeId, "tabby-has-listener");
+    });
+
+    // Wait for all promises to resolve
+    await Promise.all(promises);
+}
+
+
+/* 
     Function to attach debugger to a tab
 */
 async function attachDebugger(tabId) {
@@ -354,8 +386,7 @@ function enableDOMDomain(tabId) {
     Returns:
         True or False if its been attached (Currently broken)
 */
-async function setAttributeValue(tabId, nodeId) {
-    const name = "purple_tabby_a11yTree";
+async function setAttributeValue(tabId, nodeId,name) {
     const value = "true";
 
     // Step 1: Set the attribute
@@ -410,23 +441,101 @@ async function getDOMDocument(tabId) {
     });
 }
 
+async function resolveNode(tabId, nodeId) {
+    return new Promise((resolve, reject) => {
+        chrome.debugger.sendCommand({ tabId }, 'DOM.resolveNode', { nodeId }, (result) => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+            }
+
+            if (result && result.object) {
+                resolve(result.object);
+            } else {
+                reject(new Error('Failed to resolve node to object.'));
+            }
+        });
+    });
+}
+
+async function getFullEventListeners(tabId, objectId) {
+    return new Promise((resolve, reject) => {
+        chrome.debugger.sendCommand({ tabId }, 'DOMDebugger.getEventListeners', { objectId:objectId, depth:-1 ,pierce:true}, (result) => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+            }
+
+            if (result && result.listeners) {
+                resolve(result.listeners);
+            } else {
+                reject(new Error('Failed to retrieve event listeners.'));
+            }
+        });
+    });
+}
+
+async function getEventListeners(tabId, objectId) {
+    console.log(objectId);
+    return new Promise((resolve, reject) => {
+        chrome.debugger.sendCommand({ tabId }, 'DOMDebugger.getEventListeners', { objectId:objectId}, (result) => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+            }
+
+            if (result && result.listeners) {
+                resolve(result.listeners);
+            } else {
+                reject(new Error('Failed to retrieve event listeners.'));
+            }
+        });
+    });
+}
 
 async function collectDOMNodes(tabId) {
     const nodeMap = {}; // Dictionary to store backendNodeId and nodeId pairs
+    const resolveNodes = {}
+    const eventListnersList ={};
 
-    function traverseNode(node) {
+    async function traverseNode(node) {
         try{
             // Add backendNodeId and nodeId to the dictionary
             if (node.backendNodeId) {
                 console.log("Adding to the dict",node.backendNodeId)
                 nodeMap[node.backendNodeId] = node.nodeId;
+                const jsRuntimeObj = await resolveNode(tabId,node.nodeId);
+                console.log("jsRuntimeObj",jsRuntimeObj)
+                if (jsRuntimeObj)
+                {
+                    const jsRuntimeObjId = jsRuntimeObj.objectId;
+                    resolveNodes[node.backendNodeId] = jsRuntimeObjId;
+                    console.log("jsRuntimeObjId",jsRuntimeObjId)
+                    if (jsRuntimeObjId)
+                    {
+                        const eventListners = await getEventListeners(tabId,jsRuntimeObjId)
+                        if (eventListners.length > 0)
+                        {
+                            console.log("eventListners",eventListners);
+                            eventListners.forEach(event => {
+                                if (event.type === "click")
+                                {
+                                    eventListnersList[node.backendNodeId] = eventListners;
+                                }
+                            });
+                        }
+                       
+                    }
+                }
+
+
             }
 
             if (Array.isArray(node.shadowRoots))
             {
                 console.log("traverseNode shadowRoot exsists")
                 for (const child of node.shadowRoots) {
-                    traverseNode(child);
+                    await traverseNode(child);
                 }
             } else {
                 console.warn("No shadowRoot is not an array:", node);
@@ -435,14 +544,14 @@ async function collectDOMNodes(tabId) {
             // Process children recursively
             if (node.children && node.children.length > 0) {
                 for (const child of node.children) {
-                    traverseNode(child);
+                    await traverseNode(child);
                 }
             } else if (node.frameId && node.contentDocument)// For frames and Iframes ETC
             {
                 if(Array.isArray(node.contentDocument.children) && node.contentDocument.children.length >0)
                 {
                     for (const child of node.contentDocument.children) {
-                        traverseNode(child);
+                        await traverseNode(child);
                     }
                 }
             }
@@ -458,12 +567,12 @@ async function collectDOMNodes(tabId) {
     try {
         const document = await getDOMDocument(tabId);
         console.log("Whole Tree",document);
-        traverseNode(document.root);
+        await traverseNode(document.root);
     } catch (error) {
         console.error("Error collecting DOM nodes:", error);
     }
 
-    return nodeMap;
+    return {nodeMap:nodeMap, resolveNodes:resolveNodes,eventListnersList:eventListnersList};
 }
 
 async function settingAttributeNode(tabId, backendDOMNodeIds, domDictionary) {
@@ -482,7 +591,7 @@ async function settingAttributeNode(tabId, backendDOMNodeIds, domDictionary) {
                 const parentOfBackendId = backendDOMNodeIds[backendId].parentId;
                 correspondingNodeId = domDictionary[parentOfBackendId];
             }
-            const attribute = await setAttributeValue(tabId, correspondingNodeId);
+            const attribute = await setAttributeValue(tabId, correspondingNodeId,"purple_tabby_a11yTree");
             console.log("set attribute?", attribute);
 
         } catch (error) {
