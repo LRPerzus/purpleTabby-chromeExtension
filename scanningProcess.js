@@ -13,16 +13,23 @@ function containsButtonTag(xpath) {
     return regex.test(xpath);
 }
 
+function containsInputTag(xpath) {
+    // Regular expression to find any occurrence of an 'a' tag in the XPath string
+    const regex = /\/input\[?\d*\]?\/(?!.*\/$)/i;
+    return regex.test(xpath);
+}
+
 function inList(a11yTree, xpath) {
     let condition = false;
     if (a11yTree.includes(xpath))
     {
         condition = true
     }
-    // else if(containsATag(xpath) || containsButtonTag(xpath) )
-    // {
-    //     condition = true
-    // }
+
+    else if(containsATag(xpath) || containsButtonTag(xpath) || containsInputTag(xpath) )
+    {
+        condition = true
+    }
 
     return condition;
 }
@@ -119,8 +126,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     else if (message.type === "UPDATE_OVERLAY")
     {
         console.log("HELLO UPDATE_OVERLAY")        
-
-
+        
         const treeContainer = document.getElementById('treeContent');
         const highlightButton = document.querySelector(".purpleTabby #highlightItemsA11yTree");
         const rescanButton = document.querySelector(".purpleTabby #rescanButton");

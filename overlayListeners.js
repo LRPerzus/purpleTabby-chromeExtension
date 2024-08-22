@@ -60,8 +60,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             element.setAttribute('aria-label', 'Clickable element'); // Customize the label as needed
           }
       });
-
     }
+
 });
   
 

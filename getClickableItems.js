@@ -62,11 +62,18 @@ async function getClickableItems() {
 }
 
 // Function to check if an element is visible
-const isVisible = (el) => {
+const isVisibleFocusAble = (el) => {
     try {
         const style = window.getComputedStyle(el);
         const rect = el.getBoundingClientRect();
-        return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+        return (
+            // Visible
+            style.display !== 'none' 
+            && style.visibility !== 'hidden' 
+            && rect.width > 0 && rect.height > 0 
+            // Focusable 
+            && !el.hasAttribute('disabled') 
+        );
     } catch (error) {
         console.error('Error in isVisible:', error);
         return false;
@@ -77,25 +84,14 @@ async function isItPointer(el, clickElements, framePath = "") {
     const style = window.getComputedStyle(el);
     const path = getXPath(el);
 
-    if ((style.cursor === 'pointer') && isVisible(el) && !el.parentElement.closest('[aria-hidden]')) {
-        if (el.tagName.toLowerCase() === 'a') {
-            if (!el.hasAttribute('href')) {
-                clickElements.push(
-                    {
-                        path: path,
-                        framePath: framePath
-                    }
-                );
-            }
-        } else {
-            if (path !== "skip") {
-                clickElements.push(
-                    {
-                        path: path,
-                        framePath: framePath
-                    }
-                );
-            }
+    if ((style.cursor === 'pointer') && isVisibleFocusAble(el) && !el.parentElement.closest('[aria-hidden]')) {
+        if (path !== "skip") {
+            clickElements.push(
+                {
+                    path: path,
+                    framePath: framePath
+                }
+            );
         }
     }
 
@@ -104,7 +100,7 @@ async function isItPointer(el, clickElements, framePath = "") {
         shadowRootItems.forEach(element => {
             try {
                 const style = window.getComputedStyle(element);
-                if (style.cursor === 'pointer' && isVisible(element) && !element.closest('[aria-hidden]')) {
+                if (style.cursor === 'pointer' && isVisibleFocusAble(element) && !element.closest('[aria-hidden]')) {
                     clickElements.push({
                         path: getXPath(element),
                         framePath: framePath
@@ -129,10 +125,10 @@ const processElement = async (el, clickElements, framePath = "") => {
 
             // Check if the frame's document has a body
             if (frameDocument && frameDocument.body && frameDocument.body.nodeName.toLowerCase() === 'body') {
-                console.log("Adding to checking List", frameDocument.body.querySelectorAll('*:not(a[href])'));
+                console.log("Adding to checking List", frameDocument.body.querySelectorAll('*'));
 
                 // Add elements from the frame's document to the elements list
-                elements.push(...Array.from(frameDocument.body.querySelectorAll('*:not(a[href])'))); // Use Array.from to convert NodeList to array
+                elements.push(...Array.from(frameDocument.body.querySelectorAll('*'))); // Use Array.from to convert NodeList to array
             }
         }
 

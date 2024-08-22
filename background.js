@@ -221,6 +221,12 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:missingXpaths});
 
     }
+    else if (request.type === "ERROR_REFRESHNEED")
+    {
+        console.log("ERROR_REFRESHNEED");
+        const tabId = sender.tab.id;
+        firstClick[tabId] = "ERROR";
+    }
 });
 
 // -- Functions

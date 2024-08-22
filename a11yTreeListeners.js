@@ -88,17 +88,24 @@ function findAllWithAttribute(selector, root = document) {
 
 function a11yTreeToDOM()
 {
-    const elementsWithPurpleTabby = findAllWithAttribute('[purple_tabby_a11yTree]');
-    console.log("a11yTreeToDOM_elementsWithPurpleTabby",elementsWithPurpleTabby)
-    console.log()
-    const foundElements = []
-    elementsWithPurpleTabby.forEach(element => {
-        const xpath = getXPath(element)
-        if (xpath)
-        {
-            foundElements.push(xpath);
-        }
-    });
-    console.log("a11yTreeToDOM foundElements",foundElements)
-    return foundElements;
+    try {
+        const elementsWithPurpleTabby = findAllWithAttribute('[purple_tabby_a11yTree]');
+        console.log("a11yTreeToDOM_elementsWithPurpleTabby",elementsWithPurpleTabby)
+        console.log()
+        const foundElements = []
+        elementsWithPurpleTabby.forEach(element => {
+            const xpath = getXPath(element)
+            if (xpath)
+            {
+                foundElements.push(xpath);
+            }
+        });
+        console.log("a11yTreeToDOM foundElements",foundElements)
+        return foundElements;
+    }
+    catch(error)
+    {
+        console.log("a11yTreeToDOM() as an error",error)
+    }
+    
 }
