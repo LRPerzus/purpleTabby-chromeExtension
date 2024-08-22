@@ -57,7 +57,6 @@ async function getClickableItems() {
         console.error('Error in querying elements:', error);
     }
 
-    console.log("Testing", clickElements);
     return clickElements;
 }
 
@@ -125,7 +124,7 @@ const processElement = async (el, clickElements, framePath = "") => {
 
             // Check if the frame's document has a body
             if (frameDocument && frameDocument.body && frameDocument.body.nodeName.toLowerCase() === 'body') {
-                console.log("Adding to checking List", frameDocument.body.querySelectorAll('*'));
+                // console.log("Adding to checking List", frameDocument.body.querySelectorAll('*'));
 
                 // Add elements from the frame's document to the elements list
                 elements.push(...Array.from(frameDocument.body.querySelectorAll('*'))); // Use Array.from to convert NodeList to array

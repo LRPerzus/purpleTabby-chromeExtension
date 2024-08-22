@@ -12,7 +12,7 @@ chrome.action.onClicked.addListener(async (tab) => {
 
     if (!(tab.id in firstClick) || firstClick[tab.id] !== tab.url)
     {
-        console.log("This is the first click");
+        // console.log("This is the first click");
         firstClick[tab.id] = tab.url;
         await clearDataForTab(tab.id);
 
@@ -116,7 +116,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         });
     }
     else if (request.type === "GET_AX_TREE") {
-        console.log("Message received in background script:", request);
+        // console.log("Message received in background script:", request);
         try {
             const tabId = request.tabId;
             console.log("When GET_AX_TREE is triggered debugger is:",isDebuggerAttached(tabId));
@@ -295,13 +295,23 @@ async function getFrameTree(tabId) {
 */
 async function addAttributeEventList(tabId, domDictionary, eventListnersList) {
     const promises = Object.keys(eventListnersList).map(async (backendDOMNodeId) => {
-        const correspondingNodeId = domDictionary[backendDOMNodeId];
-        return setAttributeValue(tabId, correspondingNodeId, "tabby-has-listener");
+        try {
+            // console.log("addAttributeEventList_backendDOMNodeId", backendDOMNodeId);
+            const correspondingNodeId = domDictionary[backendDOMNodeId];
+            if (!correspondingNodeId) {
+                console.error(`No corresponding node found for backendDOMNodeId: ${backendDOMNodeId}`);
+                return; // Skip this node
+            }
+            await setAttributeValue(tabId, correspondingNodeId, "tabby-has-listener");
+        } catch (error) {
+            console.error(`Failed to set attribute for backendDOMNodeId: ${backendDOMNodeId}`, error);
+        }
     });
 
     // Wait for all promises to resolve
     await Promise.all(promises);
 }
+
 
 
 /* 
@@ -476,7 +486,6 @@ async function getFullEventListeners(tabId, objectId) {
 }
 
 async function getEventListeners(tabId, objectId) {
-    console.log(objectId);
     return new Promise((resolve, reject) => {
         chrome.debugger.sendCommand({ tabId }, 'DOMDebugger.getEventListeners', { objectId:objectId}, (result) => {
             if (chrome.runtime.lastError) {
@@ -505,18 +514,15 @@ async function collectDOMNodes(tabId) {
                 console.log("Adding to the dict",node.backendNodeId)
                 nodeMap[node.backendNodeId] = node.nodeId;
                 const jsRuntimeObj = await resolveNode(tabId,node.nodeId);
-                console.log("jsRuntimeObj",jsRuntimeObj)
                 if (jsRuntimeObj)
                 {
                     const jsRuntimeObjId = jsRuntimeObj.objectId;
                     resolveNodes[node.backendNodeId] = jsRuntimeObjId;
-                    console.log("jsRuntimeObjId",jsRuntimeObjId)
                     if (jsRuntimeObjId)
                     {
                         const eventListners = await getEventListeners(tabId,jsRuntimeObjId)
                         if (eventListners.length > 0)
                         {
-                            console.log("eventListners",eventListners);
                             eventListners.forEach(event => {
                                 if (event.type === "click")
                                 {
@@ -647,8 +653,8 @@ async function fullA11yTreeFilter(tabId,fullA11yTree) {
             {
                 obj.backendDOMNodeId = parseInt(obj.parentId);
                 const parentNode = (await queryAXTreeByBackendNodeId(tabId,obj.backendDOMNodeId)).nodes;
-                console.log("fullA11yTreeFilter update to the parentIds",obj.backendDOMNodeId);
-                console.log("fullA11yTreeFilter parentNode",parentNode)
+                // console.log("fullA11yTreeFilter update to the parentIds",obj.backendDOMNodeId);
+                // console.log("fullA11yTreeFilter parentNode",parentNode)
                 obj.parentId = parseInt(parentNode[0].parentId);
                 console.log("The change",obj.parentId);
             }

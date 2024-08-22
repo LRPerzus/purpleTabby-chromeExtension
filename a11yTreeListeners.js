@@ -9,7 +9,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === "Can_Get_Tree") {
         console.log("Received Can_Get_Tree message");
         const tabId = message.tabId;
-        console.log("tabId",tabId)
 
         // Handle the message and process the AX tree in background
         chrome.runtime.sendMessage({ type: "GET_AX_TREE", tabId: tabId });
@@ -90,8 +89,8 @@ function a11yTreeToDOM()
 {
     try {
         const elementsWithPurpleTabby = findAllWithAttribute('[purple_tabby_a11yTree]');
-        console.log("a11yTreeToDOM_elementsWithPurpleTabby",elementsWithPurpleTabby)
-        console.log()
+        // console.log("a11yTreeToDOM_elementsWithPurpleTabby",elementsWithPurpleTabby)
+        // console.log()
         const foundElements = []
         elementsWithPurpleTabby.forEach(element => {
             const xpath = getXPath(element)
@@ -100,7 +99,7 @@ function a11yTreeToDOM()
                 foundElements.push(xpath);
             }
         });
-        console.log("a11yTreeToDOM foundElements",foundElements)
+        // console.log("a11yTreeToDOM foundElements",foundElements)
         return foundElements;
     }
     catch(error)

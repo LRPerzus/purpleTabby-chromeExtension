@@ -92,7 +92,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 console.log("parent",parent);
                 console.log("!inList(A11yTree, elementXpath)", !inList(A11yTree, elementXpath));
         
-                if (parent && !inList(A11yTree, elementXpath)) {
+                if (parent && !inList(A11yTree, elementXpath) && (parent.tagName.toLowerCase()=== "a" ||parent.hasAttribute('tabby-has-listener'))) {
+                    // Has children with that are in A11yTree
                     // Evaluate XPath to find any descendants with the attribute
                     const descendantResult = document.evaluate(
                         './/*[@purple_tabby_a11ytree="true"]', // XPath expression to find any descendants
@@ -110,6 +111,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         // Add to missing list if no descendants with the attribute are found
                         missing.push(elementXpath);
                     }
+
+
                 }
             } catch (error) {
                 console.error(`An error occurred while processing XPath:`, error);
