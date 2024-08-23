@@ -10,6 +10,7 @@ chrome.action.onClicked.addListener(async (tab) => {
 
     console.log("firstClick",firstClick)
 
+    // The first click is to ensure the scritpts are injected into the page each time the get click on first
     if (!(tab.id in firstClick) || firstClick[tab.id] !== tab.url)
     {
         // console.log("This is the first click");

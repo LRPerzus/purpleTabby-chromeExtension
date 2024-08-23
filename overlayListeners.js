@@ -7,6 +7,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         missingXpaths.forEach(xpath => {
           let currentNode = document.body;
           let result;
+
           // Just in case of FrameSet
           if (document.body.tagName.toLowerCase() === "frameset")
           {
@@ -24,10 +25,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
 
           const element = result.singleNodeValue;
-          console.log("elements",element)
 
           if (element) {
-            element.classList.add("purple_Tabby_Missing");
+            console.log("previous Border:",element.style.border)
+            element.setAttribute("purple_tabby_missing",element.style.border) ;
             element.style.border = "10px solid purple";
           }
         });

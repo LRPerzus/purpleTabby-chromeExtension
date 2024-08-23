@@ -113,18 +113,22 @@ function createOverlay() {
     });
 
     highlightButton.addEventListener('click', () => {
+        const missingItems = collectItemsMissingFromFrames();
+        console.log("missingItems",missingItems)
         // See if this is closing
-        const itemsMissing = document.querySelectorAll(".purple_Tabby_Missing");
-        if (itemsMissing.length > 0)
+        if (missingItems.length > 0)
         {
             console.log("Already Highlighted Removing")
-            itemsMissing.forEach(item => {
-                item.classList.remove("purple_Tabby_Missing");
-              });
+            missingItems.forEach(item => {
+                const previousBorderStyle = item.getAttribute('purple_Tabby_Missing');
+                item.style.border = previousBorderStyle;
+                item.removeAttribute('purple_Tabby_Missing');
+            });
         }
         else if (chrome.runtime && chrome.runtime.sendMessage) {
             chrome.runtime.sendMessage({ type: "HIGHLIGHT_MISSING"});
         }
+        
     });
 
     rescanButton.addEventListener('click', function() {
@@ -173,4 +177,48 @@ if (!document.getElementById("overlay-container"))
 {
     createOverlay();
     chrome.runtime.sendMessage({ type: "OVERLAY_CREATED" });
+}
+
+function collectItemsMissingFromFrames() {
+    let itemsMissing = [];
+
+    function collectFromFrame(frame) {
+        try {
+            const frameDocument = frame.contentDocument || frame.contentWindow.document;
+            if (frameDocument && frameDocument.body.nodeName.toLowerCase() === 'body') {
+                const currentNode = frameDocument.body;
+                // Select elements with the attribute `purple_Tabby_Missing`
+                const itemsMissingInFrame = Array.from(currentNode.querySelectorAll('[purple_tabby_missing]'));
+                itemsMissing.push(...itemsMissingInFrame);
+
+                // Recursively check nested iframes
+                const frames = Array.from(frameDocument.querySelectorAll('frame, iframe'));
+                for (let nestedFrame of frames) {
+                    collectFromFrame(nestedFrame);
+                }
+            }
+        } catch (e) {
+            console.warn('Unable to access frame document due to cross-origin restrictions:', e);
+        }
+    }
+
+    // Check for frameset
+    if (document.body.tagName.toLowerCase() === 'frameset') {
+        console.log("Document uses frameset");
+        const topFrames = Array.from(document.querySelectorAll('frame'));
+        console.log("topFrames", topFrames);
+        for (let topFrame of topFrames) {
+            collectFromFrame(topFrame);
+        }
+    } else {
+        // For documents using iframes or standard HTML with body
+        console.log("Document uses iframes or standard HTML");
+        const topFrames = Array.from(document.querySelectorAll('iframe'));
+        console.log("topFrames", topFrames);
+        for (let topFrame of topFrames) {
+            collectFromFrame(topFrame);
+        }
+    }
+
+    return itemsMissing;
 }
