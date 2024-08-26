@@ -62,6 +62,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
       });
     }
+    else if (message.type === "CHECK_OVERLAY_LISTENERS_JS")
+    {
+      sendResponse({ status: "OVERLAY_LISTENERS_READY" });
+    }
 
 });
   

@@ -156,4 +156,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             console.error("Element with ID 'treeContent' not found.");
         }
     }
+    else if (message.type === "CHECK_SCANNING_PROCESS_JS")
+    {
+        sendResponse({ status: "SCANNING_PROCESS_READY" });
+    }
 })

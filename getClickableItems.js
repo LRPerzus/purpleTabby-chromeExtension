@@ -83,7 +83,7 @@ async function isItPointer(el, clickElements, framePath = "") {
     const style = window.getComputedStyle(el);
     const path = getXPath(el);
 
-    if ((style.cursor === 'pointer') && isVisibleFocusAble(el) && !el.parentElement.closest('[aria-hidden]')) {
+    if ((style.cursor === 'pointer') && isVisibleFocusAble(el) && !el.parentElement.closest('[aria-hidden]') && el.getAttribute("aria-hidden") !== "true") {
         if (path !== "skip") {
             clickElements.push(
                 {
@@ -137,3 +137,11 @@ const processElement = async (el, clickElements, framePath = "") => {
         console.error('Error in processing element:', error);
     }
 };
+
+
+// To ensure the scripts are injected
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.type === "CHECK_GETCLICKABLE_JS") {
+        sendResponse({ status: "GET_GETCLICKABL_READY" });
+    }
+});

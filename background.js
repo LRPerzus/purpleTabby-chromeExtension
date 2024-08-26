@@ -5,71 +5,53 @@ let debuggerAttached = {};
 
 // --- Plugin Icon on the top click functions
 chrome.action.onClicked.addListener(async (tab) => {
-
-    console.log("When plugin is clicked debugger is:",await isDebuggerAttached(tab.id))
-
-    console.log("firstClick",firstClick)
-
-    // The first click is to ensure the scritpts are injected into the page each time the get click on first
-    if (!(tab.id in firstClick) || firstClick[tab.id] !== tab.url)
-    {
         // console.log("This is the first click");
         firstClick[tab.id] = tab.url;
         await clearDataForTab(tab.id);
 
         // attaches the number of clicks
         await updateNoClicksTabID(tab.id);
-
-        // A11y Tree Listeners
-        chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            files: ['./a11yTreeListeners.js']
-        });
-        //Get Clickable Listners
-        chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            files: ['./getClickableElementsListeners.js']
-        }); 
         
-        // overlay Listeners
-        chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            files: ['./overlayListeners.js']
-        }); 
+        try {
+            const scriptChecks = [
+                { name: "content.js", message: "CHECK_CONTENT_JS", status: "CONTENT_READY" },
+                { name: "scanningProcess.js", message: "CHECK_SCANNING_PROCESS_JS", status: "SCANNING_PROCESS_READY" },
+                { name: "a11yTreeListeners.js", message: "CHECK_A11Y_TREE_LISTENERS_JS", status: "A11Y_LISTENERS_READY" },
+                { name: "getClickableElementsListeners.js", message: "CHECK_CLICKABLE_ELEMENTS_LISTENERS_JS", status: "CLICKABLE_ELEMENTS_READY" },
+                { name: "overlayListeners.js", message: "CHECK_OVERLAY_LISTENERS_JS", status: "OVERLAY_LISTENERS_READY" },
+                { name: "getClickableItems.js", message: "CHECK_GETCLICKABLE_JS", status: "GET_GETCLICKABL_READY" } 
+            ];
+            
+    
+            const missingScripts = [];
+    
+            for (const check of scriptChecks) {
+                try {
+                    await sendMessageAndWait(tab.id, check.message, check.status);
+                    console.log(`${check.name} is already injected.`);
+                } catch {
+                    console.log(`${check.name} is not injected.`);
+                    missingScripts.push(check.name);
+                }
+            }
+    
+            if (missingScripts.length > 0) {
+                console.log("Missing scripts:", missingScripts.join(", "));
+                await injectMissingScripts(tab.id, missingScripts);
 
-
-        // Wait for both scripts to signal readiness
-        Promise.all([
-            waitForMessage(tab.id, "A11Y_LISTENERS_READY"),
-            waitForMessage(tab.id, "GET_CLICKABLE_READY")
-        ]).then(() => {
-            console.log("Both scripts are ready. Proceeding with further actions.");
-            // Proceed with additional actions
-            // Set the overlay
+            } else {
+                console.log("All scripts are loaded and ready.");
+            }
+    
+            console.log("All scripts are ready. Proceeding with further actions.");
             chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 files: ['./overlay.js']
             });
 
-        }).catch(error => {
-            console.error("Error waiting for scripts to be ready:", error);
-        });
-    }
-    else
-    {
-        console.log("ReOpen after closing");
-        firstClick[tab.id] = tab.url;
-        
-        // updates the number
-        await updateNoClicksTabID(tab.id,true);
-
-        // Set the overlay
-        chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            files: ['./overlay.js']
-        });
-    }
-   
+        } catch (error) {
+            console.error("Error waiting for scripts:", error);
+        }
 });
 
 // --- Event Listeners
@@ -139,19 +121,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             console.log("eventListnersList",eventListnersList)
 
             // Set Attribute tabby-has-listener = "true"
-            await addAttributeEventList(tabId,domDictionary,eventListnersList)
-
-
-            // const firstKey = Object.keys(domDictionary)[0];
-            // const nodeId = await resolveNode(tabId,domDictionary[firstKey]);
-            // console.log("resolveNode_nodeId",nodeId.objectId);
-            // if (nodeId)
-            // {
-            //     const eventList = await getFullEventListeners(tabId,nodeId.objectId);
-            //     console.log("eventList",eventList);
-            // }
-
-
+            await addAttributeEventList(tabId,domDictionary,eventListnersList);
 
             // Frames inside a page
             const frameTree = await getFrameTree(tabId);
@@ -170,6 +140,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 await detachDebugger(tabId);
             }
 
+            // To force a download
             // const json = JSON.stringify(fullA11yTree, null, 2);
 
             // // Send the data to the content script or popup
@@ -781,20 +752,46 @@ chrome.runtime.onInstalled.addListener(() => {
     clearLocalStorage();
 });
   
-
-// Function to wait for two messengers to be sent fully then it will allow for further continuation of the code;
-function waitForMessage(tabId, messageType) {
+// Function to send a message and wait for a specific response
+function sendMessageAndWait(tabId, messageType, expectedStatus) {
     return new Promise((resolve, reject) => {
-        function onMessage(request, sender, sendResponse) {
-            if (sender.tab.id === tabId && request.type === messageType) {
-                chrome.runtime.onMessage.removeListener(onMessage); // Clean up listener
+        chrome.tabs.sendMessage(tabId, { type: messageType }, (response) => {
+            // console.log("sendMessageAndWait",response.status);
+            if (chrome.runtime.lastError) {
+                reject(new Error(`Failed to send message to tab ${tabId}: ${chrome.runtime.lastError.message}`));
+            } else if (response && response.status === expectedStatus) {
                 resolve();
+            } else {
+                reject(new Error(`Unexpected response status. Expected: ${expectedStatus}, but got: ${response ? response.status : 'no response'}`));
             }
-        }
-        chrome.runtime.onMessage.addListener(onMessage);
+        });
+
+        setTimeout(() => {
+            reject(new Error(`Timeout waiting for ${expectedStatus} from tab ${tabId}`));
+        }, 5000); // Adjust timeout as needed
     });
 }
 
+
+
+// Function to dynamically inject missing scripts
+function injectMissingScripts(tabId, missingScripts) {
+    return Promise.all(missingScripts.map(scriptName => {
+        return new Promise((resolve, reject) => {
+            chrome.scripting.executeScript({
+                target: { tabId: tabId },
+                files: [scriptName]
+            }, () => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(`Failed to inject script ${scriptName} into tab ${tabId}: ${chrome.runtime.lastError.message}`));
+                } else {
+                    console.log(`Injected ${scriptName} successfully.`);
+                    resolve();
+                }
+            });
+        });
+    }));
+}
 // Function to check if a dubugger instance is attached to a tab
 async function isDebuggerAttached(tabId) {
     chrome.debugger.getTargets((targets) => {
