@@ -398,8 +398,8 @@ function enableDOMDomain(tabId) {
         True or False if its been attached (Currently broken)
 */
 async function setAttributeValue(tabId, nodeId,name) {
-    const value = "true";
-
+    const value = "true"; // This is the value to set
+    
     // Step 1: Set the attribute
     await new Promise((resolve, reject) => {
         chrome.debugger.sendCommand({ tabId }, 'DOM.setAttributeValue', {
@@ -522,7 +522,7 @@ async function collectDOMNodes(tabId) {
                     if (jsRuntimeObjId)
                     {
                         const eventListners = await getEventListeners(tabId,jsRuntimeObjId)
-                        if (eventListners.length > 0)
+                        if (eventListners.length > 0 && node.nodeName !== "#document")
                         {
                             eventListners.forEach(event => {
                                 if (event.type === "click")
@@ -648,8 +648,9 @@ async function fullA11yTreeFilter(tabId,fullA11yTree) {
         /* 
             Switch to this if want to swtich back to only noticing stuff thats would not automatically be detected
             (obj.name.value !== "" || listOfRolesThatWillBeSeen.includes(obj.role.value))
+            obj.role.value !== "RootWebArea") not an element we can add an attribute 
         */
-        if ((obj.name && obj.name.value !== "" && obj.name.value !== "uninteresting")) {
+        if ((obj.name && obj.name.value !== "" && obj.name.value !== "uninteresting"  && obj.role.value !== "RootWebArea")) {
             if (obj.role && (obj.role.value === "StaticText" )&& obj.parentId !== "")
             {
                 obj.backendDOMNodeId = parseInt(obj.parentId);
