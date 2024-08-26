@@ -212,7 +212,14 @@ function collectItemsMissingFromFrames() {
         }
     } else {
         // For documents using iframes or standard HTML with body
-        console.log("Document uses iframes or standard HTML");
+        console.log("Document uses standard HTML");
+
+        // Collect the HTML items
+        const itemsMissingInFrame = Array.from(document.body.querySelectorAll('[purple_tabby_missing]'));
+        itemsMissing.push(...itemsMissingInFrame);
+
+
+        // Check for the next layer of IFrames
         const topFrames = Array.from(document.querySelectorAll('iframe'));
         console.log("topFrames", topFrames);
         for (let topFrame of topFrames) {
