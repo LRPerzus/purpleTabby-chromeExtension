@@ -1,6 +1,11 @@
+// Imported Functions
+import {getFrameTree,processFrameTrees} from "./background functions/frameTreesFuncs.js"
+import {collectDOMNodes} from "./background functions/domTreeFunc.js"
+import {setAttributeValue,areScansFinished} from "./background functions/common.js"
+import {storeDataForTab,clearLocalStorage,getFromLocal} from "./background functions/localStorageFunc.js"
+
 // Set Variables
 let firstClick = {};
-let onOFF = false
 let debuggerAttached = {};
 
 // --- Plugin Icon on the top click functions
@@ -44,6 +49,8 @@ chrome.action.onClicked.addListener(async (tab) => {
             }
     
             console.log("All scripts are ready. Proceeding with further actions.");
+
+            // This is to create the overlay
             chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 files: ['./overlay.js']
@@ -65,7 +72,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         const id = sender.tab.id;
         if (missingXpath !== undefined)
         {
-            console.log("OH LOOK NOT UNDEFINED")
             data = missingXpath;
         }
         else{
@@ -220,47 +226,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 });
 
 // -- Functions
-async function processFrameTrees(tabId, frameTree,domDictionary) {
-    const promises = frameTree.map(async frameId => {
-        const fullA11yTree = await getFullAXTree(tabId, frameId);
-        console.log("WHOLE A11y TREE", fullA11yTree);
-
-        // Collecting only the DOM ids with names
-        const onlyNames = await fullA11yTreeFilter(tabId, fullA11yTree.nodes);
-        console.log("Filtered tree A11y Whole:", onlyNames);
-
-        // Setting attributes on nodes
-        await settingAttributeNode(tabId, onlyNames, domDictionary);
-    });
-
-    // Wait for all the promises to resolve
-    await Promise.all(promises);
-    console.log("All frames processed.");
-}
-/*
-    To get the FrameIds of a page entirely 
-*/
-async function getFrameTree(tabId) {
-    return new Promise((resolve, reject) => {
-        chrome.debugger.sendCommand({ tabId }, 'Page.getFrameTree', {}, (response) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError));
-            } else {
-                const frameIds = [];
-                const collectFrameIds = (frameTree) => {
-                    frameIds.push(frameTree.frame.id);
-                    if (frameTree.childFrames) {
-                        for (const child of frameTree.childFrames) {
-                            collectFrameIds(child);
-                        }
-                    }
-                };
-                collectFrameIds(response.frameTree);
-                resolve(frameIds);
-            }
-        });
-    });
-}
 
 /* 
     Function to attach attribute to elements with eventListners
@@ -354,328 +319,6 @@ function enableDOMDomain(tabId) {
     });
   }
 
-  
-/* 
-    Function to set attribute purple_tabby_a11yTree to DOM items via Debugger DOM commands
-    Reason: 
-        We want to find the direct items from the A11yTree using the backendDomId we can find the node of the DOM.
-        Once we find the corresponding node we can set our own unique attribute so that we can extract them directly
-    
-    Parameters:
-        tabId: the tabId you want to affect
-        nodeId: the nodeId of which you want to add the attribute
-    
-    Returns:
-        True or False if its been attached (Currently broken)
-*/
-async function setAttributeValue(tabId, nodeId,name) {
-    const value = "true"; // This is the value to set
-    
-    // Step 1: Set the attribute
-    await new Promise((resolve, reject) => {
-        chrome.debugger.sendCommand({ tabId }, 'DOM.setAttributeValue', {
-            nodeId,
-            name,
-            value
-        }, (result) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-                return;
-            }
-
-            resolve(result);
-        });
-    });
-
-    // Step 2: Verify the attribute was set correctly
-    return new Promise((resolve, reject) => {
-        chrome.debugger.sendCommand({ tabId }, 'DOM.getAttributes', { nodeId }, (result) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-                return;
-            }
-
-            const attributes = result.attributes;
-            const attribute = attributes.find(attr => attr.name === name);
-            
-            if (attribute && attribute.value === value) {
-                resolve(true);
-            } else {
-                resolve(false);
-            }
-        });
-    });
-}
-
-/* 
-    Function to Enable the DOM domain 
-*/
-async function getDOMDocument(tabId) {
-    return new Promise((resolve, reject) => {
-        chrome.debugger.sendCommand({ tabId }, 'DOM.getDocument', {depth:-1, pierce:true}, (result) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-                return;
-            }
-
-            resolve(result);
-        });
-    });
-}
-
-async function resolveNode(tabId, nodeId) {
-    return new Promise((resolve, reject) => {
-        chrome.debugger.sendCommand({ tabId }, 'DOM.resolveNode', { nodeId }, (result) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-                return;
-            }
-
-            if (result && result.object) {
-                resolve(result.object);
-            } else {
-                reject(new Error('Failed to resolve node to object.'));
-            }
-        });
-    });
-}
-
-async function getFullEventListeners(tabId, objectId) {
-    return new Promise((resolve, reject) => {
-        chrome.debugger.sendCommand({ tabId }, 'DOMDebugger.getEventListeners', { objectId:objectId, depth:-1 ,pierce:true}, (result) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-                return;
-            }
-
-            if (result && result.listeners) {
-                resolve(result.listeners);
-            } else {
-                reject(new Error('Failed to retrieve event listeners.'));
-            }
-        });
-    });
-}
-
-async function getEventListeners(tabId, objectId) {
-    return new Promise((resolve, reject) => {
-        chrome.debugger.sendCommand({ tabId }, 'DOMDebugger.getEventListeners', { objectId:objectId}, (result) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-                return;
-            }
-
-            if (result && result.listeners) {
-                resolve(result.listeners);
-            } else {
-                reject(new Error('Failed to retrieve event listeners.'));
-            }
-        });
-    });
-}
-
-async function collectDOMNodes(tabId) {
-    const nodeMap = {}; // Dictionary to store backendNodeId and nodeId pairs
-    const resolveNodes = {}
-    const eventListnersList ={};
-
-    async function traverseNode(node) {
-        try{
-            // Add backendNodeId and nodeId to the dictionary
-            if (node.backendNodeId) {
-                console.log("Adding to the dict",node.backendNodeId)
-                nodeMap[node.backendNodeId] = node.nodeId;
-                const jsRuntimeObj = await resolveNode(tabId,node.nodeId);
-                if (jsRuntimeObj)
-                {
-                    const jsRuntimeObjId = jsRuntimeObj.objectId;
-                    resolveNodes[node.backendNodeId] = jsRuntimeObjId;
-                    if (jsRuntimeObjId)
-                    {
-                        const eventListners = await getEventListeners(tabId,jsRuntimeObjId)
-                        if (eventListners.length > 0 && node.nodeName !== "#document")
-                        {
-                            eventListners.forEach(event => {
-                                if (event.type === "click")
-                                {
-                                    eventListnersList[node.backendNodeId] = eventListners;
-                                }
-                            });
-                        }
-                       
-                    }
-                }
-
-
-            }
-
-            if (Array.isArray(node.shadowRoots))
-            {
-                console.log("traverseNode shadowRoot exsists")
-                for (const child of node.shadowRoots) {
-                    await traverseNode(child);
-                }
-            } else {
-                console.warn("No shadowRoot is not an array:", node);
-            }
-
-            // Process children recursively
-            if (node.children && node.children.length > 0) {
-                for (const child of node.children) {
-                    await traverseNode(child);
-                }
-            } else if (node.frameId && node.contentDocument)// For frames and Iframes ETC
-            {
-                if(Array.isArray(node.contentDocument.children) && node.contentDocument.children.length >0)
-                {
-                    for (const child of node.contentDocument.children) {
-                        await traverseNode(child);
-                    }
-                }
-            }
-        }
-        catch (error){
-            console.error("Error traverseNode:", error);
-
-        }
-        
-    }
-
-    // Start traversal from the root node
-    try {
-        const document = await getDOMDocument(tabId);
-        console.log("Whole Tree",document);
-        await traverseNode(document.root);
-    } catch (error) {
-        console.error("Error collecting DOM nodes:", error);
-    }
-
-    return {nodeMap:nodeMap, resolveNodes:resolveNodes,eventListnersList:eventListnersList};
-}
-
-async function settingAttributeNode(tabId, backendDOMNodeIds, domDictionary) {
-    // Create an array of promises for setting attributes
-    const promises = Object.keys(backendDOMNodeIds).map(async backendId => {
-        try {
-            console.log("settingAttributeNode", backendId);
-            let correspondingNodeId = domDictionary[backendId];
-            console.log("correspondingNodeId", correspondingNodeId);
-
-            // Not found in the DOM TRY using the parentId cause sometimes A11yTree might get ::before nodes
-            if (correspondingNodeId) {
-                console.log("OK GOOD NO ISSUE")
-            } else {
-                console.log("settingAttributeNode Erm it does not exists domDictionary:",backendId);
-                const parentOfBackendId = backendDOMNodeIds[backendId].parentId;
-                correspondingNodeId = domDictionary[parentOfBackendId];
-            }
-            const attribute = await setAttributeValue(tabId, correspondingNodeId,"purple_tabby_a11yTree");
-            console.log("set attribute?", attribute);
-
-        } catch (error) {
-            console.log(`settingAttributeNode Error: ${error}`);
-        }
-    });
-
-    // Wait for all promises to complete
-    await Promise.allSettled(promises);
-}
-
-async function getFullAXTree(tabId,frameId) {
-    return new Promise((resolve, reject) => {
-        chrome.debugger.sendCommand({ tabId }, 'Accessibility.getFullAXTree', {frameId:frameId}, (result) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-            } else {
-                resolve(result);
-            }
-        });
-    });
-}
-
-async function queryAXTreeByBackendNodeId(tabId, backendNodeId) {
-    return new Promise((resolve, reject) => {
-        const params = {
-            backendNodeId // Only include backendNodeId in the parameters
-        };
-
-        chrome.debugger.sendCommand({ tabId }, 'Accessibility.queryAXTree', params, (result) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-                return;
-            }
-
-            resolve(result);
-        });
-    });
-}
-
-async function fullA11yTreeFilter(tabId,fullA11yTree) {
-    const backEndIdWithName = {};
-    console.log("fullA11yTreeFilter", fullA11yTree);
-    const listOfRolesThatWillBeSeen = ["button"]
-    let count = 0
-    for (const obj of fullA11yTree) {
-        /* 
-            Switch to this if want to swtich back to only noticing stuff thats would not automatically be detected
-            (obj.name.value !== "" || listOfRolesThatWillBeSeen.includes(obj.role.value))
-            obj.role.value !== "RootWebArea") not an element we can add an attribute 
-        */
-        if ((obj.name && obj.name.value !== "" && obj.name.value !== "uninteresting"  && obj.role.value !== "RootWebArea")) {
-            if (obj.role && (obj.role.value === "StaticText" )&& obj.parentId !== "")
-            {
-                obj.backendDOMNodeId = parseInt(obj.parentId);
-                const parentNode = (await queryAXTreeByBackendNodeId(tabId,obj.backendDOMNodeId)).nodes;
-                // console.log("fullA11yTreeFilter update to the parentIds",obj.backendDOMNodeId);
-                // console.log("fullA11yTreeFilter parentNode",parentNode)
-                obj.parentId = parseInt(parentNode[0].parentId);
-                console.log("The change",obj.parentId);
-            }
-            let name = ""
-            if (obj.name !== undefined)
-            {
-                name = obj.name.value
-            }
-
-            backEndIdWithName[obj.backendDOMNodeId] = 
-            {
-                value:`${name} ${count}`,
-                parentId: obj.parentId
-            };
-        }
-        else
-        {
-            console.log("fullA11yTreeFilter cannot get xpath from element?")
-        }
-        count++;
-    }
-
-    return backEndIdWithName;
-}
-
-// Function to store data for a specific tab
-function storeDataForTab(tabId, data, type, noClicked = null) {
-    // Create a key specific to the tab
-    let key
-
-    if ( noClicked === null)
-    {
-        key = `tab_${tabId}_${type}`;
-    }
-    else
-    {
-        key = `tab_${tabId}_${type}_${noClicked}`;
-    }
-
-    // Store data in chrome.storage.local
-    chrome.storage.local.set({ [key]: data }, () => {
-        if (chrome.runtime.lastError) {
-            console.error(`Error storing data for tab ${tabId}: ${chrome.runtime.lastError}`);
-        } else {
-            console.log(`Data stored for tab ${tabId}.`);
-        }
-    });
-}
 
 //function store and increase the number no of scans
 async function updateNoClicksTabID(tabId, change = false) {
@@ -735,18 +378,7 @@ async function clearDataForTab(tabId) {
             console.log(`No data found for tab ${tabId}.`);
         }
     });
-}
-// Function to clear local storage for everything
-function clearLocalStorage() {
-    chrome.storage.local.clear(() => {
-      if (chrome.runtime.lastError) {
-        console.error(`Error clearing local storage: ${chrome.runtime.lastError}`);
-      } else {
-        console.log("Local storage cleared successfully.");
-      }
-    });
-  }
-  
+}  
 // Example: Clear local storage when the extension is installed or updated
 chrome.runtime.onInstalled.addListener(() => {
     clearLocalStorage();
@@ -771,8 +403,6 @@ function sendMessageAndWait(tabId, messageType, expectedStatus) {
         }, 5000); // Adjust timeout as needed
     });
 }
-
-
 
 // Function to dynamically inject missing scripts
 function injectMissingScripts(tabId, missingScripts) {
@@ -804,142 +434,4 @@ async function isDebuggerAttached(tabId) {
         }
         return (attached);
     });
-}
-
-/* 
-    Function to get the data from local storage 
-    Parameters:
-        tabId : the tab id
-        key: the type of storage you need i.e. clickableElements or A11yTree Elements
-        noClicks: I added a possibility to store information on the number of clicks like which click is this
-*/
-
-async function getFromLocal(tabId, key, noclicks = false) {
-    // Create a key specific to the tab
-    let tabKey
-    if (noclicks !== false)
-    {
-        tabKey =  `tab_${tabId}_${key}_${noclicks}`
-    }
-    else 
-    {
-        tabKey = `tab_${tabId}_${key}`;
-    }
-
-    return new Promise((resolve, reject) => {
-        chrome.storage.local.get([tabKey], function(result) {
-            if (chrome.runtime.lastError) {
-                reject(chrome.runtime.lastError);
-            } else {
-                resolve(result[tabKey]);
-            }
-        });
-    });
-}
-
-/*
-    Function that is used after each finished message for A11y Tree and get clickableElements to check if the scan is finished
-    It checks if in the local storage stores both A11yTree and clickableElements.
-*/
-async function areScansFinished(tabId)
-{
-    let A11yTree = null; 
-    let clickAbleElements = null;
-    const currentClick = await getFromLocal(tabId,"noClicks")
-    console.log("currentClick",currentClick);
-    if (firstClick[tabId] === false)
-    {
-        console.log("HEY I Already clicked once")
-        try {
-            const foundElements = await getFromLocal(tabId,"foundElements",currentClick);
-            console.log("GET FROM LOCAL foundElements", foundElements)
-            if (foundElements && foundElements.length > 0) {
-                A11yTree = foundElements;
-                console.log('A11yTree:', A11yTree);
-                // Do something with A11yTree
-            } else {
-                console.log('foundElements does not exist or is empty');
-            }
-        } catch (error) {
-            console.error('Error retrieving foundElements:', error);
-            // A11yTree remains null if there's an error
-        }
-
-        // For clickable
-        try {
-            const clickable = await getFromLocal(tabId,"clickableElements",currentClick);
-            console.log("GET FROM LOCAL clickableElements", clickable)
-            if (clickable && clickable.length > 0) {
-                clickAbleElements = clickable;
-                console.log('clickableElements:', clickAbleElements);
-                // Do something with A11yTree
-            } else {
-                console.log('clickableElements does not exist or is empty');
-            }
-        } catch (error) {
-            console.error('Error retrieving clickableElements:', error);
-            // A11yTree remains null if there's an error
-        }
-
-        if ( A11yTree !== null && clickAbleElements !== null)
-            {
-                console.log("YAY ITS ALL DONE");
-                const data = 
-                {
-                    clickAbleElements:clickAbleElements,
-                    A11yTree: A11yTree,
-                    tabId, tabId
-                }
-                chrome.tabs.sendMessage(tabId, { type: "SCAN_COMEPLETE", data:data });
-
-            }
-    }
-    else {
-         // For A11y Tree
-        try {
-            const foundElements = await getFromLocal(tabId,"foundElements",currentClick);
-            console.log("GET FROM LOCAL foundElements", foundElements)
-            if (foundElements && foundElements.length > 0) {
-                A11yTree = foundElements;
-                console.log('A11yTree:', A11yTree);
-                // Do something with A11yTree
-            } else {
-                console.log('foundElements does not exist or is empty');
-            }
-        } catch (error) {
-            console.error('Error retrieving foundElements:', error);
-            // A11yTree remains null if there's an error
-        }
-
-        // For clickable
-        try {
-            const clickable = await getFromLocal(tabId,"clickableElements",currentClick);
-            console.log("GET FROM LOCAL clickableElements", clickable)
-            if (clickable && clickable.length > 0) {
-                clickAbleElements = clickable;
-                console.log('clickableElements:', clickAbleElements);
-                // Do something with A11yTree
-            } else {
-                console.log('clickableElements does not exist or is empty');
-            }
-        } catch (error) {
-            console.error('Error retrieving clickableElements:', error);
-            // A11yTree remains null if there's an error
-        }
-
-        if ( A11yTree !== null && clickAbleElements !== null)
-        {
-            console.log("YAY ITS ALL DONE");
-            const data = 
-            {
-                clickAbleElements:clickAbleElements,
-                A11yTree: A11yTree,
-                tabId, tabId
-            }
-            chrome.tabs.sendMessage(tabId, { type: "SCAN_COMEPLETE", data:data });
-
-        }
-
-    }
-    
 }

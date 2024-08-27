@@ -24,7 +24,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js","getClickableItems.js","scanningProcess.js","a11yTreeListeners.js","getClickableElementsListeners.js","overlayListeners.js"],
+      "js": ["content.js","getClickableItems.js","scanningProcess.js","a11yTreeListeners.js","getClickableElementsListeners.js","overlayListeners.js","overwriteWindowOpen.js"],
       "css":["style.css"]
     }
   ]
