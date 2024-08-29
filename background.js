@@ -1,5 +1,5 @@
 // Imported Functions
-import {getFrameTree,processFrameTrees} from "./background functions/frameTreesFuncs.js"
+import {getFrameTree,processFrameTrees,settingAttributeNode} from "./background functions/frameTreesFuncs.js"
 import {collectDOMNodes} from "./background functions/domTreeFunc.js"
 import {setAttributeValue,areScansFinished} from "./background functions/common.js"
 import {storeDataForTab,clearLocalStorage,getFromLocal} from "./background functions/localStorageFunc.js"
@@ -8,7 +8,7 @@ import {storeDataForTab,clearLocalStorage,getFromLocal} from "./background funct
 let firstClick = {};
 let debuggerAttached = {};
 
-// --- Plugin Icon on the top click functions
+// --- Plugin Icon on the top 
 chrome.action.onClicked.addListener(async (tab) => {
         // console.log("This is the first click");
         firstClick[tab.id] = tab.url;
@@ -61,7 +61,7 @@ chrome.action.onClicked.addListener(async (tab) => {
         }
 });
 
-// --- Event Listeners
+// --- Event Listeners from the injecte scripts to here
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     if (request.type === "HIGHLIGHT_MISSING")
     {
@@ -120,21 +120,28 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             await enableDOMDomain(tabId)
 
             // Full DOM DICT TREE
-            const { nodeMap, resolveNodes, eventListnersList } = await collectDOMNodes(tabId);
+            const frameTreePromise = getFrameTree(tabId);
+            // Run collectDOMNodes and processFrameTrees concurrently
+            const [domResults, frameTreeResults] = await Promise.all([
+                collectDOMNodes(tabId),
+                frameTreePromise.then(frameTree => processFrameTrees(tabId, frameTree))
+            ]);
+
+            // Access the results
+            const { nodeMap, resolveNodes, eventListnersList } = domResults;
+            const allFrameNames = frameTreeResults;
+            
             const domDictionary = nodeMap; 
             console.log("domDictionary",domDictionary); 
-            console.log("resolveNodes",resolveNodes);
-            console.log("eventListnersList",eventListnersList)
+            // console.log("resolveNodes",resolveNodes);
+            // console.log("eventListnersList",eventListnersList);
 
             // Set Attribute tabby-has-listener = "true"
             await addAttributeEventList(tabId,domDictionary,eventListnersList);
 
-            // Frames inside a page
-            const frameTree = await getFrameTree(tabId);
-            console.log("FrameTree",frameTree);
+            // Set Attribute purple_tabby_a11yTree
+            await settingAttributeNode(tabId, allFrameNames, domDictionary);
 
-            // Read each Frame
-            await processFrameTrees(tabId,frameTree,domDictionary);
            
             // Find the Xpaths in the DOM
             const data = {
@@ -187,7 +194,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         const noClicks = await getFromLocal(request.tabId,"noClicks")
 
         storeDataForTab(request.tabId,request.clickableElements,"clickableElements",noClicks)
-        chrome.tabs.sendMessage(request.tabId,{ type: "clickable_stored" });
+        // chrome.tabs.sendMessage(request.tabId,{ type: "clickable_stored" });
 
         
         const inStorage = await getFromLocal(request.tabId,"clickableElements",noClicks)

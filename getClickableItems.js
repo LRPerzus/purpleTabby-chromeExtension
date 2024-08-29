@@ -42,16 +42,19 @@ async function getClickableItems() {
                     if (frameDocument && frameDocument.body.nodeName.toLowerCase() === 'body') {
                         currentNode = frameDocument.body;
                         framePath = getXPath(frame); // Set the initial framePath
-                        break; // Stop searching after finding the first body
+                        // Start the traversal from the current node (which is either document.body or a frame's body)
+                        await traverseDOM(currentNode, framePath);
                     }
                 } catch (e) {
                     console.warn('Unable to access frame document due to cross-origin restrictions:', e);
                 }
             }
         }
+        else{ // Just a normal document
+             // Start the traversal from the current node (which is either document.body or a frame's body)
+            await traverseDOM(currentNode, framePath);
+        }
 
-        // Start the traversal from the current node (which is either document.body or a frame's body)
-        await traverseDOM(currentNode, framePath);
         console.log('All elements processed.');
     } catch (error) {
         console.error('Error in querying elements:', error);

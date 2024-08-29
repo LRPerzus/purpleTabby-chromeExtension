@@ -22,14 +22,27 @@ export async function fullA11yTreeFilter(tabId,fullA11yTree) {
             obj.role.value !== "RootWebArea") not an element we can add an attribute 
         */
         if ((obj.name && obj.name.value !== "" && obj.name.value !== "uninteresting"  && obj.role.value !== "RootWebArea")) {
-            if (obj.role && (obj.role.value === "StaticText" )&& obj.parentId !== "")
+            if (obj.role.value === "StaticText"  && obj.parentId !== "")
             {
                 obj.backendDOMNodeId = parseInt(obj.parentId);
-                const parentNode = (await queryAXTreeByBackendNodeId(tabId,obj.backendDOMNodeId)).nodes;
-                // console.log("fullA11yTreeFilter update to the parentIds",obj.backendDOMNodeId);
-                // console.log("fullA11yTreeFilter parentNode",parentNode)
-                obj.parentId = parseInt(parentNode[0].parentId);
-                console.log("The change",obj.parentId);
+                let parentNode;
+                try 
+                {
+                    parentNode= (await queryAXTreeByBackendNodeId(tabId,obj.backendDOMNodeId)).nodes;
+                    console.log("fullA11yTreeFilter update to the parentIds",obj.backendDOMNodeId);
+                    console.log("fullA11yTreeFilter parentNode",parentNode)
+                    if (parentNode.length > 0)
+                    {
+                        obj.parentId = parseInt(parentNode[0].parentId);
+                        console.log("The change",obj.parentId);
+                    }
+
+                }
+                catch(e)
+                {
+                    console.log(`Error queryAXTreeByBackendNodeId the id ${tabId,obj.backendDOMNodeId}`,e);
+                }
+               
             }
             let name = ""
             if (obj.name !== undefined)

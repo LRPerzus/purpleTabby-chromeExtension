@@ -27,7 +27,9 @@ export async function getFrameTree(tabId) {
 }
 
 
-export async function processFrameTrees(tabId, frameTree,domDictionary) {
+export async function processFrameTrees(tabId, frameTree) {
+    const allFrameNamesDict = {};
+
     const promises = frameTree.map(async frameId => {
         const fullA11yTree = await getFullAXTree(tabId, frameId);
         console.log("WHOLE A11y TREE", fullA11yTree);
@@ -36,16 +38,21 @@ export async function processFrameTrees(tabId, frameTree,domDictionary) {
         const onlyNames = await fullA11yTreeFilter(tabId, fullA11yTree.nodes);
         console.log("Filtered tree A11y Whole:", onlyNames);
 
-        // Setting attributes on nodes
-        await settingAttributeNode(tabId, onlyNames, domDictionary);
+        // Iterate over the object and stack values like a dictionary
+        for (const key in onlyNames) {
+            if (onlyNames.hasOwnProperty(key)) {
+                allFrameNamesDict[key] = onlyNames[key].value;
+            }
+        }
     });
 
     // Wait for all the promises to resolve
     await Promise.all(promises);
     console.log("All frames processed.");
+    return allFrameNamesDict;
 }
 
-async function settingAttributeNode(tabId, backendDOMNodeIds, domDictionary) {
+export async function settingAttributeNode(tabId, backendDOMNodeIds, domDictionary) {
     // Create an array of promises for setting attributes
     const promises = Object.keys(backendDOMNodeIds).map(async backendId => {
         try {
