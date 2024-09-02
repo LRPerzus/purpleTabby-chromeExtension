@@ -64,10 +64,10 @@ export async function areScansFinished(tabId)
     
     try {
         const foundElements = await getFromLocal(tabId,"foundElements",currentClick);
-        console.log("GET FROM LOCAL foundElements", foundElements)
         if (foundElements && foundElements.length > 0) {
             A11yTree = foundElements;
-            console.log('A11yTree:', A11yTree);
+            console.log('GET FROM LOCAL A11yTree:', A11yTree);
+
             // Do something with A11yTree
         } else {
             console.log('foundElements does not exist or is empty');

@@ -39,6 +39,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === "SCAN_COMEPLETE")
     {
         console.log("SCAN_COMEPLETE HELLO?")
+        const framesDict = {};
         const missing = [];
 
         const tab = message.data.tabId;
@@ -108,6 +109,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         
                     // Check if any descendants with the attribute were found
                     if (descendantResult.snapshotLength === 0) {
+                        // Added the FramePath to the dict
+                        if (!framesDict[element.framePath])
+                        {
+                            framesDict[element.framePath] = [];
+                        }
+                        framesDict[element.framePath].push(elementXpath);
                         // Add to missing list if no descendants with the attribute are found
                         missing.push(elementXpath);
                     }
@@ -122,7 +129,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         const data = {
             tabId:tab,
-            missing:missing
+            missing:missing,
+            framesDict:framesDict
         }
         chrome.runtime.sendMessage({ type: "MISSING_FOUND", data: data });
     }
@@ -147,7 +155,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
             // Create content
             const noMissingMessage = `There are ${message.data.missing.length} elements missing from the tree.\n`;
-            const missingXpaths = JSON.stringify(message.data.missing, null, 2); // Format JSON with indentation
+            const missingXpaths = JSON.stringify(message.data.framesDict, null, 2); // Format JSON with indentation
 
             // Set content to textarea
             treeContainer.value = noMissingMessage + missingXpaths;

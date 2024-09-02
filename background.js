@@ -206,7 +206,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
     else if (request.type === "MISSING_FOUND")
     {
-        storeDataForTab(request.data.tabId,request.data.missing,"missingXpath");
+        storeDataForTab(request.data.tabId,request.data.framesDict,"missingXpath");
         const tabId = request.data.tabId;
          // Send the data to the content script or popup
          chrome.tabs.sendMessage(tabId,{
@@ -222,7 +222,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
         console.log("A11YFIXES_INNIT missingXpaths:",missingXpaths);
         chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:missingXpaths});
-
     }
     else if (request.type === "ERROR_REFRESHNEED")
     {
