@@ -21,6 +21,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 currentNode = document.evaluate(xpath, frameContentDocument, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
               }
             }
+            else
+            {
+              currentNode = document.evaluate(xpath, bodyNode, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+            }
       
             const element = currentNode.singleNodeValue;
   
@@ -59,6 +63,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 const frameContentDocument = frameWindow.contentDocument || frameWindow.contentWindow.document;
                 currentNode = document.evaluate(xpath, frameContentDocument, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
               }
+            }
+            else
+            {
+              currentNode = document.evaluate(xpath, bodyNode, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
             }
       
             const element = currentNode.singleNodeValue;
