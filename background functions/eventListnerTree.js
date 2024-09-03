@@ -8,7 +8,8 @@ export async function resolveNode(tabId, nodeId, backendNodeId) {
                 if (message.includes("No node with given id found")) { 
                     const tryAgain = await doubleCheckNodeId(tabId, backendNodeId);
                     console.log("doublecheck tryAgain",tryAgain);
-                    if (tryAgain.nodeId !== nodeId) {
+                    // nodeId 0 is weird i think its bests to check again why it would be 0
+                    if (tryAgain.nodeId !== nodeId && tryAgain.nodeId > 0) {
                         const jsRuntimeObj = await resolveNode(tabId, tryAgain.nodeId, backendNodeId);
                         resolve({jsRuntimeObj:jsRuntimeObj, change:tryAgain.nodeId});
                     } else {
