@@ -1,5 +1,5 @@
 import {getFullAXTree,fullA11yTreeFilter} from "./a11yTreeFuncs.js"
-import {setAttributeValue} from "./common.js"
+import {setAttributeValue,doubleCheckNodeId} from "./common.js"
 
 /*
     To get the FrameIds of a page entirely 
@@ -54,25 +54,43 @@ export async function processFrameTrees(tabId, frameTree) {
 
 export async function settingAttributeNode(tabId, backendDOMNodeIds, domDictionary) {
     // Create an array of promises for setting attributes
+    let correspondingNodeId;
+    let bId;
     const promises = Object.keys(backendDOMNodeIds).map(async backendId => {
         try {
+            
             console.log("settingAttributeNode", backendId);
-            let correspondingNodeId = domDictionary[backendId];
-            console.log("correspondingNodeId", correspondingNodeId);
+            bId = backendId;
+            correspondingNodeId = domDictionary[backendId];
+            console.log("correspondingNodeId backendId", correspondingNodeId);
 
             // Not found in the DOM TRY using the parentId cause sometimes A11yTree might get ::before nodes
             if (correspondingNodeId) {
-                console.log("OK GOOD NO ISSUE")
+                console.log("OK GOOD NO ISSUE",backendId)
             } else {
                 console.log("settingAttributeNode Erm it does not exists domDictionary:",backendId);
                 const parentOfBackendId = backendDOMNodeIds[backendId].parentId;
                 correspondingNodeId = domDictionary[parentOfBackendId];
             }
             const attribute = await setAttributeValue(tabId, correspondingNodeId,"purple_tabby_a11yTree");
-            console.log("set attribute?", attribute);
+            console.log("attribute?",attribute)
+            if (attribute !== true && attribute === "redo")
+            {
+                console.log("redooooing",backendId)
+                const tryAgainBId = parseInt(backendId);
+                const tryAgain = await doubleCheckNodeId(tabId,tryAgainBId);
+                console.log("tryAgain",backendId,tryAgain);
+                if (tryAgain.nodeName !== "::before" && tryAgain.nodeName !== "::after" && correspondingNodeId !== tryAgain.nodeId)
+                {
+                    console.log("new nodeId",tryAgain.nodeId);
+                    domDictionary[backendId] = tryAgain.nodeId;
+                    const attribute = await setAttributeValue(tabId, tryAgain.nodeId,"purple_tabby_a11yTree");
+                }
+            }
+            console.log("set attribute?",backendId, attribute);
 
         } catch (error) {
-            console.log(`settingAttributeNode Error: ${error}`);
+            console.log(`settingAttributeNode Error: ${error}`,backendId);
         }
     });
 

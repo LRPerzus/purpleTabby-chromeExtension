@@ -25,8 +25,14 @@ export async function collectDOMNodes(tabId) {
             // Add backendNodeId and nodeId to the dictionary
             if (node.backendNodeId) {
                 console.log("Adding to the dict",node.backendNodeId)
+                console.log(`Adding to the dict ${node.backendNodeId} ${node.nodeId} `)
                 nodeMap[node.backendNodeId] = node.nodeId;
-                const jsRuntimeObj = await resolveNode(tabId,node.nodeId);
+                const {jsRuntimeObj,change} = await resolveNode(tabId,node.nodeId,node.backendNodeId);
+                console.log("Outer jsRuntimeObj",jsRuntimeObj);
+                if (change){
+                    resolveNodes[node.backendNodeId] = change;
+                    console.log("getEventListeners change",change);
+                }
                 if (jsRuntimeObj)
                 {
                     const jsRuntimeObjId = jsRuntimeObj.objectId;
@@ -36,6 +42,7 @@ export async function collectDOMNodes(tabId) {
                         const eventListners = await getEventListeners(tabId,jsRuntimeObjId)
                         if (eventListners.length > 0 && node.nodeName !== "#document")
                         {
+                            
                             eventListners.forEach(event => {
                                 if (event.type === "click")
                                 {

@@ -91,7 +91,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 // Retrieve the parent element
                 const parent = parentResult.singleNodeValue;
                 console.log("parent",parent);
-                console.log("!inList(A11yTree, elementXpath)", !inList(A11yTree, elementXpath));
+                console.log(`!inList(A11yTree, elementXpath) ${elementXpath}`, !inList(A11yTree, elementXpath));
         
                 if (parent && !inList(A11yTree, elementXpath) && (parent.tagName.toLowerCase()=== "a" ||parent.hasAttribute('tabby-has-listener'))) {
                     // Has children with that are in A11yTree

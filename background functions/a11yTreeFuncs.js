@@ -53,7 +53,7 @@ export async function fullA11yTreeFilter(tabId,fullA11yTree) {
             backEndIdWithName[obj.backendDOMNodeId] = 
             {
                 value:`${name} ${count}`,
-                parentId: obj.parentId
+                parentId: parseInt(obj.parentId)
             };
         }
         else

@@ -12,43 +12,33 @@ import {getFromLocal} from "./localStorageFunc.js"
     Returns:
         True or False if its been attached (Currently broken)
 */
-export async function setAttributeValue(tabId, nodeId,name) {
-    const value = "true"; // This is the value to set
-    
-    // Step 1: Set the attribute
-    await new Promise((resolve, reject) => {
-        chrome.debugger.sendCommand({ tabId }, 'DOM.setAttributeValue', {
-            nodeId,
-            name,
-            value
-        }, (result) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-                return;
-            }
+export async function setAttributeValue(tabId, nodeId, name) {
+    console.log("setAttributeValue nodeId", nodeId);
 
-            resolve(result);
+    try {
+        // Step 1: Set the attribute
+        await new Promise((resolve, reject) => {
+            chrome.debugger.sendCommand({ tabId }, 'DOM.setAttributeValue', {
+                nodeId: nodeId,
+                name: name,
+                value: "true"
+            }, (result) => {
+                if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                    return;
+                }
+
+                resolve(result);
+            });
         });
-    });
-
-    // Step 2: Verify the attribute was set correctly
-    return new Promise((resolve, reject) => {
-        chrome.debugger.sendCommand({ tabId }, 'DOM.getAttributes', { nodeId }, (result) => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-                return;
-            }
-
-            const attributes = result.attributes;
-            const attribute = attributes.find(attr => attr.name === name);
-            
-            if (attribute && attribute.value === value) {
-                resolve(true);
-            } else {
-                resolve(false);
-            }
-        });
-    });
+        return true;
+    } catch (error) {
+        console.log(`Failed to set attribute for nodeId ${nodeId}: ${error.message}`);
+        if(error.message.includes("Could not find node with given id"))
+        {
+            return "redo"
+        }
+    }
 }
 
 /*
@@ -106,4 +96,23 @@ export async function areScansFinished(tabId)
 
         }
     
+}
+
+export async function doubleCheckNodeId(tabId, backendNodeId) {
+    return new Promise((resolve, reject) => {
+
+        chrome.debugger.sendCommand({ tabId }, "DOM.describeNode", { backendNodeId: backendNodeId }, (result) => {
+            if (chrome.runtime.lastError) {
+                const errorMessage = `Error in doubleCheckNodeId: ${chrome.runtime.lastError.message} (tabId: ${tabId}, backendNodeId: ${backendNodeId})`;
+                console.log(errorMessage);
+                // reject(new Error(errorMessage));
+            } else if (!result || !result.node) {
+                const errorMessage = `Error in doubleCheckNodeId: No node found (tabId: ${tabId}, backendNodeId: ${backendNodeId})`;
+                console.log(errorMessage);
+                // reject(new Error(errorMessage));
+            } else {
+                resolve(result.node);
+            }
+        });
+    });
 }
