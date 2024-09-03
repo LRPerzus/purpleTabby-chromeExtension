@@ -33,10 +33,14 @@ export async function setAttributeValue(tabId, nodeId, name) {
         });
         return true;
     } catch (error) {
-        console.log(`Failed to set attribute for nodeId ${nodeId}: ${error.message}`);
         if(error.message.includes("Could not find node with given id"))
         {
+            console.warn(`Element node id does not exists, attempt to redo nodeId : ${nodeId}`);
             return "redo"
+        }
+        else
+        {
+            console.error("Failed to set attribute for nodeId ${nodeId}: ${error.message}")
         }
     }
 }
