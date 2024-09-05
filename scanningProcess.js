@@ -134,36 +134,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         chrome.runtime.sendMessage({ type: "MISSING_FOUND", data: data });
     }
-
-    else if (message.type === "UPDATE_OVERLAY")
-    {
-        console.log("HELLO UPDATE_OVERLAY")        
-        
-        const treeContainer = document.getElementById('treeContent');
-        const highlightButton = document.querySelector(".purpleTabby #highlightItemsA11yTree");
-        const rescanButton = document.querySelector(".purpleTabby #rescanButton");
-        const A11yFixes = document.querySelector(".purpleTabby #A11yFixes");
-
-
-        if (treeContainer && highlightButton) {
-            // Unhide button
-            highlightButton.style.display = 'block';
-            rescanButton.style.display = 'block';
-            A11yFixes.style.display = 'block';
-            // Clear it
-            treeContainer.value = ""; // Clear the textarea content
-
-            // Create content
-            const noMissingMessage = `There are ${message.data.missing.length} elements missing from the tree.\n`;
-            const missingXpaths = JSON.stringify(message.data.framesDict, null, 2); // Format JSON with indentation
-
-            // Set content to textarea
-            treeContainer.value = noMissingMessage + missingXpaths;
-        }
-        else {
-            console.error("Element with ID 'treeContent' not found.");
-        }
-    }
     else if (message.type === "CHECK_SCANNING_PROCESS_JS")
     {
         sendResponse({ status: "SCANNING_PROCESS_READY" });

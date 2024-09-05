@@ -8,68 +8,64 @@ import {storeDataForTab,clearLocalStorage,getFromLocal} from "./background funct
 let firstClick = {};
 let debuggerAttached = {};
 
-// --- Plugin Icon on the top 
-chrome.action.onClicked.addListener(async (tab) => {
-        // console.log("This is the first click");
-        firstClick[tab.id] = tab.url;
-        await clearDataForTab(tab.id);
-
-        // attaches the number of clicks
-        await updateNoClicksTabID(tab.id);
-        
+// --- Event Listeners from the injecte scripts to here
+chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+    if (request.type === "PlUGIN_CLICKED") {
+        const tabId = request.tabId;
         try {
+            // Clear data for the tab if needed
+            await clearDataForTab(tabId);
+        
+            // Attaches the number of clicks
+            await updateNoClicksTabID(tabId);
+        
             const scriptChecks = [
                 { name: "content.js", message: "CHECK_CONTENT_JS", status: "CONTENT_READY" },
                 { name: "scanningProcess.js", message: "CHECK_SCANNING_PROCESS_JS", status: "SCANNING_PROCESS_READY" },
                 { name: "a11yTreeListeners.js", message: "CHECK_A11Y_TREE_LISTENERS_JS", status: "A11Y_LISTENERS_READY" },
                 { name: "getClickableElementsListeners.js", message: "CHECK_CLICKABLE_ELEMENTS_LISTENERS_JS", status: "CLICKABLE_ELEMENTS_READY" },
                 { name: "overlayListeners.js", message: "CHECK_OVERLAY_LISTENERS_JS", status: "OVERLAY_LISTENERS_READY" },
-                { name: "getClickableItems.js", message: "CHECK_GETCLICKABLE_JS", status: "GET_GETCLICKABL_READY" } 
+                { name: "getClickableItems.js", message: "CHECK_GETCLICKABLE_JS", status: "GET_GETCLICKABL_READY" }
             ];
-            
-    
+        
             const missingScripts = [];
-    
+        
             for (const check of scriptChecks) {
                 try {
-                    await sendMessageAndWait(tab.id, check.message, check.status);
+                    console.log("check.status:", check.status);
+                    await sendMessageAndWait(tabId, check.message, check.status);
                     console.log(`${check.name} is already injected.`);
                 } catch {
                     console.log(`${check.name} is not injected.`);
                     missingScripts.push(check.name);
                 }
             }
-    
+        
             if (missingScripts.length > 0) {
                 console.log("Missing scripts:", missingScripts.join(", "));
-                await injectMissingScripts(tab.id, missingScripts);
-
+                await injectMissingScripts(tabId, missingScripts);
             } else {
                 console.log("All scripts are loaded and ready.");
             }
-    
-            console.log("All scripts are ready. Proceeding with further actions.");
-
-            // This is to create the overlay
-            chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                files: ['./overlay.js']
+        
+            // Now that all scripts are ready, send the "OVERLAY_CREATED" message
+            chrome.runtime.sendMessage({ type: "PLUGIN_READY", tabId: tabId }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.error("Failed to send 'PLUGIN_READY' message:", chrome.runtime.lastError.message);
+                } else {
+                    console.log("'PLUGIN_READY' message sent successfully.");
+                }
             });
-
+        
         } catch (error) {
             console.error("Error waiting for scripts:", error);
         }
-});
-
-// --- Event Listeners from the injecte scripts to here
-chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-    if (request.type === "HIGHLIGHT_MISSING")
+    }
+    else if (request.type === "HIGHLIGHT_MISSING")
     {
-        console.log("HIGHLIGHT_MISSING Received")
-        const missingXpath = await getFromLocal(sender.tab.id,"missingXpath");
-        console.log(" HIGHLIGHT_MISSING missingXpath",missingXpath)
+        console.log("HIGHLIGHT_MISSING Received",request.tabId);
+        const missingXpath = await getFromLocal(request.tabId,"missingXpath");
         let data;
-        const id = sender.tab.id;
         if (missingXpath !== undefined)
         {
             data = missingXpath;
@@ -77,32 +73,38 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         else{
             data = "undefined"
         }
-        chrome.tabs.sendMessage(id, { type: "HIGHLIGHT", data:data });
+        console.log("HIGHLIGHT_MISSING missingXpath",missingXpath)
+        chrome.tabs.sendMessage(request.tabId, { type: "HIGHLIGHT", data:data });
         
     }
     else if (request.type === "RESCAN_INNIT")
     {
-        console.log("Rescanning");
-        firstClick[sender.tab.id] = sender.tab.url;
+        console.log("Rescanning",request.tabId);
+        // firstClick[request.tabid] = request.tabid.url;
         
         // updates the number
-        await updateNoClicksTabID(sender.tab.id,true);
-        chrome.tabs.sendMessage(sender.tab.id, { type: "START_RESCANNING" , tabId:sender.tab.id});
+        await updateNoClicksTabID(request.tabId,true);
+        chrome.tabs.sendMessage(request.tabId, { type: "START_RESCANNING" , tabId:request.tabId});
     }
     else if (request.type === "OVERLAY_CREATED") {
         console.log("Overlay created, preparing to request AX tree and clickableElements.");
 
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (tabs[0] && tabs[0].id) {
-                const tabId = tabs[0].id;
+            const tabId = tabs[0]?.id || request.tabId;
+            if (tabId) {
                 console.log("Sending Can get messages to tabId:", tabId);
                 chrome.tabs.sendMessage(tabId, { type: "Can_Get_Tree", tabId: tabId });
                 chrome.tabs.sendMessage(tabId, { type: "Can_find_clickable", tabId: tabId });
 
+                sendResponse({ success: true });
             } else {
                 console.error("Unable to get the active tab.");
+                sendResponse({ success: false, error: "Unable to get the active tab." });
             }
         });
+
+        // Return true to indicate the response will be sent asynchronously
+        return true;
     }
     else if (request.type === "GET_AX_TREE") {
         // console.log("Message received in background script:", request);
@@ -191,14 +193,24 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     }
     else if (request.type === "clickableElements_XPATHS_DONE")
     {
-        const noClicks = await getFromLocal(request.tabId,"noClicks")
+        let noClicks = await getFromLocal(request.tabId,"noClicks");
+        if (noClicks === undefined) // there is a possibility that it runs too fast faster than the localStorage collection
+        {
+            let count = 0
+            while (noClicks === undefined && count <= 3)
+            {
+                console.warn("noclicks for storage is not defined");
+                noClicks = await getFromLocal(request.tabId,"noClicks");
+                count++;
+            }
+        }
 
         storeDataForTab(request.tabId,request.clickableElements,"clickableElements",noClicks)
         // chrome.tabs.sendMessage(request.tabId,{ type: "clickable_stored" });
 
         
         const inStorage = await getFromLocal(request.tabId,"clickableElements",noClicks)
-        console.log("inStorage clickableElements",inStorage);
+        console.log("inStorage clickableElements",request.tabId,noClicks,inStorage);
 
         await areScansFinished(request.tabId);
 
@@ -207,9 +219,10 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     else if (request.type === "MISSING_FOUND")
     {
         storeDataForTab(request.data.tabId,request.data.framesDict,"missingXpath");
+        console.log("Stored in missingXpath:",request.data.framesDict)
         const tabId = request.data.tabId;
          // Send the data to the content script or popup
-         chrome.tabs.sendMessage(tabId,{
+         chrome.runtime.sendMessage({
             type: "UPDATE_OVERLAY",
             data: request.data
         });
@@ -217,7 +230,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
     else if (request.type === "A11YFIXES_INNIT")
     {
-        const tabId = sender.tab.id;
+        const tabId = request.tabId;
         const missingXpaths = await getFromLocal(tabId,"missingXpath");
 
         console.log("A11YFIXES_INNIT missingXpaths:",missingXpaths);

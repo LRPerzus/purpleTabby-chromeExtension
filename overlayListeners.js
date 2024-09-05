@@ -29,9 +29,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const element = currentNode.singleNodeValue;
   
             if (element) {
-              console.log("previous Border:",element.style.border)
-              element.setAttribute("purple_tabby_missing",element.style.border) ;
-              element.style.border = "10px solid purple";
+              const previousStyle = element.getAttribute("purple_tabby_missing");
+
+              if (previousStyle === null)
+              {
+                console.log("previous Border:",element.style.border);
+                element.setAttribute("purple_tabby_missing",element.style.border) ;
+                element.style.border = "10px solid purple";
+              }
+              else // remove highlights
+              {
+                element.style.border = previousStyle;
+                element.removeAttribute("purple_tabby_missing");
+              }
+              
             }
           });
         }
@@ -39,7 +50,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     else if (message.type === "START_RESCANNING")
     {
-      chrome.runtime.sendMessage({ type: "OVERLAY_CREATED" });
+      chrome.runtime.sendMessage({ type: "OVERLAY_CREATED",tabId: message.tabId});
     }
     else if (message.type === "A11YFIXES_Start")
     {

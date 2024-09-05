@@ -40,7 +40,7 @@ export async function setAttributeValue(tabId, nodeId, name) {
         }
         else
         {
-            console.error("Failed to set attribute for nodeId ${nodeId}: ${error.message}")
+            console.error(`Failed to set attribute for nodeId ${nodeId}: ${error.message}`)
         }
     }
 }
@@ -53,8 +53,9 @@ export async function areScansFinished(tabId)
 {
     let A11yTree = null; 
     let clickAbleElements = null;
-    const currentClick = await getFromLocal(tabId,"noClicks")
+    const currentClick = await getFromLocal(tabId,"noClicks");
     console.log("currentClick",currentClick);
+    console.log("tabId",tabId);
     
     try {
         const foundElements = await getFromLocal(tabId,"foundElements",currentClick);
@@ -88,18 +89,18 @@ export async function areScansFinished(tabId)
     }
 
     if ( A11yTree !== null && clickAbleElements !== null)
+    {
+        console.log("YAY ITS ALL DONE");
+        const data = 
         {
-            console.log("YAY ITS ALL DONE");
-            const data = 
-            {
-                clickAbleElements:clickAbleElements,
-                A11yTree: A11yTree,
-                tabId, tabId
-            }
-            chrome.tabs.sendMessage(tabId, { type: "SCAN_COMEPLETE", data:data });
-
+            clickAbleElements:clickAbleElements,
+            A11yTree: A11yTree,
+            tabId, tabId
         }
-    
+        chrome.tabs.sendMessage(tabId, { type: "SCAN_COMEPLETE", data:data });
+
+    }
+
 }
 
 export async function doubleCheckNodeId(tabId, backendNodeId) {

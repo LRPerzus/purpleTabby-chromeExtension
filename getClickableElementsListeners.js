@@ -2,6 +2,7 @@
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   if (message.type === "Can_find_clickable")
   {
+    console.log("Can_find_clickable");
     try {
       const clickableElements = await getClickableItems();
       const tabId = message.tabId;

@@ -38,15 +38,7 @@
             overflow: auto;
             position: relative;
         }
-        #close-button {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background-color: red;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 5px 10px;
+        #highlightItemsA11yTree {
             cursor: pointer;
         }
         pre {
@@ -56,21 +48,15 @@
     </style>
 </head>
 <body>
-    <div id="overlay-container">
+    <div id="overlay-container" class="purpleTabby" >
         <div id="content">
-            <button id="close-button">Close</button>
-            <h1>Accessibility Tree</h1>
-            <button id="highlightItemsA11yTree" class="hidden"> Highlight Items(A11y Tree) </button>
-            <pre id="treeContent"> Loading...</pre>
+            <h1 style="padding: 10px;">Accessibility Tree</h1>
+            <button id="highlightItemsA11yTree" style="display: none;">Highlight Items (A11y Tree)</button>
+            <button id="rescanButton" style="display: none;">Rescan</button>
+            <button id="A11yFixes" style="display: none;">A11yFixes</button>
+            <textarea id="treeContent" style="width: 300px; height: 200px;">Loading...</textarea>
         </div>
     </div>
     <script src="popup.js"></script>
-    <script src="content.js"></script>
-    <script>
-        // Add event listener for the close button
-        document.getElementById('close-button').addEventListener('click', () => {
-            document.getElementById('overlay-container').remove();
-        });
-    </script>
 </body>
 </html>

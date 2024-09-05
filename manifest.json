@@ -19,6 +19,7 @@
     "type": "module"
   },
   "action": {
+    "default_popup": "popup.html",
     "default_icon": "purpleA11yLogo.png"
   }, 
   "content_scripts": [
