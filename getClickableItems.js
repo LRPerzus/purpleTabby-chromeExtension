@@ -62,7 +62,10 @@ async function getClickableItems() {
 
     return clickElements;
 }
-
+function isInOpenDetails(element) {
+    let parentDetails = element.closest('details');
+    return parentDetails ? parentDetails.open : true;
+}
 // Function to check if an element is visible
 const isVisibleFocusAble = (el) => {
     try {
@@ -74,7 +77,9 @@ const isVisibleFocusAble = (el) => {
             && style.visibility !== 'hidden' 
             && rect.width > 0 && rect.height > 0 
             // Focusable 
-            && !el.hasAttribute('disabled') 
+            && !el.hasAttribute('disabled')
+            // <detail> tag will show it as visual so need to account for that
+            && isInOpenDetails(el)
         );
     } catch (error) {
         console.error('Error in isVisible:', error);
