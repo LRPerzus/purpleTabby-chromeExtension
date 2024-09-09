@@ -20,26 +20,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     {
         console.log("HELLO UPDATE_OVERLAY")        
         
-        const treeContainer = document.getElementById('treeContent');
+        const loadingSpinner = document.getElementById('spinner');
         const highlightButton = document.querySelector(".purpleTabby #highlightItemsA11yTree");
         const rescanButton = document.querySelector(".purpleTabby #rescanButton");
         const A11yFixes = document.querySelector(".purpleTabby #A11yFixes");
+        const resultsDiv = document.getElementById("Results");
 
 
-        if (treeContainer && highlightButton) {
+        if (loadingSpinner && highlightButton) {
+            // hide the spinner
+            loadingSpinner.style.display = "none";
+
             // Unhide button
             highlightButton.style.display = 'block';
             rescanButton.style.display = 'block';
             A11yFixes.style.display = 'block';
-            // Clear it
-            treeContainer.value = ""; // Clear the textarea content
 
             // Create content
-            const noMissingMessage = `There are ${message.data.missing.length} elements missing from the tree.\n`;
-            const missingXpaths = JSON.stringify(message.data.framesDict, null, 2); // Format JSON with indentation
+            const missingTitle = resultsDiv.querySelector("h2");
+            missingTitle.textContent = `There are ${message.data.missing.length} elements missing from the tree.`;
 
-            // Set content to textarea
-            treeContainer.value = noMissingMessage + missingXpaths;
+            console.log("MISSING DATA",message.data.framesDict)
+            for (const [key, array] of Object.entries(message.data.framesDict)) {
+                createFrame(key, array);
+            }
+            resultsDiv.style.display = "block";
+
+
         }
         else {
             console.error("Element with ID 'treeContent' not found.");
@@ -50,7 +57,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 const rescanButton = document.getElementById('rescanButton');
 rescanButton.addEventListener('click', async function() {
-    treeContent.value = ""; // Clear the textarea content
+    const resultsDiv = document.getElementById("Results");
+    resultsDiv.innerHTML='<h2 class="title"> </h2>';
+    resultsDiv.style.display="none";
+
+    const loadingSpinner = document.getElementById('spinner');
+    loadingSpinner.style.display="block";
+
+    const highlightButton = document.querySelector(".purpleTabby #highlightItemsA11yTree");
+    const rescanButton = document.querySelector(".purpleTabby #rescanButton");
+    const A11yFixes = document.querySelector(".purpleTabby #A11yFixes");
+
+    // Unhide button
+    highlightButton.style.display = 'none';
+    rescanButton.style.display = 'none';
+    A11yFixes.style.display = 'none';
+
+
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     console.log(`Current tab ID: ${tab.id}`);
     chrome.runtime.sendMessage({ type: "RESCAN_INNIT" , tabId:tab.id});
@@ -72,3 +95,33 @@ a11yFix.addEventListener('click', async function() {
     chrome.runtime.sendMessage({ type: "A11YFIXES_INNIT" , tabId:tab.id});
 });
 
+
+function createFrame(key, array) {
+    console.log("createFrame key",key);
+    console.log("createFrame array",array);
+
+    // Create a div with class 'frame'
+    const frameDiv = document.createElement('div');
+    frameDiv.classList.add('frame');
+
+    // Create an element to display the key
+    const keyDiv = document.createElement('div');
+    keyDiv.classList.add('key');
+    if (key === "")
+    {
+        key = "main body"
+    }
+    keyDiv.textContent = key;
+    frameDiv.appendChild(keyDiv);
+
+    // Create an element to display the array associated with the key
+    array.forEach(element => {
+        const valueDiv = document.createElement('div');
+        valueDiv.classList.add('value');
+        valueDiv.textContent = element
+        frameDiv.appendChild(valueDiv);
+    });
+
+    // Append the frame div to the container
+    document.getElementById('Results').appendChild(frameDiv);
+}

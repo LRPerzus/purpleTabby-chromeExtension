@@ -1,0 +1,81 @@
+body {
+    font-family: Arial, sans-serif;
+    width: 1200px;
+    height: 400px;
+    overflow: auto;
+    margin: 0;
+    background-color: #eeeeee;
+}
+#overlay-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-family: Arial, sans-serif;
+}
+#content {
+    color: black;
+    padding: 20px;
+    border-radius: 8px;
+    width: 100%;
+    max-width: 1200px;
+    height: 100%;
+    max-height: 400px;
+    overflow: auto;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+
+#buttonActions{
+    display: flex;
+    justify-content: space-between;
+}
+
+button{
+    width: 200px;
+    padding: 10px;
+    cursor: pointer;
+    margin-bottom: 5px;
+    background-color: #fbfbfb;
+    transition: background-color 0.3s ease; /* Smooth transition */
+}
+
+button:hover {
+    background-color: #c6c6c6; /* Darker background color */
+}
+
+#Results{
+    display: none;
+    font-size: 15px;
+}
+
+#Results h2{
+    font-size: 20px ;
+}
+#Results .frame{
+    width: 100%;
+    background-color: fbfbfb;
+    border: 2px solid black;
+    word-break: break-word; /* Break long words onto the next line */
+    overflow-wrap: break-word; /* Break long words to fit the container */
+    line-height: 1.5; /* Adjust line height to increase container height */
+}
+#Results .key{
+    font-size: 18px ;
+    padding-left: 5px;
+}
+#Results .value{
+    margin: 5px;
+}

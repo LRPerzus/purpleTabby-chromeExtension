@@ -123,22 +123,6 @@ async function isItPointer(el, clickElements, framePath = "") {
 // Function to process each element and return a promise
 const processElement = async (el, clickElements, framePath = "") => {
     try {
-        // Check if the element is an Iframe or Frame
-        if (el.nodeName.toLowerCase() === "iframe" || el.nodeName.toLowerCase() === "frame") {
-            console.log("We got an Iframe or frame here");
-
-            // Access the contentDocument of each frame
-            const frameDocument = el.contentDocument || el.contentWindow?.document;
-
-            // Check if the frame's document has a body
-            if (frameDocument && frameDocument.body && frameDocument.body.nodeName.toLowerCase() === 'body') {
-                // console.log("Adding to checking List", frameDocument.body.querySelectorAll('*'));
-
-                // Add elements from the frame's document to the elements list
-                elements.push(...Array.from(frameDocument.body.querySelectorAll('*'))); // Use Array.from to convert NodeList to array
-            }
-        }
-
         // Check if the element is a pointer (or any other condition you need)
         await isItPointer(el, clickElements, framePath);
     } catch (error) {
