@@ -71,11 +71,20 @@ button:hover {
     word-break: break-word; /* Break long words onto the next line */
     overflow-wrap: break-word; /* Break long words to fit the container */
     line-height: 1.5; /* Adjust line height to increase container height */
+    margin-bottom: 10px;
 }
 #Results .key{
     font-size: 18px ;
     padding-left: 5px;
+    display: flex;
+    flex-direction: row;
 }
+
+#Results .key #keyInsert
+{
+    margin-left: 5px;
+}
+
 #Results .value{
     margin: 5px;
 }

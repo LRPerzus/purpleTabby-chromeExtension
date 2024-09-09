@@ -111,7 +111,10 @@ function createFrame(key, array) {
     {
         key = "main body"
     }
-    keyDiv.textContent = key;
+    keyDiv.innerHTML = `
+        <div id="name">Frame:</div>
+        <div id="keyInsert">${key}</div>
+    `;
     frameDiv.appendChild(keyDiv);
 
     // Create an element to display the array associated with the key
