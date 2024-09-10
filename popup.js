@@ -22,9 +22,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.log("HELLO UPDATE_OVERLAY")        
         
         const loadingSpinner = document.getElementById('spinner');
-        const highlightButton = document.querySelector(".purpleTabby #highlightItemsA11yTree");
-        const rescanButton = document.querySelector(".purpleTabby #rescanButton");
-        const A11yFixes = document.querySelector(".purpleTabby #A11yFixes");
+        const highlightButton = document.querySelector(".purpleTabby #highlightItemsA11yTreeSwitch");
+        const rescanButton = document.querySelector(".purpleTabby #rescanSwitch");
+        const A11yFixes = document.querySelector(".purpleTabby #a11yFixesSwitch");
         const resultsDiv = document.getElementById("Results");
 
 
@@ -33,9 +33,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             loadingSpinner.style.display = "none";
 
             // Unhide button
-            highlightButton.style.display = 'block';
-            rescanButton.style.display = 'block';
-            A11yFixes.style.display = 'block';
+            highlightButton.parentElement.style.display = 'block';
+            rescanButton.parentElement.style.display = 'block';
+            A11yFixes.parentElement.style.display = 'block';
             
             // Create content
             const titleDiv = resultsDiv.querySelector(".title");
@@ -83,49 +83,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
     }
 })
-
-
-const rescanButton = document.getElementById('rescanButton');
-rescanButton.addEventListener('click', async function() {
-    const resultsDiv = document.getElementById("Results");
-    resultsDiv.innerHTML='<h2 class="title"> </h2>';
-    resultsDiv.style.display="none";
-
-    const loadingSpinner = document.getElementById('spinner');
-    loadingSpinner.style.display="block";
-
-    const highlightButton = document.querySelector(".purpleTabby #highlightItemsA11yTree");
-    const rescanButton = document.querySelector(".purpleTabby #rescanButton");
-    const A11yFixes = document.querySelector(".purpleTabby #A11yFixes");
-
-    // Unhide button
-    highlightButton.style.display = 'none';
-    rescanButton.style.display = 'none';
-    A11yFixes.style.display = 'none';
-
-
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    console.log(`Current tab ID: ${tab.id}`);
-    chrome.runtime.sendMessage({ type: "RESCAN_INNIT" , tabId:tab.id});
-});
-
-const highlightButton = document.getElementById("highlightItemsA11yTree");
-highlightButton.addEventListener('click', async function() {
-    // Get the current active tab
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    console.log(`Current tab ID: ${tab.id}`);
-    chrome.runtime.sendMessage({ type: "HIGHLIGHT_MISSING" , tabId:tab.id});
-});
-
-const a11yFix = document.getElementById("A11yFixes");
-a11yFix.addEventListener('click', async function() {
-    // Get the current active tab
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    console.log(`Current tab ID: ${tab.id}`);
-    chrome.runtime.sendMessage({ type: "A11YFIXES_INNIT" , tabId:tab.id});
-});
-
-
 function createFrame(key, array) {
     console.log("createFrame key", key);
     console.log("createFrame array", array);
