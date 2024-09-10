@@ -25,7 +25,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 { name: "a11yTreeListeners.js", message: "CHECK_A11Y_TREE_LISTENERS_JS", status: "A11Y_LISTENERS_READY" },
                 { name: "getClickableElementsListeners.js", message: "CHECK_CLICKABLE_ELEMENTS_LISTENERS_JS", status: "CLICKABLE_ELEMENTS_READY" },
                 { name: "overlayListeners.js", message: "CHECK_OVERLAY_LISTENERS_JS", status: "OVERLAY_LISTENERS_READY" },
-                { name: "getClickableItems.js", message: "CHECK_GETCLICKABLE_JS", status: "GET_GETCLICKABL_READY" }
+                { name: "getClickableItems.js", message: "CHECK_GETCLICKABLE_JS", status: "GET_GETCLICKABL_READY" },
+                { name:"attachMutationObserver.js",message:"CHECK_MutationObserver_JS",status:"MUTATIONOBSERVER_READY"}
             ];
         
             const missingScripts = [];
@@ -444,7 +445,7 @@ function injectMissingScripts(tabId, missingScripts) {
         return new Promise((resolve, reject) => {
             chrome.scripting.executeScript({
                 target: { tabId: tabId },
-                files: [scriptName]
+                files: ["./injectScripts/"+scriptName]
             }, () => {
                 if (chrome.runtime.lastError) {
                     reject(new Error(`Failed to inject script ${scriptName} into tab ${tabId}: ${chrome.runtime.lastError.message}`));
