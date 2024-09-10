@@ -3,29 +3,72 @@ let hasMutations = false;
 let timeout; // Timeout for stability check
 
 // Callback function to execute when mutations are observed
-const callback = (mutationList, observer) => {
+const callback = async (mutationList, observer) => {
   hasMutations = true;  // Mark that a mutation occurred
-  clearTimeout(timeout); // Reset the timeout when a mutation occurs
+  let shouldResetTimeout = false;
 
+  // Async function to check nodes in addedNodes and removedNodes
+  const checkNodes = async (nodes) => {
+    return Promise.all(Array.from(nodes).map(async (node) => {
+      // Only consider non-script nodes for resetting the timeout
+      if (node.nodeName !== "SCRIPT" ) {
+        return true;  // Indicates that a non-script node was added or removed
+      }
+      return false;
+    }));
+  };
+
+  // Loop through each mutation record and check addedNodes and removedNodes
   for (const mutation of mutationList) {
-    if (mutation.type === "childList" && isStable) {
-      console.log("A child node has been added or removed.");
-      console.log(mutation);
+    if (mutation.type === "childList") {
+      // Check addedNodes asynchronously
+      const addedNodesResult = await checkNodes(mutation.addedNodes);
+      // Check removedNodes asynchronously
+      const removedNodesResult = await checkNodes(mutation.removedNodes);
+
+      // If any added or removed nodes are non-script elements, reset timeout
+      if (addedNodesResult.includes(true) || removedNodesResult.includes(true)) {
+        shouldResetTimeout = true;
+        if(isStable)
+        {
+          console.log("A non-script node has been added or removed.");
+          console.log(mutation);
+          // Reset Stable
+          isStable = false;
+        }
+      }
+    }
+    else if (mutation.type === "attributes" && isVisibleFocusAble(mutation.target)) {
+      // Attribute changes are considered significant for resetting the timeout
+      shouldResetTimeout = true;
+      if(isStable)
+      {
+        console.log("An attribute has been changed.");
+        console.log(mutation);
+        // Reset Stable
+        isStable = false;
+      }
     }
   }
 
-  // Set a new timeout to check for DOM stability after 1 second of no changes
-  timeout = setTimeout(() => {
-    isStable = true;       // Mark the DOM as stable
-    console.log("DOM stabilized after mutations.");
-  }, 1000);
+  // Reset the timeout only if non-script nodes were added or removed
+  if (shouldResetTimeout) {
+    clearTimeout(timeout); // Reset the timeout
+
+    // Set a new timeout to check for DOM stability after 1 second of no changes
+    timeout = setTimeout(() => {
+      isStable = true;       // Mark the DOM as stable
+      console.log("DOM stabilized after mutations.");
+    }, 1000);
+  }
 };
+
 
 // Create an observer instance linked to the callback function
 const observer = new MutationObserver(callback);
 
 // Options for the observer (which mutations to observe)
-const config = { attributes: true, childList: true, subtree: true };
+const config = {childList: true, subtree: true , attributes:true};
 
 // Function to start observing once the DOM is fully loaded
 const startObserving = () => {
@@ -40,7 +83,6 @@ const startObserving = () => {
   // Set an initial timeout to check if there are no mutations after DOMContentLoaded
   timeout = setTimeout(() => {
     if (!hasMutations) {
-      observer.disconnect(); // Stop observing if no mutations are detected
       isStable = true;       // Mark the DOM as stable
       console.log("No mutations detected after DOMContentLoaded, setting DOM as stable.");
     }
