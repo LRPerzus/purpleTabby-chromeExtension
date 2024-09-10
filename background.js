@@ -242,6 +242,21 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         const tabId = sender.tab.id;
         firstClick[tabId] = "ERROR";
     }
+    else if(request.type === "COPY_ALL")
+    {
+        try {
+            const tabId = request.tabId;
+            console.log("Handling COPY_ALL for tabId:", tabId);
+            const missingXpaths = await getFromLocal(tabId, "missingXpath");
+            console.log("Missing XPaths retrieved:", missingXpaths);
+            sendResponse({ success: true, data: missingXpaths });
+        } catch (error) {
+            console.error("Error fetching data:", error);
+            sendResponse({ success: false, error: error.message });
+        }
+        // Indicates that the response is asynchronous
+        return true;
+    }
 });
 
 // -- Functions

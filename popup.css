@@ -4,7 +4,7 @@ body {
     height: 400px;
     overflow: auto;
     margin: 0;
-    background-color: #eeeeee;
+    background-color: #f6f8f9;
 }
 #overlay-container {
     position: fixed;
@@ -13,11 +13,23 @@ body {
     width: 100vw;
     height: 100vh;
     display: flex;
-    align-items: center;
     justify-content: center;
     font-size: 24px;
     font-family: Arial, sans-serif;
+    flex-direction: column;
 }
+
+.header {
+    background-color: #ffffff;
+    border: 1px solid #b5c5ca;
+}
+
+.header h1{
+    padding-left: 20px;
+    padding-top: 10px; 
+    color: #785ef0;
+}
+
 #content {
     color: black;
     padding: 20px;
@@ -30,6 +42,7 @@ body {
     position: relative;
     display: flex;
     flex-direction: column;
+    background-color: #f1f0f0;
 }
 
 pre {
@@ -43,17 +56,21 @@ pre {
     justify-content: space-between;
 }
 
-button{
+#buttonActions button{
     width: 200px;
-    padding: 10px;
+    font-size: 15px;
+    padding: 5px;
     cursor: pointer;
     margin-bottom: 5px;
-    background-color: #fbfbfb;
     transition: background-color 0.3s ease; /* Smooth transition */
+    border-radius: 8px; /* Adjust the value to control the roundness */
+    background-color: #785ef0;
+    color: #ffffff;
+    border: none;
 }
 
-button:hover {
-    background-color: #c6c6c6; /* Darker background color */
+#buttonActions button:hover {
+    background-color: #5b3de4; /* Darker background color */
 }
 
 #Results{
@@ -61,30 +78,67 @@ button:hover {
     font-size: 15px;
 }
 
-#Results h2{
+#Results .title {
+    display:flex ;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#Results .title span{
     font-size: 20px ;
 }
-#Results .frame{
+
+#Results .title button{
+    font-size: 15px;
+    margin-bottom: 5px;
+    width: fit-content;
+    border: 2px solid #b5c5ca;
+}
+
+#Results .title button:hover {
+    background-color: #c6c6c6; /* Darker background color */
+}
+
+#Results .accordion-item
+{
+    background-color: #ffffff;
+
+}
+
+#Results .accordion-item .accordion-header
+{
+    background-color: transparent;
+    border: 1px solid #b5c5ca;
+}
+
+#Results .accordion-item .accordion-header .accordion-button
+{
+    display: flex;
+    align-items: center; /* Vertically centers items within the button */
     width: 100%;
-    background-color: fbfbfb;
-    border: 2px solid black;
+    padding: 1rem;
+    margin-bottom: 0;
+}
+
+.accordion-button:hover
+{
+   background-color: #ece0fe;
+}
+
+.accordion-button .frame {
+    flex: 1; /* Allows the frame to take up available space */
     word-break: break-word; /* Break long words onto the next line */
     overflow-wrap: break-word; /* Break long words to fit the container */
     line-height: 1.5; /* Adjust line height to increase container height */
-    margin-bottom: 10px;
-}
-#Results .key{
-    font-size: 18px ;
-    padding-left: 5px;
-    display: flex;
-    flex-direction: row;
+    margin-right: 10px; /* Adds some space between the frame path and the number */
 }
 
-#Results .key #keyInsert
+.accordion-button .number {
+    white-space: nowrap; /* Prevents the number from breaking into multiple lines */
+    margin-left: auto; /* Pushes the number to the right side */
+}
+
+.accordion-collapse
 {
-    margin-left: 5px;
-}
-
-#Results .value{
-    margin: 5px;
+    border: 1px solid #b5c5ca;
 }

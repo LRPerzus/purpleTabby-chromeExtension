@@ -3,6 +3,9 @@
 <head>
     <title>Accessibility Tree</title>
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline'">
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <script src="js/bootstrap.bundle.min.js"></script>
+
     <!-- This is for the spinner -->
     <style>
         .spinner {
@@ -10,7 +13,7 @@
           height: 40px;
           border: 4px solid rgba(0, 0, 0, 0.1);
           border-radius: 50%;
-          border-top-color: #3498db;
+          border-top-color: #785ef0;
           animation: spin 1s ease infinite;
           margin: auto;
           position: absolute;
@@ -31,20 +34,23 @@
     <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-    <div id="overlay-container" class="purpleTabby" >
+    <div id="overlay-container" class="purpleTabby">
+        <div class="header">
+            <h1 >A11y Tabby</h1>
+        </div>
         <div id="content">
-            <h1 style="padding: 10px;">Accessibility Tree</h1>
             <div class="spinner" id="spinner"></div>
             <div id="buttonActions">
                 <button id="highlightItemsA11yTree" style="display: none;">Highlight Items (A11y Tree)</button>
                 <button id="rescanButton" style="display: none;">Rescan</button>
-                <button id="A11yFixes" style="display: none;">A11yFixes</button>
+                <button id="A11yFixes" style="display: none;">Make Accessiable</button>
             </div>
             <div id="Results">
-                <h2 class="title"> </h2>
+                <div class="title"> </h2>
             </div>
         </div>
     </div>
     <script src="popup.js"></script>
+
 </body>
 </html>

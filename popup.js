@@ -1,3 +1,4 @@
+let allMissing;
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Popup opened and script running!');
@@ -35,10 +36,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             highlightButton.style.display = 'block';
             rescanButton.style.display = 'block';
             A11yFixes.style.display = 'block';
-
+            
             // Create content
-            const missingTitle = resultsDiv.querySelector("h2");
-            missingTitle.textContent = `There are ${message.data.missing.length} elements missing from the tree.`;
+            const titleDiv = resultsDiv.querySelector(".title");
+            const titleSpan = document.createElement("span");
+            titleSpan.textContent = `There are ${message.data.missing.length} elements missing from the tree.`;
+            titleDiv.appendChild(titleSpan);
+
+            // Create copyAll
+            const copyAll = document.createElement("button")
+            copyAll.textContent = "Copy All";
+            copyAll.addEventListener('click', async function() {
+                // Convert the data to a string if necessary
+                const dataToCopy = JSON.stringify(message.data.framesDict, null, 2);
+
+                // Copy the data to clipboard
+                navigator.clipboard.writeText(dataToCopy)
+                    .then(() => {
+                        // Change button text to "Copied"
+                        copyAll.textContent = "Copied";
+                        
+                        // Revert the text back to "Copy All" after 3 seconds
+                        setTimeout(() => {
+                            copyAll.textContent = "Copy All";
+                        }, 3000);
+                    })
+                    .catch((error) => {
+                        console.error("Failed to copy text: ", error);
+                        // Handle error (optional)
+                    });  
+            })
+                    
+            titleDiv.appendChild(copyAll);
+
 
             console.log("MISSING DATA",message.data.framesDict)
             for (const [key, array] of Object.entries(message.data.framesDict)) {
@@ -97,34 +127,57 @@ a11yFix.addEventListener('click', async function() {
 
 
 function createFrame(key, array) {
-    console.log("createFrame key",key);
-    console.log("createFrame array",array);
+    console.log("createFrame key", key);
+    console.log("createFrame array", array);
 
-    // Create a div with class 'frame'
-    const frameDiv = document.createElement('div');
-    frameDiv.classList.add('frame');
-
-    // Create an element to display the key
-    const keyDiv = document.createElement('div');
-    keyDiv.classList.add('key');
-    if (key === "")
-    {
-        key = "main body"
+    // Ensure 'key' has a default value
+    if (key === "") {
+        key = "main body";
     }
-    keyDiv.innerHTML = `
-        <div id="name">Frame:</div>
-        <div id="keyInsert">${key}</div>
-    `;
-    frameDiv.appendChild(keyDiv);
 
-    // Create an element to display the array associated with the key
+    // Create a unique id for each accordion section
+    const uniqueId = `accordion-${key.replace(/\s+/g, '-')}`;
+
+    // Create a div with class 'accordion-item'
+    const accordionItem = document.createElement('div');
+    accordionItem.classList.add('accordion-item');
+
+    // Create the accordion header (key)
+    const headerDiv = document.createElement('h2');
+    headerDiv.classList.add('accordion-header');
+    headerDiv.id = `heading-${uniqueId}`;
+    headerDiv.innerHTML = `
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}" aria-expanded="false" aria-controls="collapse-${uniqueId}">
+            <span class="frame"> ${key} </span>
+            <span class="number"> ${array.length} </span>
+        </button>
+    `;
+    accordionItem.appendChild(headerDiv);
+
+    // Create the accordion collapse content (array values)
+    const collapseDiv = document.createElement('div');
+    collapseDiv.id = `collapse-${uniqueId}`;
+    collapseDiv.classList.add('accordion-collapse', 'collapse');
+    collapseDiv.setAttribute('aria-labelledby', `heading-${uniqueId}`);
+
+    const bodyDiv = document.createElement('div');
+    bodyDiv.classList.add('accordion-body');
+
+    // Create a list to hold the array elements
+    const list = document.createElement('ul');
+
+    // Populate the list with the array elements
     array.forEach(element => {
-        const valueDiv = document.createElement('div');
-        valueDiv.classList.add('value');
-        valueDiv.textContent = element
-        frameDiv.appendChild(valueDiv);
+        const listItem = document.createElement('li');
+        listItem.textContent = element;
+        list.appendChild(listItem);
     });
 
-    // Append the frame div to the container
-    document.getElementById('Results').appendChild(frameDiv);
+    bodyDiv.appendChild(list);
+    collapseDiv.appendChild(bodyDiv);
+    accordionItem.appendChild(collapseDiv);
+
+    // Append the accordion item to the accordion container (Results)
+    document.getElementById('Results').appendChild(accordionItem);
 }
+
