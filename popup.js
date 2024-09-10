@@ -1,5 +1,5 @@
 let allMissing;
-
+  
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Popup opened and script running!');
 
@@ -12,10 +12,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === "PLUGIN_READY")
+    if (message.type === "POPUP_STATUS")
+    {
+        sendResponse({ success: true });
+        return true;
+    }
+    else if (message.type === "PLUGIN_READY")
     {
         chrome.runtime.sendMessage({ type: "OVERLAY_CREATED"});
         sendResponse({ success: true });
+    }
+    else if (message.type === "SCANNING_INNIT")
+    {
+        chrome.runtime.sendMessage({ type: "SCANING_START"});
+
     }
     else if (message.type === "UPDATE_OVERLAY")
     {

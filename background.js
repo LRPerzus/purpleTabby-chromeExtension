@@ -89,15 +89,22 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     }
     else if (request.type === "OVERLAY_CREATED") {
         console.log("Overlay created, preparing to request AX tree and clickableElements.");
-
+        sendResponse({ success: true });
+        chrome.runtime.sendMessage({ type: "SCANNING_INNIT"});        
+        // Return true to indicate the response will be sent asynchronously
+        return true;
+    }
+    else if (request.type === "SCANING_START")
+    {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             const tabId = tabs[0]?.id || request.tabId;
             if (tabId) {
                 console.log("Sending Can get messages to tabId:", tabId);
                 chrome.tabs.sendMessage(tabId, { type: "Can_Get_Tree", tabId: tabId });
                 chrome.tabs.sendMessage(tabId, { type: "Can_find_clickable", tabId: tabId });
-
                 sendResponse({ success: true });
+
+
             } else {
                 console.error("Unable to get the active tab.");
                 sendResponse({ success: false, error: "Unable to get the active tab." });
@@ -220,13 +227,29 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     else if (request.type === "MISSING_FOUND")
     {
         storeDataForTab(request.data.tabId,request.data.framesDict,"missingXpath");
-        console.log("Stored in missingXpath:",request.data.framesDict)
-        const tabId = request.data.tabId;
-         // Send the data to the content script or popup
-         chrome.runtime.sendMessage({
-            type: "UPDATE_OVERLAY",
-            data: request.data
-        });
+        try {
+            chrome.runtime.sendMessage({ type: "POPUP_STATUS" }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.error("Message failed:", chrome.runtime.lastError.message);
+                    return; // Exit the callback if there's an error
+                }
+        
+                if (response && response.success) {
+                    console.log("Popup status response received:", response);
+                    console.log("Stored in missingXpath:", request.data.framesDict);
+                    const tabId = request.data.tabId;
+                    // Send the data to the content script or popup
+                    chrome.runtime.sendMessage({
+                        type: "UPDATE_OVERLAY",
+                        data: request.data
+                    });
+                } else {
+                    console.log("No response or unsuccessful status.");
+                }
+            });
+        } catch (e) {
+            console.error("Caught error:", e.message);
+        }        
     }
 
     else if (request.type === "A11YFIXES_INNIT")
