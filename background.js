@@ -7,6 +7,7 @@ import {storeDataForTab,clearLocalStorage,getFromLocal} from "./background funct
 // Set Variables
 let firstClick = {};
 let debuggerAttached = {};
+let settings = {};
 
 // --- Event Listeners from the injecte scripts to here
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
@@ -14,7 +15,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         const tabId = request.tabId;
         try {
             // Clear data for the tab if needed
-            await clearDataForTab(tabId);
+            // await clearDataForTab(tabId);
         
             // Attaches the number of clicks
             await updateNoClicksTabID(tabId);
@@ -48,6 +49,17 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             } else {
                 console.log("All scripts are loaded and ready.");
             }
+
+            // Set the settingStatus
+            if (!settings[tabId])
+            {
+                settings[tabId] = 
+                {
+                    highlight:true,
+                    continousScanning:true,
+                    A11yFix:true,
+                }
+            }
         
             // Now that all scripts are ready, send the "OVERLAY_CREATED" message
             chrome.runtime.sendMessage({ type: "PLUGIN_READY", tabId: tabId }, (response) => {
@@ -75,7 +87,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             data = "undefined"
         }
         console.log("HIGHLIGHT_MISSING missingXpath",missingXpath)
-        chrome.tabs.sendMessage(request.tabId, { type: "HIGHLIGHT", data:data });
+        chrome.tabs.sendMessage(request.tabId, { type: "HIGHLIGHT", data:data.framesDict });
         
     }
     else if (request.type === "RESCAN_INNIT")
@@ -89,16 +101,30 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     }
     else if (request.type === "OVERLAY_CREATED") {
         console.log("Overlay created, preparing to request AX tree and clickableElements.");
-        sendResponse({ success: true });
-        chrome.runtime.sendMessage({ type: "SCANNING_INNIT"});        
+        const tabId = request.tabId;
+        console.log("OVERLAY_CREATED tabId",tabId)
+        const missingXpaths = await getFromLocal(request.tabId,"missingXpath");
+        console.log("OVERLAY_CREATED missingXpaths",missingXpaths);
+        if (missingXpaths !== undefined)
+        {
+            chrome.runtime.sendMessage({type: "UPDATE_OVERLAY",data:missingXpaths});
+        }
+        else
+        {
+            chrome.runtime.sendMessage({ type: "SCANNING_INNIT", tabId:tabId});        
+        }
         // Return true to indicate the response will be sent asynchronously
         return true;
     }
     else if (request.type === "SCANING_START")
     {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            const tabId = tabs[0]?.id || request.tabId;
-            if (tabId) {
+            let tabId = tabs[0]?.id || request.tabId;
+            if (tabId ) {
+                if (request.tabId && request.tabId === tabId)
+                {
+                    tabId = request.tabId;
+                }
                 console.log("Sending Can get messages to tabId:", tabId);
                 chrome.tabs.sendMessage(tabId, { type: "Can_Get_Tree", tabId: tabId });
                 chrome.tabs.sendMessage(tabId, { type: "Can_find_clickable", tabId: tabId });
@@ -226,17 +252,21 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
     else if (request.type === "MISSING_FOUND")
     {
-        storeDataForTab(request.data.tabId,request.data.framesDict,"missingXpath");
+        // STORE MISSINGXAPATHS
+        storeDataForTab(request.data.tabId,request.data,"missingXpath");
         try {
             chrome.runtime.sendMessage({ type: "POPUP_STATUS" }, (response) => {
                 if (chrome.runtime.lastError) {
-                    console.error("Message failed:", chrome.runtime.lastError.message);
+                    if ( chrome.runtime.lastError.message.includes("Receiving end does not exist."))
+                    {
+                        console.log("POPUP IS NOT OPEN");
+                    }
                     return; // Exit the callback if there's an error
                 }
         
                 if (response && response.success) {
                     console.log("Popup status response received:", response);
-                    console.log("Stored in missingXpath:", request.data.framesDict);
+                    console.log("Stored in missingXpath:", request.data);
                     const tabId = request.data.tabId;
                     // Send the data to the content script or popup
                     chrome.runtime.sendMessage({
@@ -258,7 +288,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         const missingXpaths = await getFromLocal(tabId,"missingXpath");
 
         console.log("A11YFIXES_INNIT missingXpaths:",missingXpaths);
-        chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:missingXpaths});
+        chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:missingXpaths.framesDict});
     }
     else if (request.type === "ERROR_REFRESHNEED")
     {
@@ -272,8 +302,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             const tabId = request.tabId;
             console.log("Handling COPY_ALL for tabId:", tabId);
             const missingXpaths = await getFromLocal(tabId, "missingXpath");
-            console.log("Missing XPaths retrieved:", missingXpaths);
-            sendResponse({ success: true, data: missingXpaths });
+            console.log("Missing XPaths retrieved:", missingXpaths.framesDict);
+            sendResponse({ success: true, data: missingXpaths.framesDict});
         } catch (error) {
             console.error("Error fetching data:", error);
             sendResponse({ success: false, error: error.message });

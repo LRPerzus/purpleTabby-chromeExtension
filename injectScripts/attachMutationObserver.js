@@ -40,8 +40,11 @@ const callback = async (mutationList, observer) => {
     }
     else if (mutation.type === "attributes" && 
       isVisibleFocusAble(mutation.target) && 
+      // DO NOT TOUCH IF IT IS THE ATTRIBUTES WE ADDED IN
       mutation.attributeName !== "tabby-has-listener" && 
-      mutation.attributeName !== "purple_tabby_a11ytree"
+      mutation.attributeName !== "purple_tabby_a11ytree" &&
+      mutation.attributeName !== "style" &&
+      mutation.attributeName !== "purple_tabby_missing"
     ) {
       // Attribute changes are considered significant for resetting the timeout
       shouldResetTimeout = true;

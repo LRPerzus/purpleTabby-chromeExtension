@@ -28,7 +28,7 @@ export function storeDataForTab(tabId, data, type, noClicked = null) {
         if (chrome.runtime.lastError) {
             console.error(`Error storing data for tab ${tabId}: ${chrome.runtime.lastError}`);
         } else {
-            console.log(`Data stored for tab ${tabId}.`);
+            console.log(`Data stored for tab ${tabId} ${type} data: ${data}.`);
         }
     });
 }

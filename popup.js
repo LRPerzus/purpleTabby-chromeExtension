@@ -19,12 +19,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     else if (message.type === "PLUGIN_READY")
     {
-        chrome.runtime.sendMessage({ type: "OVERLAY_CREATED"});
-        sendResponse({ success: true });
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            const tabId = tabs[0]?.id || request.tabId;
+            if (tabId) {
+                chrome.runtime.sendMessage({ type: "OVERLAY_CREATED",tabId:tabId});
+                sendResponse({ success: true });
+
+
+            } else {
+                console.error("Unable to get the active tab.");
+                sendResponse({ success: false, error: "Unable to get the active tab." });
+            }
+        });
+        return true;
     }
     else if (message.type === "SCANNING_INNIT")
     {
-        chrome.runtime.sendMessage({ type: "SCANING_START"});
+        chrome.runtime.sendMessage({ type: "SCANING_START", tabId:tabId});
 
     }
     else if (message.type === "UPDATE_OVERLAY")
