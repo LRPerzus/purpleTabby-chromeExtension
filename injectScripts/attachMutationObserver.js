@@ -38,7 +38,11 @@ const callback = async (mutationList, observer) => {
         }
       }
     }
-    else if (mutation.type === "attributes" && isVisibleFocusAble(mutation.target)) {
+    else if (mutation.type === "attributes" && 
+      isVisibleFocusAble(mutation.target) && 
+      mutation.attributeName !== "tabby-has-listener" && 
+      mutation.attributeName !== "purple_tabby_a11ytree"
+    ) {
       // Attribute changes are considered significant for resetting the timeout
       shouldResetTimeout = true;
       if(isStable)
@@ -59,6 +63,8 @@ const callback = async (mutationList, observer) => {
     timeout = setTimeout(() => {
       isStable = true;       // Mark the DOM as stable
       console.log("DOM stabilized after mutations.");
+      // There is an error on attribute when I add stuff resulting in infinite loops
+      chrome.runtime.sendMessage({ type: "SCANING_START"}); 
     }, 1000);
   }
 };
