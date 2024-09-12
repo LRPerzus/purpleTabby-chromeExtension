@@ -57,6 +57,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             highlightButton.parentElement.style.display = 'block';
             rescanButton.parentElement.style.display = 'block';
             A11yFixes.parentElement.style.display = 'block';
+
+            // Clear everthing first
+            resultsDiv.innerHTML= "";
             
             // Create content
             const titleDiv = resultsDiv.querySelector(".title");

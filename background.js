@@ -120,17 +120,29 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             let tabId = tabs[0]?.id || request.tabId;
-            if (tabId ) {
-                if (request.tabId && request.tabId === tabId)
+            if (tabId) {
+                if (request.tabId)
                 {
-                    tabId = request.tabId;
+                    if (request.tabId === tabId)
+                    {
+                        tabId = request.tabId;
+                        console.log("Sending Can get messages to tabId:", tabId);
+                        chrome.tabs.sendMessage(tabId, { type: "Can_Get_Tree", tabId: tabId });
+                        chrome.tabs.sendMessage(tabId, { type: "Can_find_clickable", tabId: tabId });
+                        sendResponse({ success: true });
+                    }
+                    else
+                    {
+                        console.log(`The active tab has moved (tabId Query ${tabId} | request.tabId ${request.tabId})`);
+                        sendResponse({ success: false });
+                    }
                 }
-                console.log("Sending Can get messages to tabId:", tabId);
-                chrome.tabs.sendMessage(tabId, { type: "Can_Get_Tree", tabId: tabId });
-                chrome.tabs.sendMessage(tabId, { type: "Can_find_clickable", tabId: tabId });
-                sendResponse({ success: true });
-
-
+                else
+                {
+                    chrome.tabs.sendMessage(tabId, { type: "Can_Get_Tree", tabId: tabId });
+                    chrome.tabs.sendMessage(tabId, { type: "Can_find_clickable", tabId: tabId });
+                    sendResponse({ success: true });
+                }
             } else {
                 console.error("Unable to get the active tab.");
                 sendResponse({ success: false, error: "Unable to get the active tab." });
@@ -311,6 +323,15 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         // Indicates that the response is asynchronous
         return true;
     }
+    else if (request.type === "GET_TAB_ID")
+    {
+        if (sender.tab && sender.tab.id) {
+            sendResponse({ tabId: sender.tab.id });
+        } else {
+            sendResponse({ tabId: null });
+        }
+    }
+    return true; // Indicate that you will send a response asynchronously
 });
 
 // -- Functions

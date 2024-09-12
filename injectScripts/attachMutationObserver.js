@@ -1,7 +1,14 @@
 let isStable = false;
 let hasMutations = false;
 let timeout; // Timeout for stability check
+let tabId;
 
+chrome.runtime.sendMessage({ type: 'GET_TAB_ID' }, (response) => {
+  if (response && response.tabId) {
+      console.log('Tab ID:', response.tabId);
+      tabId = response.tabId;
+  }
+});
 // Callback function to execute when mutations are observed
 const callback = async (mutationList, observer) => {
   hasMutations = true;  // Mark that a mutation occurred
@@ -67,7 +74,7 @@ const callback = async (mutationList, observer) => {
       isStable = true;       // Mark the DOM as stable
       console.log("DOM stabilized after mutations.");
       // There is an error on attribute when I add stuff resulting in infinite loops
-      chrome.runtime.sendMessage({ type: "SCANING_START"}); 
+      chrome.runtime.sendMessage({ type: "SCANING_START",tabId:tabId}); 
     }, 1000);
   }
 };
@@ -94,6 +101,7 @@ const startObserving = () => {
     if (!hasMutations) {
       isStable = true;       // Mark the DOM as stable
       console.log("No mutations detected after DOMContentLoaded, setting DOM as stable.");
+      chrome.runtime.sendMessage({ type: "SCANING_START"}); 
     }
   }, 1000);
 };
