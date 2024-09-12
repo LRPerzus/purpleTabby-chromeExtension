@@ -98,5 +98,6 @@ export async function collectDOMNodes(tabId) {
         console.error("Error collecting DOM nodes:", error);
     }
 
+    console.log("collectDOMNodes complete");
     return {nodeMap:nodeMap, resolveNodes:resolveNodes,eventListnersList:eventListnersList};
 }

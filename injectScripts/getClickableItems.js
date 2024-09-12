@@ -69,6 +69,10 @@ function isInOpenDetails(element) {
 // Function to check if an element is visible
 const isVisibleFocusAble = (el) => {
     try {
+        if (!(el instanceof Element))
+        {
+            return false;
+        }
         const style = window.getComputedStyle(el);
         const rect = el.getBoundingClientRect();
         return (

@@ -63,6 +63,7 @@ export async function fullA11yTreeFilter(tabId,fullA11yTree) {
         count++;
     }
 
+    console.log("fullA11yTreeFilter DONE");
     return backEndIdWithName;
 }
 

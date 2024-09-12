@@ -20,6 +20,7 @@ export async function getFrameTree(tabId) {
                     }
                 };
                 collectFrameIds(response.frameTree);
+                console.log("getFrameTree DONE");
                 resolve(frameIds);
             }
         });
@@ -28,17 +29,17 @@ export async function getFrameTree(tabId) {
 
 
 export async function processFrameTrees(tabId, frameTree) {
+    console.log("processFrameTrees start");
     const allFrameNamesDict = {};
 
     const promises = frameTree.map(async frameId => {
+        console.log("Processing frame ID:", frameId);
         const fullA11yTree = await getFullAXTree(tabId, frameId);
         console.log("WHOLE A11y TREE", fullA11yTree);
 
-        // Collecting only the DOM ids with names
         const onlyNames = await fullA11yTreeFilter(tabId, fullA11yTree.nodes);
         console.log("Filtered tree A11y Whole:", onlyNames);
 
-        // Iterate over the object and stack values like a dictionary
         for (const key in onlyNames) {
             if (onlyNames.hasOwnProperty(key)) {
                 allFrameNamesDict[key] = onlyNames[key].value;
@@ -46,11 +47,14 @@ export async function processFrameTrees(tabId, frameTree) {
         }
     });
 
-    // Wait for all the promises to resolve
-    await Promise.all(promises);
+    await Promise.all(promises).catch(error => {
+        console.error("Error processing frame trees:", error);
+    });
+
     console.log("All frames processed.");
     return allFrameNamesDict;
 }
+
 
 export async function settingAttributeNode(tabId, backendDOMNodeIds, domDictionary) {
     // Create an array of promises for setting attributes

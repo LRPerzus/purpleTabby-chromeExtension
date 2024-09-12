@@ -169,11 +169,16 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
             // Full DOM DICT TREE
             const frameTreePromise = getFrameTree(tabId);
+            
             // Run collectDOMNodes and processFrameTrees concurrently
             const [domResults, frameTreeResults] = await Promise.all([
                 collectDOMNodes(tabId),
                 frameTreePromise.then(frameTree => processFrameTrees(tabId, frameTree))
-            ]);
+            ]).catch(error => {
+                console.error("Error in Promise.all:", error);
+            });
+
+            console.log("CAN I GET HERE?");
 
             // Access the results
             const { nodeMap, resolveNodes, eventListnersList } = domResults;
@@ -331,6 +336,11 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             sendResponse({ tabId: null });
         }
     }
+    else if (request.type === "TEST_CONNECTION")
+    {
+        sendResponse({status: "connected"});
+    }
+    
     return true; // Indicate that you will send a response asynchronously
 });
 

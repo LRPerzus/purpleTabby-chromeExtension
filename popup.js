@@ -59,7 +59,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             A11yFixes.parentElement.style.display = 'block';
 
             // Clear everthing first
-            resultsDiv.innerHTML= "";
+            resultsDiv.innerHTML= `<div class="title"> </h2>`;
             
             // Create content
             const titleDiv = resultsDiv.querySelector(".title");

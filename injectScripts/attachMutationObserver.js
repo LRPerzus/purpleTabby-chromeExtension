@@ -1,5 +1,6 @@
 let isStable = false;
 let hasMutations = false;
+let isConnectedDebuuger = true; // Variable to track connection status
 let timeout; // Timeout for stability check
 let tabId;
 
@@ -9,6 +10,16 @@ chrome.runtime.sendMessage({ type: 'GET_TAB_ID' }, (response) => {
       tabId = response.tabId;
   }
 });
+
+chrome.runtime.sendMessage({type: "TEST_CONNECTION"}, function(response) {
+  if (response && response.status === "connected") {
+    console.log("Content script is connected to the background script.");
+  } else {
+     isConnectedDebuuger = false;
+     console.log("not conntected");
+  }
+});
+
 // Callback function to execute when mutations are observed
 const callback = async (mutationList, observer) => {
   hasMutations = true;  // Mark that a mutation occurred
@@ -34,7 +45,7 @@ const callback = async (mutationList, observer) => {
       const removedNodesResult = await checkNodes(mutation.removedNodes);
 
       // If any added or removed nodes are non-script elements, reset timeout
-      if (addedNodesResult.includes(true) || removedNodesResult.includes(true)) {
+      if ((addedNodesResult.includes(true) || removedNodesResult.includes(true)) && isVisibleFocusAble(mutation.previousSibling)) {
         shouldResetTimeout = true;
         if(isStable)
         {
@@ -74,7 +85,23 @@ const callback = async (mutationList, observer) => {
       isStable = true;       // Mark the DOM as stable
       console.log("DOM stabilized after mutations.");
       // There is an error on attribute when I add stuff resulting in infinite loops
-      chrome.runtime.sendMessage({ type: "SCANING_START",tabId:tabId}); 
+      if (isConnectedDebuuger)
+      {
+        try
+        {
+          chrome.runtime.sendMessage({ type: "SCANING_START",tabId:tabId}); 
+        }
+        catch (e)
+        {
+          if (e.message === "Uncaught Error: Extension context invalidated.")
+          {
+            console.warn("UPDATED EXTENSION PLEASE REFRESH");
+          }
+          else{
+            console.error("UPDATED EXTENSION PLEASE REFRESH");
+          }
+        }
+      }
     }, 1000);
   }
 };
@@ -101,7 +128,10 @@ const startObserving = () => {
     if (!hasMutations) {
       isStable = true;       // Mark the DOM as stable
       console.log("No mutations detected after DOMContentLoaded, setting DOM as stable.");
-      chrome.runtime.sendMessage({ type: "SCANING_START"}); 
+      if (isConnectedDebuuger)
+      {
+        chrome.runtime.sendMessage({ type: "SCANING_START"}); 
+      }
     }
   }, 1000);
 };
