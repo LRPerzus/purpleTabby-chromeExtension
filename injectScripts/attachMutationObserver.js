@@ -46,7 +46,7 @@ const callback = async (mutationList, observer) => {
 
       // If any added or removed nodes are non-script elements, reset timeout
       if ((addedNodesResult.includes(true) || removedNodesResult.includes(true)) && isVisibleFocusAble(mutation.previousSibling)) {
-        console.log(mutation)
+        console.log(mutation);
         shouldResetTimeout = true;
         if(isStable)
         {

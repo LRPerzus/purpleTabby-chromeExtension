@@ -84,7 +84,7 @@ const isVisibleFocusAble = (el) => {
             && isInOpenDetails(el)
         );
     } catch (error) {
-        console.error('Error in isVisible:', error);
+        console.log("Error in ELEMENT",el)
         return false;
     }
 };

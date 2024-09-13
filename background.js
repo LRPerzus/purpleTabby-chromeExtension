@@ -105,7 +105,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         console.log("OVERLAY_CREATED tabId",tabId)
         const missingXpaths = await getFromLocal(request.tabId,"missingXpath");
         console.log("OVERLAY_CREATED missingXpaths",missingXpaths);
-        if (missingXpaths !== undefined)
+
+        if (missingXpaths !== undefined || (await isDebuggerAttached(request.tabId) === undefined || !debuggerAttached[tabId] && debuggerAttached[tabId] !== true))
         {
             chrome.runtime.sendMessage({type: "UPDATE_OVERLAY",data:missingXpaths});
         }
@@ -158,11 +159,10 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             const tabId = request.tabId;
             console.log("When GET_AX_TREE is triggered debugger is:",isDebuggerAttached(tabId));
 
-            let debuggerAttached = false;
-            if (await isDebuggerAttached(request.tabId) === undefined || !debuggerAttached[tabId] && debuggerAttached[tabId] === false)
+            if (await isDebuggerAttached(request.tabId) === undefined || !debuggerAttached[tabId] && debuggerAttached[tabId] !== true)
             {
                 await attachDebugger(tabId);
-                debuggerAttached = true;
+                debuggerAttached[tabId] = true;
             }
             await enableAccessibility(tabId);
             await enableDOMDomain(tabId)

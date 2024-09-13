@@ -112,7 +112,7 @@ export async function doubleCheckNodeId(tabId, backendNodeId) {
                 console.log(errorMessage);
                 // reject(new Error(errorMessage));
             } else if (!result || !result.node) {
-                const errorMessage = `Error in doubleCheckNodeId: No node found (tabId: ${tabId}, backendNodeId: ${backendNodeId})`;
+                const errorMessage = `Error in doubleCheckNodeId result || !result.node : No node found (tabId: ${tabId}, backendNodeId: ${backendNodeId})`;
                 console.log(errorMessage);
                 // reject(new Error(errorMessage));
             } else {
