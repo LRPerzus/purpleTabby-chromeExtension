@@ -1,4 +1,9 @@
 let allMissing;
+let tabId ;
+
+chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    tabId = tabs[0]?.id || request.tabId;
+})
   
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Popup opened and script running!');

@@ -33,6 +33,7 @@ async function getClickableItems() {
         let framePath = "";
 
         if (currentNode.nodeName.toLowerCase() === "frameset") {
+            console.log("IT IS A FRAMESET");
             // If the body is a frameset, navigate through frames to find the actual body tag
             const frames = Array.from(document.querySelectorAll('frame, iframe'));
 
@@ -43,6 +44,7 @@ async function getClickableItems() {
                         currentNode = frameDocument.body;
                         framePath = getXPath(frame); // Set the initial framePath
                         // Start the traversal from the current node (which is either document.body or a frame's body)
+                        console.log("transverse down",currentNode);
                         await traverseDOM(currentNode, framePath);
                     }
                 } catch (e) {
@@ -69,10 +71,6 @@ function isInOpenDetails(element) {
 // Function to check if an element is visible
 const isVisibleFocusAble = (el) => {
     try {
-        if (!(el instanceof Element))
-        {
-            return false;
-        }
         const style = window.getComputedStyle(el);
         const rect = el.getBoundingClientRect();
         return (

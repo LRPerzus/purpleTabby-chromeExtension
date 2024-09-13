@@ -46,6 +46,7 @@ const callback = async (mutationList, observer) => {
 
       // If any added or removed nodes are non-script elements, reset timeout
       if ((addedNodesResult.includes(true) || removedNodesResult.includes(true)) && isVisibleFocusAble(mutation.previousSibling)) {
+        console.log(mutation)
         shouldResetTimeout = true;
         if(isStable)
         {
@@ -64,6 +65,7 @@ const callback = async (mutationList, observer) => {
       mutation.attributeName !== "style" &&
       mutation.attributeName !== "purple_tabby_missing"
     ) {
+      console.log(mutation)
       // Attribute changes are considered significant for resetting the timeout
       shouldResetTimeout = true;
       if(isStable)
@@ -112,6 +114,7 @@ const observer = new MutationObserver(callback);
 
 // Options for the observer (which mutations to observe)
 const config = {childList: true, subtree: true , attributes:true};
+// subtree is needed to look into the children nodes of the attached section
 
 // Function to start observing once the DOM is fully loaded
 const startObserving = () => {
