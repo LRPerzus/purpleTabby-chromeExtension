@@ -443,31 +443,34 @@ function enableDOMDomain(tabId) {
 async function updateNoClicksTabID(tabId, change = false) {
     const keyClicks = `tab_${tabId}_noClicks`;
 
-    // Check if the key exists and get its current value
-    chrome.storage.local.get(keyClicks, (result) => {
-        console.log("updateNoClicksTabID result:",result);
+    try {
+        // Check if the key exists and get its current value
+        const result = await chrome.storage.session.get(keyClicks);
+        console.log("updateNoClicksTabID result:", result);
+
         if (result[keyClicks]) {
             // Key exists
             let currentCount = result[keyClicks];
 
             if (change) {
                 currentCount += 1;
-                // Store the updated value back in local storage
-                chrome.storage.local.set({ [keyClicks]: currentCount }, () => {
-                    console.log(`Updated noClicks`);
-                });
+                // Store the updated value back in session storage
+                await chrome.storage.session.set({ [keyClicks]: currentCount });
+                console.log(`Updated noClicks`);
             } else {
                 console.log(`${keyClicks} exists: ${currentCount}`);
             }
         } else {
             // Key does not exist
             // Initialize and set the key with value 1
-            chrome.storage.local.set({ [keyClicks]: 1 }, () => {
-                console.log(`Initialized noClicks: 1`);
-            });
+            await chrome.storage.session.set({ [keyClicks]: 1 });
+            console.log(`Initialized noClicks: 1`);
         }
-    });
+    } catch (error) {
+        console.error('Error updating noClicks:', error);
+    }
 }
+
 
 // Function to clear local storage data for a specific tab
 async function clearDataForTab(tabId) {
@@ -500,7 +503,7 @@ async function clearDataForTab(tabId) {
 }  
 // Example: Clear local storage when the extension is installed or updated
 chrome.runtime.onInstalled.addListener(() => {
-    clearLocalStorage();
+    // clearLocalStorage();
 });
   
 // Function to send a message and wait for a specific response

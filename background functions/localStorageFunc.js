@@ -10,28 +10,25 @@ export function clearLocalStorage() {
 }
 
 // Function to store data for a specific tab
-export function storeDataForTab(tabId, data, type, noClicked = null) {
+export async function storeDataForTab(tabId, data, type, noClicked = null) {
     // Create a key specific to the tab
-    let key
+    let key;
 
-    if ( noClicked === null)
-    {
+    if (noClicked === null) {
         key = `tab_${tabId}_${type}`;
-    }
-    else
-    {
+    } else {
         key = `tab_${tabId}_${type}_${noClicked}`;
     }
 
-    // Store data in chrome.storage.local
-    chrome.storage.local.set({ [key]: data }, () => {
-        if (chrome.runtime.lastError) {
-            console.error(`Error storing data for tab ${tabId}: ${chrome.runtime.lastError}`);
-        } else {
-            console.log(`Data stored for tab ${tabId} ${type} data: ${data}.`);
-        }
-    });
+    try {
+        // Store data in chrome.storage.session
+        await chrome.storage.session.set({ [key]: data });
+        console.log(`Data stored for tab ${tabId} ${type} data: ${data}.`);
+    } catch (error) {
+        console.error(`Error storing data for tab ${tabId}: ${error}`);
+    }
 }
+
 
 
 /* 
@@ -44,23 +41,19 @@ export function storeDataForTab(tabId, data, type, noClicked = null) {
 
 export async function getFromLocal(tabId, key, noclicks = false) {
     // Create a key specific to the tab
-    let tabKey
-    if (noclicks !== false)
-    {
-        tabKey =  `tab_${tabId}_${key}_${noclicks}`
-    }
-    else 
-    {
+    let tabKey;
+    if (noclicks !== false) {
+        tabKey = `tab_${tabId}_${key}_${noclicks}`;
+    } else {
         tabKey = `tab_${tabId}_${key}`;
     }
 
-    return new Promise((resolve, reject) => {
-        chrome.storage.local.get([tabKey], function(result) {
-            if (chrome.runtime.lastError) {
-                reject(chrome.runtime.lastError);
-            } else {
-                resolve(result[tabKey]);
-            }
-        });
-    });
+    try {
+        // Get data from chrome.storage.session
+        const result = await chrome.storage.session.get(tabKey);
+        return result[tabKey];
+    } catch (error) {
+        console.error(`Error retrieving data for tab ${tabId}: ${error}`);
+        throw error;
+    }
 }
