@@ -111,7 +111,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
         if (missingXpaths !== undefined || (await isDebuggerAttached(request.tabId) === undefined || !debuggerAttached[tabId] && debuggerAttached[tabId] !== true))
         {
-            chrome.runtime.sendMessage({type: "UPDATE_OVERLAY",data:missingXpaths});
+            chrome.runtime.sendMessage({type: "UPDATE_OVERLAY",data:missingXpaths,settings:settings[request.tabId],tabId:request.tabId});
         }
         else
         {
@@ -299,14 +299,78 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
     else if (request.type === "MISSING_FOUND")
     {
+        const tabId = request.data.tabId;
+        console.log("MISSING_FOUND",tabId);
+        // previous errors data
+        const previousMissingXpath = await getFromLocal(tabId,"missingXpath");
+        let mergedFramesDict;
+        let mergedMissingList
+
+        if (previousMissingXpath)
+        {
+            // cause each is its own dict kinda
+            mergedFramesDict= mergeDictionaries(request.data.framesDict, previousMissingXpath.framesDict);;
+            mergedMissingList = [...request.data.missing, ...previousMissingXpath.missing];
+        }
+        else 
+        {
+            mergedFramesDict = request.data.framesDict,
+            mergedMissingList = request.data.missing;
+        }
+       
+
+        const mergedMissingXpaaths = {
+            framesDict:mergedFramesDict,
+            missing : mergedMissingList,
+            tabId : tabId
+        };
+        console.log("mergedMissingXpaaths",mergedMissingXpaaths);
+
         // STORE MISSINGXAPATHS
-        storeDataForTab(request.data.tabId,request.data,"missingXpath");
+        storeDataForTab(request.data.tabId,mergedMissingXpaaths,"missingXpath");
+
         try {
-            chrome.runtime.sendMessage({ type: "POPUP_STATUS" }, (response) => {
+            chrome.runtime.sendMessage({ type: "POPUP_STATUS" }, async (response) => {
                 if (chrome.runtime.lastError) {
                     if ( chrome.runtime.lastError.message.includes("Receiving end does not exist."))
                     {
                         console.log("POPUP IS NOT OPEN");
+                        const setting = settings[tabId];
+                        console.log("setting", setting);
+
+
+                        let data;
+                        if (mergedMissingXpaaths!== undefined)
+                        {
+                            data = mergedMissingXpaaths;
+                        }
+                        else{
+                            data = "undefined"
+                        }
+
+                        // Array to hold the promises for sending messages
+                        const promises = [];
+
+                        // Check if highlight is true and add the message sending promise to the array
+                        if (setting.highlight) {
+                            promises.push(
+                                new Promise((resolve, reject) => {
+                                    chrome.tabs.sendMessage(tabId, { type: "HIGHLIGHT", data:data.framesDict })
+                                })
+                            );
+                        }
+
+                        // Check if A11yFix is true and add the message sending promise to the array
+                        if (setting.A11yFix) {
+                            promises.push(
+                                new Promise((resolve, reject) => {
+                                    chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict})
+                                })
+                            );
+                        }
+
+                        // Wait for all messages to be sent
+                        Promise.all(promises)
                     }
                     return; // Exit the callback if there's an error
                 }
@@ -318,7 +382,9 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                     // Send the data to the content script or popup
                     chrome.runtime.sendMessage({
                         type: "UPDATE_OVERLAY",
-                        data: request.data
+                        data: request.data,
+                        settings:settings[tabId],
+                        tabId:tabId
                     });
                 } else {
                     console.log("No response or unsuccessful status.");
@@ -590,3 +656,19 @@ async function isDebuggerAttached(tabId) {
         return (attached);
     });
 }
+
+function mergeDictionaries(dict1, dict2) {
+    const result = { ...dict1 }; // Create a shallow copy of dict1
+  
+    for (let key in dict2) {
+      if (result[key]) {
+        // If the key exists in both dictionaries, concatenate the arrays
+        result[key] = [...result[key], ...dict2[key]];
+      } else {
+        // If the key is only in dict2, copy it to result
+        result[key] = [...dict2[key]];
+      }
+    }
+  
+    return result;
+  }

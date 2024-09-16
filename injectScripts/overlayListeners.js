@@ -37,11 +37,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 element.setAttribute("purple_tabby_missing",element.style.border) ;
                 element.style.border = "10px solid purple";
               }
-              else // remove highlights
-              {
-                element.style.border = previousStyle;
-                element.removeAttribute("purple_tabby_missing");
-              }
               
             }
           });
