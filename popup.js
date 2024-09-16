@@ -22,6 +22,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true });
         return true;
     }
+    else if (message.type === "SAVED_SETTINGS")
+    {
+        const mapOfIdToKeys = {
+            "highlight": "highlightItemsA11yTreeSwitch",
+            "debuggerAttach":"debuggerAttach",
+            "A11yFix":"a11yFixesSwitch"
+        }
+        for (const key in message.settings) {
+              // Get the corresponding ID from the map
+              const elementId = mapOfIdToKeys[key];
+              console.log("elementId",elementId);
+              if (elementId) {
+                const element = document.getElementById(elementId);
+                // Perform operations with the element
+                if (element.type === 'checkbox') {
+                    // Set the checkbox state based on messageSetting
+                    element.checked = message.settings[key];
+                    console.log(`Checkbox with ID ${elementId} set to ${element.checked}.`);
+                } else {
+                    console.warn(`Element with ID ${elementId} is not a checkbox.`);
+                }
+              }
+        }
+    }
     else if (message.type === "PLUGIN_READY")
     {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {

@@ -14,8 +14,18 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     if (request.type === "PlUGIN_CLICKED") {
         const tabId = request.tabId;
         try {
-            // Clear data for the tab if needed
-            // await clearDataForTab(tabId);
+           // give the settings to change
+             // Set the settingStatus
+             if (!settings[tabId])
+             {
+                 settings[tabId] = 
+                 {
+                     highlight:true,
+                     debuggerAttach:false ,
+                     A11yFix:true,
+                 }
+             }
+            chrome.runtime.sendMessage({ type: "SAVED_SETTINGS", settings: settings[tabId] })
         
             // Attaches the number of clicks
             await updateNoClicksTabID(tabId);
@@ -50,17 +60,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 console.log("All scripts are loaded and ready.");
             }
 
-            // Set the settingStatus
-            if (!settings[tabId])
-            {
-                settings[tabId] = 
-                {
-                    highlight:true,
-                    continousScanning:true,
-                    A11yFix:true,
-                }
-            }
-        
             // Now that all scripts are ready, send the "OVERLAY_CREATED" message
             chrome.runtime.sendMessage({ type: "PLUGIN_READY", tabId: tabId }, (response) => {
                 if (chrome.runtime.lastError) {
@@ -77,6 +76,10 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     else if (request.type === "HIGHLIGHT_MISSING")
     {
         console.log("HIGHLIGHT_MISSING Received",request.tabId);
+        if (settings[request.tabId])
+        {
+            settings[request.tabId].highlight = request.status;
+        }
         const missingXpath = await getFromLocal(request.tabId,"missingXpath");
         let data;
         if (missingXpath !== undefined)
@@ -119,8 +122,20 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     }
     else if (request.type === "SCANING_START")
     {
+
         chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
             let tabId = tabs[0]?.id || request.tabId;
+            // Set the settingStatus
+            if (!settings[tabId])
+            {
+                settings[tabId] = 
+                {
+                    highlight:true,
+                    debuggerAttach:false ,
+                    A11yFix:true,
+                }
+            }
+
             if (tabId &&  (debuggerAttached[tabId] && debuggerAttached[tabId] === true)) {
                 if (request.tabId)
                 {
@@ -156,6 +171,10 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     else if(request.type === "DEBUGGER_ATTACH")
     {
         const tabId = request.tabId;
+        if (settings[request.tabId])
+        {
+            settings[tabId].debuggerAttach = request.status;
+        }
         if (!debuggerAttached[tabId])
         {
             console.log("DEBUGGER_ATTACH");
@@ -168,6 +187,10 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     else if(request.type === "DEBUGGER_DETTACH")
     {
         const tabId = request.tabId;
+        if (settings[request.tabId])
+        {
+            settings[tabId].debuggerAttach = request.status;
+        }
         console.log("Dettaching");
         await detachDebugger(tabId);
         delete debuggerAttached[tabId];
@@ -310,7 +333,10 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     {
         const tabId = request.tabId;
         const missingXpaths = await getFromLocal(tabId,"missingXpath");
-
+        if (settings[request.tabId])
+        {
+            settings[request.tabId].A11yFix = request.status;
+        }
         console.log("A11YFIXES_INNIT missingXpaths:",missingXpaths);
         chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:missingXpaths.framesDict});
     }
