@@ -1,26 +1,20 @@
 // Event Listeners
-const rescanButton = document.getElementById('rescanSwitch');
-rescanButton.addEventListener('click', async function() {
-    const resultsDiv = document.getElementById("Results");
-    resultsDiv.innerHTML='<h2 class="title"> </h2>';
-    resultsDiv.style.display="none";
-
-    const loadingSpinner = document.getElementById('spinner');
-    loadingSpinner.style.display="block";
-
-    const highlightButton = document.querySelector(".purpleTabby #highlightItemsA11yTreeSwitch");
-    const rescanButton = document.querySelector(".purpleTabby #rescanSwitch");
-    const A11yFixes = document.querySelector(".purpleTabby #a11yFixesSwitch");
-
-    // Unhide button
-    highlightButton.parentElement.style.display = 'none';
-    rescanButton.parentElement.style.display = 'none';
-    A11yFixes.parentElement.style.display = 'none';
-
-
+const debuggerAttachSwitch = document.getElementById('debuggerAttach');
+debuggerAttachSwitch.addEventListener('click', async function() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     console.log(`Current tab ID: ${tab.id}`);
-    chrome.runtime.sendMessage({ type: "RESCAN_INNIT" , tabId:tab.id});
+    if (!debuggerAttachSwitch.hasAttribute("checked"))
+    {
+        console.log("attach it");
+        debuggerAttachSwitch.setAttribute("checked","true");
+        chrome.runtime.sendMessage({ type: "DEBUGGER_ATTACH" , tabId:tab.id});
+    }
+    else 
+    {
+        console.log("dettach it");
+        debuggerAttachSwitch.removeAttribute("checked");
+        chrome.runtime.sendMessage({ type: "DEBUGGER_DETTACH" , tabId:tab.id});
+    }
 });
 
 const highlightButton = document.getElementById("highlightItemsA11yTreeSwitch");

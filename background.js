@@ -119,9 +119,9 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     }
     else if (request.type === "SCANING_START")
     {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
             let tabId = tabs[0]?.id || request.tabId;
-            if (tabId) {
+            if (tabId &&  (debuggerAttached[tabId] && debuggerAttached[tabId] === true)) {
                 if (request.tabId)
                 {
                     if (request.tabId === tabId)
@@ -145,7 +145,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                     sendResponse({ success: true });
                 }
             } else {
-                console.error("Unable to get the active tab.");
+                console.log("Debugger not attached or undable to get active tab");
                 sendResponse({ success: false, error: "Unable to get the active tab." });
             }
         });
@@ -153,73 +153,80 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         // Return true to indicate the response will be sent asynchronously
         return true;
     }
+    else if(request.type === "DEBUGGER_ATTACH")
+    {
+        const tabId = request.tabId;
+        if (!debuggerAttached[tabId])
+        {
+            console.log("DEBUGGER_ATTACH");
+            await attachDebugger(tabId);
+            await enableAccessibility(tabId);
+            await enableDOMDomain(tabId)
+            debuggerAttached[tabId] = true;
+        }
+    }
+    else if(request.type === "DEBUGGER_DETTACH")
+    {
+        const tabId = request.tabId;
+        console.log("Dettaching");
+        await detachDebugger(tabId);
+        delete debuggerAttached[tabId];
+    }
+
     else if (request.type === "GET_AX_TREE") {
         // console.log("Message received in background script:", request);
         try {
             const tabId = request.tabId;
-            console.log("When GET_AX_TREE is triggered debugger is:",isDebuggerAttached(tabId));
+            console.log("When GET_AX_TREE is triggered debugger is:",await isDebuggerAttached(tabId));
 
-            if (await isDebuggerAttached(request.tabId) === undefined || !debuggerAttached[tabId] && debuggerAttached[tabId] !== true)
+            if (debuggerAttached[tabId])
             {
-                await attachDebugger(tabId);
-                debuggerAttached[tabId] = true;
-            }
-            await enableAccessibility(tabId);
-            await enableDOMDomain(tabId)
+                // Full DOM DICT TREE
+                const frameTreePromise = getFrameTree(tabId);
+                
+                // Run collectDOMNodes and processFrameTrees concurrently
+                const [domResults, frameTreeResults] = await Promise.all([
+                    collectDOMNodes(tabId),
+                    frameTreePromise.then(frameTree => processFrameTrees(tabId, frameTree))
+                ]).catch(error => {
+                    console.error("Error in Promise.all:", error);
+                });
 
-            // Full DOM DICT TREE
-            const frameTreePromise = getFrameTree(tabId);
+                console.log("CAN I GET HERE?");
+
+                // Access the results
+                const { nodeMap, resolveNodes, eventListnersList } = domResults;
+                const allFrameNames = frameTreeResults;
+                
+                const domDictionary = nodeMap; 
+                console.log("domDictionary",domDictionary); 
+                // console.log("resolveNodes",resolveNodes);
+                // console.log("eventListnersList",eventListnersList);
+
+                // Set Attribute tabby-has-listener = "true"
+                await addAttributeEventList(tabId,domDictionary,eventListnersList);
+
+                // Set Attribute purple_tabby_a11yTree
+                await settingAttributeNode(tabId, allFrameNames, domDictionary);
+
             
-            // Run collectDOMNodes and processFrameTrees concurrently
-            const [domResults, frameTreeResults] = await Promise.all([
-                collectDOMNodes(tabId),
-                frameTreePromise.then(frameTree => processFrameTrees(tabId, frameTree))
-            ]).catch(error => {
-                console.error("Error in Promise.all:", error);
-            });
+                // Find the Xpaths in the DOM
+                const data = {
+                    tabId:tabId,
+                }
+                // To force a download
+                // const json = JSON.stringify(fullA11yTree, null, 2);
 
-            console.log("CAN I GET HERE?");
+                // // Send the data to the content script or popup
+                // chrome.tabs.sendMessage(tabId,{
+                //     type: "DOWNLOAD_Name_A11yTree",
+                //     data: json
+                // });
 
-            // Access the results
-            const { nodeMap, resolveNodes, eventListnersList } = domResults;
-            const allFrameNames = frameTreeResults;
-            
-            const domDictionary = nodeMap; 
-            console.log("domDictionary",domDictionary); 
-            // console.log("resolveNodes",resolveNodes);
-            // console.log("eventListnersList",eventListnersList);
-
-            // Set Attribute tabby-has-listener = "true"
-            await addAttributeEventList(tabId,domDictionary,eventListnersList);
-
-            // Set Attribute purple_tabby_a11yTree
-            await settingAttributeNode(tabId, allFrameNames, domDictionary);
-
-           
-            // Find the Xpaths in the DOM
-            const data = {
-                tabId:tabId,
+                chrome.tabs.sendMessage(tabId, { type: "FULL_A11yTree_DOM_XPATHS", data: data }); 
+                // Use chrome tab cause runtime is not the same
+                // Tabs are used to send back to another script 
             }
-            if (debuggerAttached)
-            {   
-                console.log("Dettaching")
-                await detachDebugger(tabId);
-            }
-
-            // To force a download
-            // const json = JSON.stringify(fullA11yTree, null, 2);
-
-            // // Send the data to the content script or popup
-            // chrome.tabs.sendMessage(tabId,{
-            //     type: "DOWNLOAD_Name_A11yTree",
-            //     data: json
-            // });
-
-            chrome.tabs.sendMessage(tabId, { type: "FULL_A11yTree_DOM_XPATHS", data: data }); 
-            // Use chrome tab cause runtime is not the same
-            // Tabs are used to send back to another script 
-
-
         } catch (error) {
             console.error("Error processing AX Tree:", error, JSON.stringify(error));
         }
@@ -443,31 +450,34 @@ function enableDOMDomain(tabId) {
 async function updateNoClicksTabID(tabId, change = false) {
     const keyClicks = `tab_${tabId}_noClicks`;
 
-    // Check if the key exists and get its current value
-    chrome.storage.local.get(keyClicks, (result) => {
-        console.log("updateNoClicksTabID result:",result);
+    try {
+        // Check if the key exists and get its current value
+        const result = await chrome.storage.session.get(keyClicks);
+        console.log("updateNoClicksTabID result:", result);
+
         if (result[keyClicks]) {
             // Key exists
             let currentCount = result[keyClicks];
 
             if (change) {
                 currentCount += 1;
-                // Store the updated value back in local storage
-                chrome.storage.local.set({ [keyClicks]: currentCount }, () => {
-                    console.log(`Updated noClicks`);
-                });
+                // Store the updated value back in session storage
+                await chrome.storage.session.set({ [keyClicks]: currentCount });
+                console.log(`Updated noClicks`);
             } else {
                 console.log(`${keyClicks} exists: ${currentCount}`);
             }
         } else {
             // Key does not exist
             // Initialize and set the key with value 1
-            chrome.storage.local.set({ [keyClicks]: 1 }, () => {
-                console.log(`Initialized noClicks: 1`);
-            });
+            await chrome.storage.session.set({ [keyClicks]: 1 });
+            console.log(`Initialized noClicks: 1`);
         }
-    });
+    } catch (error) {
+        console.error('Error updating noClicks:', error);
+    }
 }
+
 
 // Function to clear local storage data for a specific tab
 async function clearDataForTab(tabId) {
@@ -500,7 +510,7 @@ async function clearDataForTab(tabId) {
 }  
 // Example: Clear local storage when the extension is installed or updated
 chrome.runtime.onInstalled.addListener(() => {
-    clearLocalStorage();
+    
 });
   
 // Function to send a message and wait for a specific response

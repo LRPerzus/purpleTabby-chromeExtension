@@ -49,7 +49,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         
         const loadingSpinner = document.getElementById('spinner');
         const highlightButton = document.querySelector(".purpleTabby #highlightItemsA11yTreeSwitch");
-        const rescanButton = document.querySelector(".purpleTabby #rescanSwitch");
         const A11yFixes = document.querySelector(".purpleTabby #a11yFixesSwitch");
         const resultsDiv = document.getElementById("Results");
 
@@ -60,7 +59,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
             // Unhide button
             highlightButton.parentElement.style.display = 'block';
-            rescanButton.parentElement.style.display = 'block';
             A11yFixes.parentElement.style.display = 'block';
 
             // Clear everthing first
