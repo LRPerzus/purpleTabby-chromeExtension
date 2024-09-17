@@ -312,8 +312,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         if (previousMissingXpath)
         {
             // cause each is its own dict kinda
-            mergedFramesDict= mergeDictionaries(request.data.framesDict, previousMissingXpath.framesDict);;
-            mergedMissingList = [...request.data.missing, ...previousMissingXpath.missing];
+            ({mergedFramesDict, mergedMissingList } = mergeDictionaries(request.data.framesDict, previousMissingXpath.framesDict, mergedMissingList));
+
         }
         else 
         {
@@ -660,18 +660,21 @@ async function isDebuggerAttached(tabId) {
     });
 }
 
-function mergeDictionaries(dict1, dict2) {
-    const result = { ...dict1 }; // Create a shallow copy of dict1
+function mergeDictionaries(dict1, dict2, mergedMissingList) {
+    const mergedFramesDict = { ...dict1 }; // Create a shallow copy of dict1
   
     for (let key in dict2) {
-      if (result[key]) {
+      if (mergedFramesDict[key]) {
         // If the key exists in both dictionaries, concatenate the arrays
-        result[key] = [...result[key], ...dict2[key]];
+        mergedFramesDict[key] = [...new Set([...mergedFramesDict[key], ...dict2[key]])];
+        mergedMissingList.push(mergedFramesDict[key]);
       } else {
-        // If the key is only in dict2, copy it to result
-        result[key] = [...dict2[key]];
+        // If the key is only in dict2, copy it to mergedFramesDict
+        mergedFramesDict[key] = [...dict2[key]];
       }
     }
   
-    return result;
+    return { mergedFramesDict, mergedMissingList };
   }
+  
+  
