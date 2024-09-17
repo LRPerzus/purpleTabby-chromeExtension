@@ -92,7 +92,7 @@ const callback = async (mutationList, observer) => {
       {
         try
         {
-          chrome.runtime.sendMessage({ type: "SCANING_START",tabId:tabId}); 
+          chrome.runtime.sendMessage({ type: "SCANING_START",tabId:tabId,debugger:"Hey from debugger"}); 
         }
         catch (e)
         {
@@ -101,7 +101,7 @@ const callback = async (mutationList, observer) => {
             console.warn("UPDATED EXTENSION PLEASE REFRESH");
           }
           else{
-            console.error("UPDATED EXTENSION PLEASE REFRESH");
+            console.error(e.message);
           }
         }
       }

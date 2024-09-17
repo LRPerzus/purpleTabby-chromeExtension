@@ -27,9 +27,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
              }
             chrome.runtime.sendMessage({ type: "SAVED_SETTINGS", settings: settings[tabId] })
         
-            // Attaches the number of clicks
-            await updateNoClicksTabID(tabId);
-        
             const scriptChecks = [
                 { name: "content.js", message: "CHECK_CONTENT_JS", status: "CONTENT_READY" },
                 { name: "scanningProcess.js", message: "CHECK_SCANNING_PROCESS_JS", status: "SCANNING_PROCESS_READY" },
@@ -122,6 +119,10 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     }
     else if (request.type === "SCANING_START")
     {
+        if (request.debugger)
+        {
+            console.log(request.debugger);
+        }
 
         chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
             let tabId = tabs[0]?.id || request.tabId;
@@ -137,6 +138,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             }
 
             if (tabId &&  (debuggerAttached[tabId] && debuggerAttached[tabId] === true)) {
+                // Attaches the number of clicks
+                await updateNoClicksTabID(tabId,true);
                 if (request.tabId)
                 {
                     if (request.tabId === tabId)
