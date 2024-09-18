@@ -209,6 +209,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             {
                 // Full DOM DICT TREE
                 const frameTreePromise = getFrameTree(tabId);
+                console.log("frameTreePromise",await frameTreePromise);
                 
                 // Run collectDOMNodes and processFrameTrees concurrently
                 const [domResults, frameTreeResults] = await Promise.all([
@@ -217,8 +218,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 ]).catch(error => {
                     console.error("Error in Promise.all:", error);
                 });
-
-                console.log("CAN I GET HERE?");
 
                 // Access the results
                 const { nodeMap, resolveNodes, eventListnersList } = domResults;
@@ -351,7 +350,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                             data = "undefined"
                         }
 
-                        // Array to hold the promises for sending messages
+                        // Auto Fix and Highlight
                         const promises = [];
 
                         // Check if highlight is true and add the message sending promise to the array
@@ -363,6 +362,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                             );
                         }
 
+
                         // Check if A11yFix is true and add the message sending promise to the array
                         if (setting.A11yFix) {
                             promises.push(
@@ -373,7 +373,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                         }
 
                         // Wait for all messages to be sent
-                        Promise.all(promises)
+                        Promise.all(promises);
+                        console.log("UPDATES ALL DONE");
                     }
                     return; // Exit the callback if there's an error
                 }

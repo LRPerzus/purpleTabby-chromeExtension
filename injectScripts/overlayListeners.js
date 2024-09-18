@@ -49,10 +49,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     else if (message.type === "A11YFIXES_Start")
     {
+      const elementsFound = []
       console.log("A11YFIXES_Start message.data",message.missingXpaths);
 
       if (message.missingXpaths !== "undefined"  ) {
         const framesMissingXpathsDict = message.missingXpaths;
+
         for (const frameKey in framesMissingXpathsDict)
         {
           // console.log("A11YFIXES_Start frameKey",frameKey);
@@ -78,10 +80,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const element = currentNode.singleNodeValue;
   
             if (element) {
-              element.setAttribute('aria-label', 'Clickable element'); // Customize the label as needed
+              elementsFound.push(element);
             }
           });
         }
+
+        console.log("A11Y_FIX Screenshots Start");
+        // GET SCREENSHOT
+        loadHtml2Canvas().then(() => {
+            captureVisibleElements(elementsFound).then((screenshots) => {
+              console.log(screenshots);
+            }).catch((error) => {
+              console.error('Error capturing screenshots:', error);
+            });
+          }).catch(error => {
+            console.error('Failed to load html2canvas:', error);
+          });
       }
     }
     else if (message.type === "CHECK_OVERLAY_LISTENERS_JS")
