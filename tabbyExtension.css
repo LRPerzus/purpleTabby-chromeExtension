@@ -18,11 +18,12 @@
 body {
   font-family: 'PT Sans';
   margin: 0;
+  background-color: transparent;
 }
 
 .extension-container {
-  height: 100vh;
-  width: 1000px;
+  height: 100%;
+  width: 500px;
 }
 
 .extension-container h1,
@@ -35,7 +36,7 @@ p,
 /* Group CSS */
 
 .group-container {
-  width: 50%;
+  width: 100%;
   padding: 0.5rem 1rem;
   border-left: solid 0.5px var(--grey-400);
   border-right: solid 0.5px var(--grey-400);
