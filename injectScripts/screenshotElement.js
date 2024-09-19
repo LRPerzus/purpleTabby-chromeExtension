@@ -41,28 +41,25 @@ function captureElementScreenshot(element) {
     }
   });
 }
- 
-function captureVisibleElements(elementsFoundList) {    
-  return Promise.all(elementsFoundList.map(el => captureElementScreenshot(el)));
-}
-
-  // Function to capture screenshots of up to x visible elements with concurrency limit
 function captureVisibleElements(elementsFoundList) {
-  const elements = Array.from(elementsFoundList);
-  console.log('Found elements for screenshot:', elements.length);
+  // Convert the elementsFoundList from a dictionary of {xpath: element}
+  const elementEntries = Object.entries(elementsFoundList);
+  console.log('Found elements for screenshot:', elementEntries.length);
   console.log('Concurrency limit:', concurrencyLimit);
   console.log('Element limit:', elementLimit);
   
   // Limit the number of elements to elementLimit
-  const limitedElements = elements.slice(0, elementLimit);
+  const limitedElements = elementEntries.slice(0, elementLimit);
 
   // Function to process elements with concurrency limit
   const processElements = async (elements, limit) => {
-    const results = [];
+    const results = {};
     const executing = [];
-    for (const element of elements) {
+    
+    for (const [xpath, element] of elements) {
       const p = captureElementScreenshot(element).then(result => {
-        results.push(result);
+        const base64Data = result.split(',')[1];
+        results[xpath] = base64Data;  // Store result in dictionary with xpath as the key
       }).catch(error => {
         console.error('Error in captureElementScreenshot:', error);
       }).finally(() => {
@@ -73,12 +70,15 @@ function captureVisibleElements(elementsFoundList) {
         await Promise.race(executing);
       }
     }
+    
     await Promise.all(executing);
     return results;
   };
 
   return processElements(limitedElements, concurrencyLimit);
 }
+
+  
 
 // Chrome extension message listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

@@ -12,7 +12,8 @@
   ],
   "host_permissions": [
     "https://*/*",
-    "http://*/*"
+    "http://*/*",
+    "https://api.read-dev.pic.net.sg/process_a11y"
   ],
   "background": {
     "service_worker": "background.js",

@@ -266,8 +266,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         storeDataForTab(request.data.tabId,request.data.foundElements,"foundElements",noClicks);
         chrome.tabs.sendMessage(request.data.tabId,{ type: "A11yTree_Stored" });
 
-
-        const inStorage = await getFromLocal(request.data.tabId,"foundElements",noClicks)
+        const inStorage = await getFromLocal(request.data.tabId,"foundElements",noClicks);
         console.log("inStorage foundElement",inStorage);
         
         const foundElement = request.data.foundElements;
@@ -442,6 +441,41 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     {
         sendResponse({status: "connected"});
     }
+    else if (request.type === "GET_API_ARIALABELS") {
+        const payload = {
+            content: request.screenshots
+        };
+
+        console.log("payload", payload);
+        fetch("https://api.read-dev.pic.net.sg/process_a11y", {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          })
+          .then(response => {
+            if (!response.ok) {
+                // Handle HTTP errors
+                sendResponse({status:"FAILED"});
+            }
+            else
+            {
+                return response.json(); // Parse the JSON if the response is OK
+            }
+          })
+          .then(data => {
+            console.log('API Response:', data);
+            // Handle the API response here
+            
+          })
+          .catch(error => {
+            console.error('Error:', error);
+          });
+        
+    }
+    
     
     return true; // Indicate that you will send a response asynchronously
 });

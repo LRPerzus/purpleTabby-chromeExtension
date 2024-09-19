@@ -66,13 +66,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       tabId: message.tabId,
     })
   } else if (message.type === 'A11YFIXES_Start') {
-    const elementsFound = []
     console.log('A11YFIXES_Start message.data', message.missingXpaths)
 
     if (message.missingXpaths !== 'undefined') {
       const framesMissingXpathsDict = message.missingXpaths
 
       for (const frameKey in framesMissingXpathsDict) {
+        const elementsFoundInFrame = {}
         // console.log("A11YFIXES_Start frameKey",frameKey);
         framesMissingXpathsDict[frameKey].forEach((xpathObject) => {
           const xpath = xpathObject.xpath
@@ -113,26 +113,46 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const element = currentNode.singleNodeValue
 
           if (element) {
-            elementsFound.push(element)
+            elementsFoundInFrame[xpath] = (element);
           }
         })
-      }
+        console.log('A11Y_FIX Screenshots Start')
+        // GET SCREENSHOT for the current frame
+        loadHtml2Canvas()
+          .then(() => {
+            captureVisibleElements(elementsFoundInFrame)
+              .then((screenshots) => {
+                // Read the screenshots to get aria labels
+                try
+                {
+                  console.log(screenshots);
+                  // API Request for the aria labels
+                  chrome.runtime.sendMessage({
+                    type: 'GET_API_ARIALABELS',
+                    screenshots: screenshots,
+                  }, (response) => {
+                    if (chrome.runtime.lastError) {
+                      console.error('Error:', chrome.runtime.lastError);
+                      return;
+                    }
 
-      console.log('A11Y_FIX Screenshots Start')
-      // GET SCREENSHOT
-      loadHtml2Canvas()
-        .then(() => {
-          captureVisibleElements(elementsFound)
-            .then((screenshots) => {
-              console.log(screenshots)
-            })
-            .catch((error) => {
-              console.error('Error capturing screenshots:', error)
-            })
-        })
-        .catch((error) => {
-          console.error('Failed to load html2canvas:', error)
-        })
+                    // Got all of the aria-labels
+                    console.log('Response received:', response);
+                  });
+                }
+                catch(error)
+                {
+  
+                }
+              })
+              .catch((error) => {
+                console.error('Error capturing screenshots:', error)
+              })
+          })
+          .catch((error) => {
+            console.error('Failed to load html2canvas:', error)
+          })
+      }
     }
   } else if (message.type === 'CHECK_OVERLAY_LISTENERS_JS') {
     sendResponse({ status: 'OVERLAY_LISTENERS_READY' })
