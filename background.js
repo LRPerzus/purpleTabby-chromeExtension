@@ -319,8 +319,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             mergedFramesDict = request.data.framesDict,
             mergedMissingList = request.data.missing;
         }
-       
-
+        
         const mergedMissingXpaaths = {
             framesDict:mergedFramesDict,
             missing : mergedMissingList,
@@ -665,31 +664,33 @@ function mergeDictionaries(dict1, dict2, mergedMissingList) {
     const mergedFramesDict = { ...dict1 }; // Create a shallow copy of dict1
   
     for (let key in dict2) {
-      if (mergedFramesDict[key]) {
-        // If the key exists in both dictionaries, concatenate the arrays
-        console.log("mergedFramesDict[key]", mergedFramesDict[key]);
-        console.log("dict2[key]", dict2[key]);
+        if (mergedFramesDict[key]) {
+            // If the key exists in both dictionaries, concatenate the arrays
+            const mergedArray = [...mergedFramesDict[key]]; // Start with the existing array
   
-        const mergedArray = [...mergedFramesDict[key]]; // Start with the existing array
+            // Add items from dict2[key], checking for duplicates based on 'xpath'
+            dict2[key].forEach(newItem => {
+                const exists = mergedArray.some(existingItem => 
+                    existingItem.xpath === newItem.xpath
+                );
   
-        // Add items from dict2[key], checking for duplicates based on 'xpath' and 'code'
-        dict2[key].forEach(newItem => {
-          const exists = mergedArray.some(existingItem => 
-            existingItem.xpath === newItem.xpath && existingItem.code === newItem.code
-          );
+                if (!exists) {
+                    mergedArray.push(newItem);
+                }
+            });
   
-          if (!exists) {
-            mergedArray.push(newItem);
-          }
-        });
-  
-        mergedFramesDict[key] = mergedArray;
-        mergedMissingList.push(mergedFramesDict[key]);
-      } else {
-        // If the key is only in dict2, copy it to mergedFramesDict
-        mergedFramesDict[key] = [...dict2[key]];
-      }
+            mergedFramesDict[key] = mergedArray;
+        } else {
+            // If the key is only in dict2, copy it to mergedFramesDict
+            mergedFramesDict[key] = [...dict2[key]];
+        }
     }
   
+    // Add mergedFramesDict values to mergedMissingList
+    mergedMissingList.length = 0; // Clear existing list
+    Object.values(mergedFramesDict).forEach(array => {
+        mergedMissingList.push(array);
+    });
+
     return { mergedFramesDict, mergedMissingList };
 }
