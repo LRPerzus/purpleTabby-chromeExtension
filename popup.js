@@ -181,7 +181,7 @@ function createFrame(key, array) {
     // Populate the list with the array elements
     array.forEach(element => {
         const listItem = document.createElement('li');
-        listItem.textContent = element;
+        listItem.textContent = JSON.stringify(element);
         list.appendChild(listItem);
     });
 

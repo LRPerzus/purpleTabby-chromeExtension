@@ -312,7 +312,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         {
             // cause each is its own dict kinda
             ({mergedFramesDict, mergedMissingList } = mergeDictionaries(request.data.framesDict, previousMissingXpath.framesDict, mergedMissingList));
-
         }
         else 
         {
@@ -667,10 +666,23 @@ function mergeDictionaries(dict1, dict2, mergedMissingList) {
     for (let key in dict2) {
       if (mergedFramesDict[key]) {
         // If the key exists in both dictionaries, concatenate the arrays
-        console.log("mergedFramesDict[key]",mergedFramesDict[key]);
-        console.log("dict2[key]",dict2[key]);
-
-        mergedFramesDict[key] = [...new Set([...mergedFramesDict[key], ...dict2[key]])];
+        console.log("mergedFramesDict[key]", mergedFramesDict[key]);
+        console.log("dict2[key]", dict2[key]);
+  
+        const mergedArray = [...mergedFramesDict[key]]; // Start with the existing array
+  
+        // Add items from dict2[key], checking for duplicates based on 'xpath' and 'code'
+        dict2[key].forEach(newItem => {
+          const exists = mergedArray.some(existingItem => 
+            existingItem.xpath === newItem.xpath && existingItem.code === newItem.code
+          );
+  
+          if (!exists) {
+            mergedArray.push(newItem);
+          }
+        });
+  
+        mergedFramesDict[key] = mergedArray;
         mergedMissingList.push(mergedFramesDict[key]);
       } else {
         // If the key is only in dict2, copy it to mergedFramesDict
@@ -679,6 +691,4 @@ function mergeDictionaries(dict1, dict2, mergedMissingList) {
     }
   
     return { mergedFramesDict, mergedMissingList };
-  }
-  
-  
+}

@@ -7,7 +7,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         for (const frameKey in framesMissingXpathsDict)
         {
           console.log("HIGHLIGHT frameKey",frameKey);
-          framesMissingXpathsDict[frameKey].forEach(xpath => {
+          framesMissingXpathsDict[frameKey].forEach(xpathObject => {
+            const xpath = xpathObject.xpath;
             let bodyNode = document.body;
             let currentNode = undefined;
 
@@ -58,7 +59,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         for (const frameKey in framesMissingXpathsDict)
         {
           // console.log("A11YFIXES_Start frameKey",frameKey);
-          framesMissingXpathsDict[frameKey].forEach(xpath => {
+          framesMissingXpathsDict[frameKey].forEach(xpathObject => {
+            const xpath = xpathObject.xpath;
             let bodyNode = document.body;
             let currentNode = undefined;
 
