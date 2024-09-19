@@ -22,6 +22,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ success: true });
         return true;
     }
+    else if (message.type === "SAVED_SETTINGS")
+    {
+        const mapOfIdToKeys = {
+            "highlight": "highlightItemsA11yTreeSwitch",
+            "debuggerAttach":"debuggerAttach",
+            "A11yFix":"a11yFixesSwitch"
+        }
+        for (const key in message.settings) {
+              // Get the corresponding ID from the map
+              const elementId = mapOfIdToKeys[key];
+              console.log("elementId",elementId);
+              if (elementId) {
+                const element = document.getElementById(elementId);
+                // Perform operations with the element
+                if (element.type === 'checkbox') {
+                    // Set the checkbox state based on messageSetting
+                    element.checked = message.settings[key];
+                    console.log(`Checkbox with ID ${elementId} set to ${element.checked}.`);
+                } else {
+                    console.warn(`Element with ID ${elementId} is not a checkbox.`);
+                }
+              }
+        }
+    }
     else if (message.type === "PLUGIN_READY")
     {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -45,71 +69,73 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     else if (message.type === "UPDATE_OVERLAY")
     {
-        console.log("HELLO UPDATE_OVERLAY")        
-        
-        const loadingSpinner = document.getElementById('spinner');
-        const highlightButton = document.querySelector(".purpleTabby #highlightItemsA11yTreeSwitch");
-        const rescanButton = document.querySelector(".purpleTabby #rescanSwitch");
-        const A11yFixes = document.querySelector(".purpleTabby #a11yFixesSwitch");
-        const resultsDiv = document.getElementById("Results");
+        // Get the settings from the message
+        const settings = message.settings;
+        console.log("settings", settings);
+        const tabId = message.tabId;
+        console.log("All messages sent successfully.");
 
+                // Now that all messages are sent, proceed with the rest of the code
+                console.log("HELLO UPDATE_OVERLAY");        
+                
+                const loadingSpinner = document.getElementById('spinner');
+                const highlightButton = document.querySelector(".purpleTabby #highlightItemsA11yTreeSwitch");
+                const A11yFixes = document.querySelector(".purpleTabby #a11yFixesSwitch");
+                const resultsDiv = document.getElementById("Results");
 
-        if (loadingSpinner && highlightButton) {
-            // hide the spinner
-            loadingSpinner.style.display = "none";
+                if (loadingSpinner && highlightButton) {
+                    // Hide the spinner
+                    loadingSpinner.style.display = "none";
 
-            // Unhide button
-            highlightButton.parentElement.style.display = 'block';
-            rescanButton.parentElement.style.display = 'block';
-            A11yFixes.parentElement.style.display = 'block';
+                    // Unhide button
+                    highlightButton.parentElement.style.display = 'block';
+                    A11yFixes.parentElement.style.display = 'block';
 
-            // Clear everthing first
-            resultsDiv.innerHTML= `<div class="title"> </h2>`;
-            
-            // Create content
-            const titleDiv = resultsDiv.querySelector(".title");
-            const titleSpan = document.createElement("span");
-            titleSpan.textContent = `There are ${message.data.missing.length} elements missing from the tree.`;
-            titleDiv.appendChild(titleSpan);
-
-            // Create copyAll
-            const copyAll = document.createElement("button")
-            copyAll.textContent = "Copy All";
-            copyAll.addEventListener('click', async function() {
-                // Convert the data to a string if necessary
-                const dataToCopy = JSON.stringify(message.data.framesDict, null, 2);
-
-                // Copy the data to clipboard
-                navigator.clipboard.writeText(dataToCopy)
-                    .then(() => {
-                        // Change button text to "Copied"
-                        copyAll.textContent = "Copied";
-                        
-                        // Revert the text back to "Copy All" after 3 seconds
-                        setTimeout(() => {
-                            copyAll.textContent = "Copy All";
-                        }, 3000);
-                    })
-                    .catch((error) => {
-                        console.error("Failed to copy text: ", error);
-                        // Handle error (optional)
-                    });  
-            })
+                    // Clear everything first
+                    resultsDiv.innerHTML = `<div class="title"> </h2>`;
                     
-            titleDiv.appendChild(copyAll);
+                    // Create content
+                    const titleDiv = resultsDiv.querySelector(".title");
+                    const titleSpan = document.createElement("span");
+                    titleSpan.textContent = `There are ${message.data.missing.length} elements missing from the tree.`;
+                    titleDiv.appendChild(titleSpan);
 
+                    // Create copyAll
+                    const copyAll = document.createElement("button");
+                    copyAll.textContent = "Copy All";
+                    copyAll.addEventListener('click', async function() {
+                        // Convert the data to a string if necessary
+                        const dataToCopy = JSON.stringify(message.data.framesDict, null, 2);
 
-            console.log("MISSING DATA",message.data.framesDict)
-            for (const [key, array] of Object.entries(message.data.framesDict)) {
-                createFrame(key, array);
-            }
-            resultsDiv.style.display = "block";
+                        // Copy the data to clipboard
+                        navigator.clipboard.writeText(dataToCopy)
+                            .then(() => {
+                                // Change button text to "Copied"
+                                copyAll.textContent = "Copied";
+                                
+                                // Revert the text back to "Copy All" after 3 seconds
+                                setTimeout(() => {
+                                    copyAll.textContent = "Copy All";
+                                }, 3000);
+                            })
+                            .catch((error) => {
+                                console.error("Failed to copy text: ", error);
+                                // Handle error (optional)
+                            });  
+                    });
 
+                    titleDiv.appendChild(copyAll);
 
-        }
-        else {
-            console.error("Element with ID 'treeContent' not found.");
-        }
+                    console.log("MISSING DATA", message.data.framesDict);
+                    for (const [key, array] of Object.entries(message.data.framesDict)) {
+                        createFrame(key, array);
+                    }
+                    resultsDiv.style.display = "block";
+                } else {
+                    console.error("Element with ID 'treeContent' not found.");
+                }
+
+       
     }
 })
 function createFrame(key, array) {
@@ -155,7 +181,7 @@ function createFrame(key, array) {
     // Populate the list with the array elements
     array.forEach(element => {
         const listItem = document.createElement('li');
-        listItem.textContent = element;
+        listItem.textContent = JSON.stringify(element);
         list.appendChild(listItem);
     });
 

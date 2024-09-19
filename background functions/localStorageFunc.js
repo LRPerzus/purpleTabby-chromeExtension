@@ -57,3 +57,4 @@ export async function getFromLocal(tabId, key, noclicks = false) {
         throw error;
     }
 }
+

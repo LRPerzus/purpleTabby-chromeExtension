@@ -114,7 +114,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         {
                             framesDict[element.framePath] = [];
                         }
-                        framesDict[element.framePath].push(elementXpath);
+                        framesDict[element.framePath].push({xpath:elementXpath,code:parent.outerHTML});
                         // Add to missing list if no descendants with the attribute are found
                         missing.push(elementXpath);
                     }

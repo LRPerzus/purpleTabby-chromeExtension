@@ -18,6 +18,12 @@
     "service_worker": "background.js",
     "type": "module"
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["libs/html2canvas.min.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": "purpleA11yLogo.png"
@@ -31,7 +37,9 @@
       "./injectScripts/a11yTreeListeners.js",
       "./injectScripts/getClickableElementsListeners.js",
       "./injectScripts/overlayListeners.js",
-      "./injectScripts/attachMutationObserver.js"
+      "./injectScripts/attachMutationObserver.js",
+      "./injectScripts/screenshotElement.js",
+      "./libs/html2canvas.min.js"
     ]
     }
   ]

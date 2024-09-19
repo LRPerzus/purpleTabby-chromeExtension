@@ -7,7 +7,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         for (const frameKey in framesMissingXpathsDict)
         {
           console.log("HIGHLIGHT frameKey",frameKey);
-          framesMissingXpathsDict[frameKey].forEach(xpath => {
+          framesMissingXpathsDict[frameKey].forEach(xpathObject => {
+            const xpath = xpathObject.xpath;
             let bodyNode = document.body;
             let currentNode = undefined;
 
@@ -37,11 +38,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 element.setAttribute("purple_tabby_missing",element.style.border) ;
                 element.style.border = "10px solid purple";
               }
-              else // remove highlights
-              {
-                element.style.border = previousStyle;
-                element.removeAttribute("purple_tabby_missing");
-              }
               
             }
           });
@@ -54,14 +50,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     else if (message.type === "A11YFIXES_Start")
     {
+      const elementsFound = []
       console.log("A11YFIXES_Start message.data",message.missingXpaths);
 
       if (message.missingXpaths !== "undefined"  ) {
         const framesMissingXpathsDict = message.missingXpaths;
+
         for (const frameKey in framesMissingXpathsDict)
         {
           // console.log("A11YFIXES_Start frameKey",frameKey);
-          framesMissingXpathsDict[frameKey].forEach(xpath => {
+          framesMissingXpathsDict[frameKey].forEach(xpathObject => {
+            const xpath = xpathObject.xpath;
             let bodyNode = document.body;
             let currentNode = undefined;
 
@@ -83,10 +82,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const element = currentNode.singleNodeValue;
   
             if (element) {
-              element.setAttribute('aria-label', 'Clickable element'); // Customize the label as needed
+              elementsFound.push(element);
             }
           });
         }
+
+        console.log("A11Y_FIX Screenshots Start");
+        // GET SCREENSHOT
+        loadHtml2Canvas().then(() => {
+            captureVisibleElements(elementsFound).then((screenshots) => {
+              console.log(screenshots);
+            }).catch((error) => {
+              console.error('Error capturing screenshots:', error);
+            });
+          }).catch(error => {
+            console.error('Failed to load html2canvas:', error);
+          });
       }
     }
     else if (message.type === "CHECK_OVERLAY_LISTENERS_JS")
