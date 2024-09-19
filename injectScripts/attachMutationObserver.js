@@ -96,7 +96,7 @@ const callback = async (mutationList, observer) => {
         }
         catch (e)
         {
-          if (e.message === "Uncaught Error: Extension context invalidated.")
+          if (e.message === "Extension context invalidated.")
           {
             console.warn("UPDATED EXTENSION PLEASE REFRESH");
           }
