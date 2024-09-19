@@ -306,7 +306,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         // previous errors data
         const previousMissingXpath = await getFromLocal(tabId,"missingXpath");
         let mergedFramesDict;
-        let mergedMissingList
+        let mergedMissingList = [];
 
         if (previousMissingXpath)
         {
@@ -667,6 +667,9 @@ function mergeDictionaries(dict1, dict2, mergedMissingList) {
     for (let key in dict2) {
       if (mergedFramesDict[key]) {
         // If the key exists in both dictionaries, concatenate the arrays
+        console.log("mergedFramesDict[key]",mergedFramesDict[key]);
+        console.log("dict2[key]",dict2[key]);
+
         mergedFramesDict[key] = [...new Set([...mergedFramesDict[key], ...dict2[key]])];
         mergedMissingList.push(mergedFramesDict[key]);
       } else {
