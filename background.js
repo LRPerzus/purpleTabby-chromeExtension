@@ -605,7 +605,7 @@ async function clearDataForTab(tabId) {
 }  
 // Example: Clear local storage when the extension is installed or updated
 chrome.runtime.onInstalled.addListener(() => {
-    
+// clearLocalStorage();
 });
   
 // Function to send a message and wait for a specific response

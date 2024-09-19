@@ -1,0 +1,226 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Accessibility Tree</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="script-src 'self' 'unsafe-inline'"
+    />
+    <link rel="stylesheet" href="css/bootstrap.min.css" />
+    <script src="js/bootstrap.bundle.min.js"></script>
+
+    <!-- This is for the spinner -->
+    <style>
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        border-top-color: #785ef0;
+        animation: spin 1s ease infinite;
+        margin: auto;
+        position: absolute;
+        top: 50%;
+        left: 48%;
+        transform: translate(-50%, -50%);
+      }
+
+      @keyframes spin {
+        from {
+          transform: rotate(0deg); /* Start at 0 degrees */
+        }
+        to {
+          transform: rotate(360deg); /* End at 360 degrees */
+        }
+      }
+    </style>
+    <link rel="stylesheet" href="tabbyExtension.css" />
+  </head>
+
+  <body>
+    <div
+      id="extensionContainer"
+      class="extension-container d-flex flex-column justify-content-center align-items-center mx-auto my-0"
+    >
+      <!-- Url -->
+      <div id="urlGroup" class="group-container url-group">
+        <p>
+          Current site:
+          <a href="https://www.tech.gov.sg"
+            >Government Technology Agency of Singapore</a
+          >
+        </p>
+      </div>
+
+      <!-- TitleToggle -->
+      <div
+        id="titleToggleGroup"
+        class="group-container title-toggle-group d-flex flex-row justify-content-between align-items-center"
+      >
+        <h1>Tabbee</h1>
+        <div class="form-check form-switch">
+          <input
+            aria-labelledby="tabbee-toggle-label"
+            id="tabbeeToggle"
+            class="form-check-input"
+            type="checkbox"
+          />
+        </div>
+      </div>
+
+      <!-- OverviewIssues -->
+      <div
+        id="overviewIssuesGroup"
+        class="group-container overview-issues-group py-3 d-flex flex-row justify-content-center align-items-center"
+      >
+        <div id="overview" class="overview mx-2 p-2 border-bottom">
+          <p>Overview</p>
+        </div>
+
+        <div
+          id="issues"
+          class="issues d-flex flex-row justify-content-center align-items-center mx-2 p-2 border-bottom gap-3"
+        >
+          <p>Issues</p>
+          <div class="issues-count">27</div>
+        </div>
+      </div>
+
+      <!-- Highlight -->
+      <div
+        id="highlightToggleGroup"
+        class="group-container highlight-toggle-group d-flex flex-row justify-content-center align-items-center"
+      >
+        <div class="my-2 py-2 px-3">
+          <p>Highlight issues</p>
+        </div>
+
+        <div id="highlightToggleHolder" class="highlight-toggle-holder">
+          <div class="form-check form-switch">
+            <input
+              aria-labelledby="highlight-toggle-label"
+              id="highlightToggle"
+              class="form-check-input"
+              type="checkbox"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- MainContent-->
+      <div class="group-container">
+        <!-- ModalWarning -->
+        <div
+          id="modalWarning"
+          class="modal-warning d-flex flex-row align-items-center border border-1 rounded p-3 my-3"
+        >
+          <div>
+            <img
+              src="assets/info-circle.svg"
+              width="32"
+              height="32"
+              alt="Info Circle Icon"
+            />
+          </div>
+          <div>
+            <p>
+              We are collecting details like the URL and the type of issues
+              found to help us better understand how we can improve the product
+              for you.
+            </p>
+          </div>
+          <div>
+            <img
+              src="assets/cross.svg"
+              width="24"
+              height="24"
+              alt="Cross Icon"
+            />
+          </div>
+        </div>
+
+        <!-- Accordion -->
+        <div id="accordionGroup" class="accordion my-3">
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button
+                class="accordion-button collapsed"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#collapseOne"
+                aria-expanded="false"
+                aria-controls="collapseOne"
+              >
+                Main body
+              </button>
+            </h2>
+            <div
+              id="collapseOne"
+              class="accordion-collapse collapse"
+              data-bs-parent="#accordionGroup"
+            >
+              <div class="accordion-body my-4 mx-3 rounded custom-border">
+                <div class="d-flex justify-content-between align-items-center">
+                  <p>Element <code>${xpath}</code></p>
+                  <div class="border border-1 rounded bg-grey-100 copy-icon">
+                    <img
+                      src="assets/files.svg"
+                      width="24"
+                      height="24"
+                      alt="File Icon"
+                    />
+                  </div>
+                </div>
+                <div class="border rounded my-3 p-2 bg-grey-100">
+                  <code id="code-snippet">
+                    <button
+                      id="main-search"
+                      class="sgds-button is-white is-large search-toggle"
+                      data-target="searchbar-main"
+                      type="button"
+                    >
+                      Hello
+                    </button>
+                  </code>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MakeAccessible-->
+      <div
+        id="makeAccessibleGroup"
+        class="group-container make-accessible-group bg-grey-100 d-flex flex-row justify-content-between align-items-center"
+      >
+        <div class="d-flex gap-2 justify-content-center align-items-center">
+          <h2>Make accessible</h2>
+          <img
+            src="assets/question-mark.svg"
+            width="14"
+            height="14"
+            alt="Question Mark Icon"
+          />
+        </div>
+        <div
+          id="makeAccessibleToggleHolder"
+          class="make-accessible-toggle-holder"
+        >
+          <div class="form-check form-switch">
+            <input
+              aria-labelledby="make-accessible-toggle-label"
+              id="makeAccessibleToggle"
+              class="form-check-input"
+              type="checkbox"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="popup.js"></script>
+    <script src="eventListnerAttach.js"></script>
+    <script src="tabbyExtension.js"></script>
+  </body>
+</html>
