@@ -47,8 +47,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'PLUGIN_READY') {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const tabId = tabs[0]?.id || request.tabId
+      const siteUrl = tabs[0]?.url;
       if (tabId) {
-        chrome.runtime.sendMessage({ type: 'OVERLAY_CREATED', tabId: tabId })
+        chrome.runtime.sendMessage({ type: 'OVERLAY_CREATED', tabId: tabId,siteUrl:siteUrl})
         sendResponse({ success: true })
       } else {
         console.error('Unable to get the active tab.')
@@ -87,6 +88,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       // Clear everything first
       resultsDiv.innerHTML = `<div class="title"> </h2>`
+
+      console.log("message.data",message.data);
 
       // Create content
       const titleDiv = resultsDiv.querySelector('.title')

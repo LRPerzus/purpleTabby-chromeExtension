@@ -127,12 +127,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
         console.log("MISSING:",missing);
 
+        const siteUrl = window.location.href;
+        console.log(siteUrl);
+
         const data = {
             tabId:tab,
             missing:missing,
             framesDict:framesDict
         }
-        chrome.runtime.sendMessage({ type: "MISSING_FOUND", data: data });
+        chrome.runtime.sendMessage({ type: "MISSING_FOUND", data: data,siteUrl:siteUrl });
     }
     else if (message.type === "CHECK_SCANNING_PROCESS_JS")
     {

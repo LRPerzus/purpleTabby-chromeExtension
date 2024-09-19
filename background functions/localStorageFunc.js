@@ -10,20 +10,21 @@ export function clearLocalStorage() {
 }
 
 // Function to store data for a specific tab
-export async function storeDataForTab(tabId, data, type, noClicked = null) {
+export async function storeDataForTab(tabId, data, type, noClicked = false, siteUrl = false) {
     // Create a key specific to the tab
-    let key;
+    let key = `tab_${tabId}_${type}`
+    if (noClicked !== false) {
+        key += `_${noClicked}`;
+    }
 
-    if (noClicked === null) {
-        key = `tab_${tabId}_${type}`;
-    } else {
-        key = `tab_${tabId}_${type}_${noClicked}`;
+    if (siteUrl !== false) {
+        key += `_${siteUrl}`;
     }
 
     try {
         // Store data in chrome.storage.session
         await chrome.storage.session.set({ [key]: data });
-        console.log(`Data stored for tab ${tabId} ${type} data: ${data}.`);
+        console.log(`Data stored for tab ${key} data: ${data}.`);
     } catch (error) {
         console.error(`Error storing data for tab ${tabId}: ${error}`);
     }
@@ -37,16 +38,20 @@ export async function storeDataForTab(tabId, data, type, noClicked = null) {
         tabId : the tab id
         key: the type of storage you need i.e. clickableElements or A11yTree Elements
         noClicks: I added a possibility to store information on the number of clicks like which click is this
+        siteUrl: is only for missingXpaths cause they require the url difference
 */
 
-export async function getFromLocal(tabId, key, noclicks = false) {
+export async function getFromLocal(tabId, key, noclicks = false, siteUrl = false) {
     // Create a key specific to the tab
-    let tabKey;
+    let tabKey = `tab_${tabId}_${key}`
     if (noclicks !== false) {
-        tabKey = `tab_${tabId}_${key}_${noclicks}`;
-    } else {
-        tabKey = `tab_${tabId}_${key}`;
+        tabKey += `_${noclicks}`;
     }
+    if (siteUrl !== false) {
+        tabKey += `_${siteUrl}`;
+    }
+
+    console.log("getFromLocal tabKey",tabKey)
 
     try {
         // Get data from chrome.storage.session

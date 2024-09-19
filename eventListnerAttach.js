@@ -33,10 +33,13 @@ highlightButton.addEventListener('click', async function () {
   } else {
     status = false
   }
+  const siteUrl = window.location.href;
+
   chrome.runtime.sendMessage({
     type: 'HIGHLIGHT_MISSING',
     tabId: tab.id,
     status: status,
+    siteUrl:siteUrl
   })
 })
 
@@ -55,5 +58,6 @@ a11yFix.addEventListener('click', async function () {
     type: 'A11YFIXES_INNIT',
     tabId: tab.id,
     status: status,
+    siteUrl:tab.url
   })
 })
