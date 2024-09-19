@@ -1,5 +1,5 @@
 // Event Listeners
-const debuggerAttachSwitch = document.getElementById('debuggerAttach')
+const debuggerAttachSwitch = document.getElementById('debuggerAttach') //tabbeeToggle
 debuggerAttachSwitch.addEventListener('click', async function () {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   console.log(`Current tab ID: ${tab.id}`)

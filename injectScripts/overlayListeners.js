@@ -51,7 +51,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               console.log('previous Border:', element.style.border)
               element.setAttribute('purple_tabby_missing', element.style.border)
 
-              // TODO: add shadow
+              // TODO KC: add shadow
               element.style.border = '10px solid purple'
               element.style.boxShadow =
                 '5px 5px 10px rgba(0, 0, 0, 0.5), inset 0px 0px 10px rgba(0, 0, 0, 0.8)'

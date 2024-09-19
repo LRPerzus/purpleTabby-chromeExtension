@@ -59,6 +59,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'SCANNING_INNIT') {
     chrome.runtime.sendMessage({ type: 'SCANING_START', tabId: tabId })
   } else if (message.type === 'UPDATE_OVERLAY') {
+    // ! KC accordionGroup populated and ready to show
+    // ! KC get issues count from here
     // Get the settings from the message
     const settings = message.settings
     console.log('settings', settings)

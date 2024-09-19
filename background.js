@@ -1,3 +1,5 @@
+// ! KC Controls scanning start and end, highlights
+
 // Imported Functions
 import {
   getFrameTree,
