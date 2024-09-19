@@ -34,7 +34,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 { name: "getClickableElementsListeners.js", message: "CHECK_CLICKABLE_ELEMENTS_LISTENERS_JS", status: "CLICKABLE_ELEMENTS_READY" },
                 { name: "overlayListeners.js", message: "CHECK_OVERLAY_LISTENERS_JS", status: "OVERLAY_LISTENERS_READY" },
                 { name: "getClickableItems.js", message: "CHECK_GETCLICKABLE_JS", status: "GET_GETCLICKABL_READY" },
-                { name:"attachMutationObserver.js",message:"CHECK_MutationObserver_JS",status:"MUTATIONOBSERVER_READY"}
+                { name:"attachMutationObserver.js",message:"CHECK_MUTATIONOBSERVER_JS",status:"MUTATIONOBSERVER_READY"},
+                { name:"screenshotElement.js",message:"CHECK_SCREENSHOTELEMENT_JS",status:"SCREENSHOTELEMENT_READY"}
             ];
         
             const missingScripts = [];

@@ -154,7 +154,7 @@ if (document.readyState === 'loading') {
 
 // Chrome extension message listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === "CHECK_MutationObserver_JS") {
+  if (message.type === "CHECK_MUTATIONOBSERVER_JS") {
     sendResponse({ status: "MUTATIONOBSERVER_READY" });
   }
 });

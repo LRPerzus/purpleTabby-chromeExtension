@@ -79,25 +79,10 @@ function captureVisibleElements(elementsFoundList) {
 
   return processElements(limitedElements, concurrencyLimit);
 }
-  
-  
-  // Listen for messages from popup.js
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'CAPTURE_SCREENSHOTS') {
-      loadHtml2Canvas().then(() => {
-        captureVisibleElements().then((screenshots) => {
-          sendResponse({ screenshots });
-        }).catch((error) => {
-          console.error('Error capturing screenshots:', error);
-          sendResponse({ screenshots: [] });
-        });
-      }).catch(error => {
-        console.error('Failed to load html2canvas:', error);
-        sendResponse({ screenshots: [] });
-      });
-  
-      // Keep the message channel open for asynchronous response
-      return true;
-    }
-  });
-  
+
+// Chrome extension message listener
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "CHECK_SCREENSHOTELEMENT_JS") {
+    sendResponse({ status: "SCREENSHOTELEMENT_READY" });
+  }
+});
