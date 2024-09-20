@@ -69,10 +69,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('A11YFIXES_Start message.data', message.missingXpaths)
 
     if (message.missingXpaths !== 'undefined') {
-      const framesMissingXpathsDict = message.missingXpaths
+      const framesMissingXpathsDict = message.missingXpaths;
+      const tabId = message.tabId;
+      const elementsFoundInFrame = {};
 
       for (const frameKey in framesMissingXpathsDict) {
-        const elementsFoundInFrame = {}
+        elementsFoundInFrame[frameKey] = [];
         // console.log("A11YFIXES_Start frameKey",frameKey);
         framesMissingXpathsDict[frameKey].forEach((xpathObject) => {
           const xpath = xpathObject.xpath
@@ -113,7 +115,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const element = currentNode.singleNodeValue
 
           if (element) {
-            elementsFoundInFrame[xpath] = (element);
+            elementsFoundInFrame[frameKey].push({xpath:xpath,element:element});
           }
         })
         console.log('A11Y_FIX Screenshots Start')
@@ -121,24 +123,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         loadHtml2Canvas()
           .then(() => {
             captureVisibleElements(elementsFoundInFrame)
-              .then((screenshots) => {
+              .then((screenshotsFrameDict) => {
                 // Read the screenshots to get aria labels
                 try
                 {
-                  console.log(screenshots);
+                  console.log(screenshotsFrameDict);
                   // API Request for the aria labels
                   chrome.runtime.sendMessage({
                     type: 'GET_API_ARIALABELS',
-                    screenshots: screenshots,
-                  }, (response) => {
-                    if (chrome.runtime.lastError) {
-                      console.error('Error:', chrome.runtime.lastError);
-                      return;
-                    }
-
-                    // Got all of the aria-labels
-                    console.log('Response received:', response);
-                  });
+                    tabId:tabId,
+                    screenshotsFrameDict: screenshotsFrameDict,
+                  },);
                 }
                 catch(error)
                 {
@@ -154,7 +149,77 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           })
       }
     }
-  } else if (message.type === 'CHECK_OVERLAY_LISTENERS_JS') {
+  } else if (message.type === 'SET_ARIA_LABELS') {
+    console.log('A11YFIXES_Start message.data', message.missingXpaths);
+
+    if (message.missingXpaths !== 'undefined') {
+        const framesMissingXpathsDict = message.missingXpaths;
+        const promises = []; // Array to hold promises
+
+        for (const frameKey in framesMissingXpathsDict) {
+            const xpaths = framesMissingXpathsDict[frameKey];
+            console.log("xpaths", xpaths);
+
+            for (const xpath in xpaths) {
+                const ariaLabel = xpaths[xpath];
+                let bodyNode = document.body;
+                let currentNode = undefined;
+
+                const promise = new Promise((resolve) => {
+                    if (frameKey !== '') {
+                        const frameWindowXpathResult = document.evaluate(
+                            frameKey,
+                            bodyNode,
+                            null,
+                            XPathResult.FIRST_ORDERED_NODE_TYPE,
+                            null
+                        );
+                        const frameWindow = frameWindowXpathResult.singleNodeValue;
+
+                        if (frameWindow) {
+                            const frameContentDocument =
+                                frameWindow.contentDocument ||
+                                frameWindow.contentWindow.document;
+                            currentNode = document.evaluate(
+                                xpath,
+                                frameContentDocument,
+                                null,
+                                XPathResult.FIRST_ORDERED_NODE_TYPE,
+                                null
+                            );
+                        }
+                    } else {
+                        currentNode = document.evaluate(
+                            xpath,
+                            bodyNode,
+                            null,
+                            XPathResult.FIRST_ORDERED_NODE_TYPE,
+                            null
+                        );
+                    }
+
+                    const element = currentNode.singleNodeValue;
+
+                    if (element) {
+                        console.log("setAriaLabel", ariaLabel);
+                        element.setAttribute("aria-label", ariaLabel);
+                    }
+
+                    resolve(); // Resolve the promise once done
+                });
+
+                promises.push(promise); // Add promise to the array
+            }
+        }
+
+        // Wait for all promises to resolve
+        Promise.all(promises).then(() => {
+            // Send another message to the backend here
+            console.log('All aria-labels set. Sending message to backend...');
+            // Your code to send the message to the backend
+        });
+    }
+}else if (message.type === 'CHECK_OVERLAY_LISTENERS_JS') {
     sendResponse({ status: 'OVERLAY_LISTENERS_READY' })
   }
 })

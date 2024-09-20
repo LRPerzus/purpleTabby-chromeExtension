@@ -347,32 +347,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                         else{
                             data = "undefined"
                         }
-
-                        // Auto Fix and Highlight
-                        const promises = [];
-
-                        // Check if highlight is true and add the message sending promise to the array
-                        if (setting.highlight) {
-                            promises.push(
-                                new Promise((resolve, reject) => {
-                                    chrome.tabs.sendMessage(tabId, { type: "HIGHLIGHT", data:data.framesDict })
-                                })
-                            );
-                        }
-
-
-                        // Check if A11yFix is true and add the message sending promise to the array
-                        if (setting.A11yFix) {
-                            promises.push(
-                                new Promise((resolve, reject) => {
-                                    chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict})
-                                })
-                            );
-                        }
-
-                        // Wait for all messages to be sent
-                        Promise.all(promises);
-                        console.log("UPDATES ALL DONE");
+                        chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict,tabId:tabId})                    
                     }
                     return; // Exit the callback if there's an error
                 }
@@ -442,41 +417,68 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         sendResponse({status: "connected"});
     }
     else if (request.type === "GET_API_ARIALABELS") {
-        const payload = {
-            content: request.screenshots
-        };
-
-        console.log("payload", payload);
-        fetch("https://api.read-dev.pic.net.sg/process_a11y", {
-            method: 'POST',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-          })
-          .then(response => {
-            if (!response.ok) {
-                // Handle HTTP errors
-                sendResponse({status:"FAILED"});
-            }
-            else
-            {
-                return response.json(); // Parse the JSON if the response is OK
-            }
-          })
-          .then(data => {
-            console.log('API Response:', data);
-            // Handle the API response here
+        const screenshotsFramesDict = request.screenshotsFrameDict;
+        const tabId = request.tabId;
+        const arialLabelsFramesDict = {};
+        const fetchPromises = []; // Array to hold fetch promises
+    
+        for (const framekey of Object.keys(screenshotsFramesDict)) {
+            console.log("framekey", framekey);
+            const payload = {
+                content: screenshotsFramesDict[framekey]
+            };
+    
+            console.log("payload", payload);
             
-          })
-          .catch(error => {
-            console.error('Error:', error);
-          });
-        
-    }
+            // Create a fetch promise and push it to the array
+            const fetchPromise = fetch('https://api.read-dev.pic.net.sg/process_a11y', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(result => {
+                console.log('Success:', result);
+                const formattedResponse = {};
+                const ocr = result.ocr || {};
+                const type = result.type || {};
     
+                Object.keys(ocr).forEach(key => {
+                    const ocrValue = ocr[key] || '';
+                    const typeValue = type[key] || '';
     
+                    if (typeValue && ocrValue) {
+                        formattedResponse[key] = `${typeValue} ${ocrValue}`;
+                    } else if (typeValue && !ocrValue) {
+                        formattedResponse[key] = typeValue;
+                    } else if (!typeValue && ocrValue) {
+                        formattedResponse[key] = ocrValue;
+                    } else {
+                        formattedResponse[key] = '';
+                    }
+                });
+    
+                console.log('Formatted Response:', formattedResponse);
+                arialLabelsFramesDict[framekey] = formattedResponse;
+            })
+            .catch(error => console.error('Error:', error));
+    
+            fetchPromises.push(fetchPromise); // Add the promise to the array
+        }
+    
+        // Wait for all fetch requests to complete
+        Promise.all(fetchPromises)
+            .then(() => {
+                console.log("arialLabelsFramesDict", arialLabelsFramesDict);
+                // once we got all the frames we can get send in it to fix the label
+                chrome.tabs.sendMessage(tabId,{ type: "SET_ARIA_LABELS", missingXpaths:arialLabelsFramesDict})                    
+
+
+            });
+    };
     return true; // Indicate that you will send a response asynchronously
 });
 

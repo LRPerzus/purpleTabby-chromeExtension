@@ -41,42 +41,56 @@ function captureElementScreenshot(element) {
     }
   });
 }
-function captureVisibleElements(elementsFoundList) {
-  // Convert the elementsFoundList from a dictionary of {xpath: element}
-  const elementEntries = Object.entries(elementsFoundList);
-  console.log('Found elements for screenshot:', elementEntries.length);
-  console.log('Concurrency limit:', concurrencyLimit);
-  console.log('Element limit:', elementLimit);
-  
-  // Limit the number of elements to elementLimit
-  const limitedElements = elementEntries.slice(0, elementLimit);
 
-  // Function to process elements with concurrency limit
-  const processElements = async (elements, limit) => {
-    const results = {};
-    const executing = [];
+async function captureVisibleElements(elementsFoundDict) {
+  // Dictionary to store screenshots from all frames
+  let allResults = {};
+
+  // Loop through each frame in the dictionary
+  for (const [frame, elementsFoundList] of Object.entries(elementsFoundDict)) {
+    console.log(`Processing frame: ${frame}`);
     
-    for (const [xpath, element] of elements) {
-      const p = captureElementScreenshot(element).then(result => {
-        const base64Data = result.split(',')[1];
-        results[xpath] = base64Data;  // Store result in dictionary with xpath as the key
-      }).catch(error => {
-        console.error('Error in captureElementScreenshot:', error);
-      }).finally(() => {
-        executing.splice(executing.indexOf(p), 1);
-      });
-      executing.push(p);
-      if (executing.length >= limit) {
-        await Promise.race(executing);
+    // Check how many elements are found
+    console.log('Found elements for screenshot:', elementsFoundList.length);
+    console.log('Concurrency limit:', concurrencyLimit);
+    console.log('Element limit:', elementLimit);
+
+    // Limit the number of elements per frame to elementLimit
+    const limitedElements = elementsFoundList.slice(0, elementLimit);
+
+    // Function to process elements with concurrency limit
+    const processElements = async (elements, limit) => {
+      const results = {};
+      const executing = [];
+      
+      for (const { xpath, element } of elements) {
+        const p = captureElementScreenshot(element).then(result => {
+          const base64Data = result.split(',')[1];
+          results[xpath]= base64Data ;  // Store result as an object with xpath and screenshot
+        }).catch(error => {
+          console.error('Error in captureElementScreenshot:', error);
+        }).finally(() => {
+          executing.splice(executing.indexOf(p), 1);
+        });
+        
+        executing.push(p);
+        if (executing.length >= limit) {
+          await Promise.race(executing);
+        }
       }
-    }
-    
-    await Promise.all(executing);
-    return results;
-  };
+      
+      await Promise.all(executing);
+      return results;
+    };
 
-  return processElements(limitedElements, concurrencyLimit);
+    // Process elements in the current frame and store them in allResults under the corresponding frame
+    const frameResults = await processElements(limitedElements, concurrencyLimit);
+    allResults[frame] = frameResults;  // Store the results array for this frame
+  }
+
+  return allResults;  // Return the combined results for all frames
 }
+
 
   
 
