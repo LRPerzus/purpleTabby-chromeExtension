@@ -216,7 +216,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         Promise.all(promises).then(() => {
             // Send another message to the backend here
             console.log('All aria-labels set. Sending message to backend...');
-            // Your code to send the message to the backend
+            chrome.runtime.sendMessage({type: 'HIGHLIGHT_MISSING',tabId:tabId},);
         });
     }
 }else if (message.type === 'CHECK_OVERLAY_LISTENERS_JS') {
