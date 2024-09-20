@@ -28,9 +28,13 @@ function loadHtml2Canvas() {
 // Function to capture a screenshot of a specific element
 function captureElementScreenshot(element) {
   return new Promise((resolve, reject) => {
+    const elementPreviousStyle = element.getAttribute("style");
+    element.removeAttribute("style");
+
     if (window.html2canvas) {
       window.html2canvas(element).then(canvas => {
         const dataUrl = canvas.toDataURL('image/png');
+        element.setAttribute("style",elementPreviousStyle);
         resolve(dataUrl);
       }).catch(error => {
         console.error('Error capturing screenshot:', error, "At:", element);
