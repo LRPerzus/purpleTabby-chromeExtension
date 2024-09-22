@@ -200,7 +200,6 @@ function createFrame(key, array) {
 -- TODO
 - Toggle show/hide logic for accordionGroup and issuesCount for when scanning is in progress
 - Check w Jessie on what key main body and uniqueId var is for
-- Colourful escapeCode for elementHtml
 -- 
 */
 
