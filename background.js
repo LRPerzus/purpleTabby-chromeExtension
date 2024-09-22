@@ -173,7 +173,11 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     }
     // Return true to indicate the response will be sent asynchronously
     return true
-  } else if (request.type === 'SCANING_START') {
+  } else if (
+    request.type === 'SCANING_START from AMO.js' ||
+    request.type === 'SCANING_START from PU.js' ||
+    request.type === 'SCANING_START from ELA.js'
+  ) {
     if (request.debugger) {
       console.log(request.debugger)
     }

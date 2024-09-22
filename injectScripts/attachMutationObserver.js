@@ -95,7 +95,7 @@ const callback = async (mutationList, observer) => {
       if (isConnectedDebuuger) {
         try {
           chrome.runtime.sendMessage({
-            type: 'SCANING_START',
+            type: 'SCANING_START from AMO.js',
             tabId: tabId,
             debugger: 'Hey from debugger',
           })
