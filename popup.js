@@ -209,6 +209,7 @@ let tabId
 const accordionGroup = document.getElementById('accordionGroup')
 const issues = document.getElementById('issues')
 const issuesCount = document.getElementById('issuesCount')
+const currentTabUrl = document.getElementById('currentTabUrl')
 
 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
   tabId = tabs[0]?.id || request.tabId
@@ -219,8 +220,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   chrome.runtime.sendMessage({ type: 'PlUGIN_CLICKED', tabId: tab.id })
 
   console.log(
-    `popup.js script loaded | current tabId: ${tabId} | 'PLUGIN_CLICKED' message sent`
+    `popup.js script loaded | current tabId: ${tabId} | current tab.title: ${tab.title} | 'PLUGIN_CLICKED' message sent`
   )
+
+  currentTabUrl.href = tab.url
+  currentTabUrl.innerHTML = tab.title
 })
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
