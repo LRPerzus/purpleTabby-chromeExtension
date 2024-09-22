@@ -354,11 +354,11 @@ function createIssueElementsGroupHolder(holderUniqueId) {
       <img src="assets/files.svg" width="24" height="24" alt="File Icon" />
     </div>
   </div>
-  <div>
-    <span id="elementXPathHolder${holderUniqueId}" class="mw-100">
+  <div class="mw-100">
+    <p id="elementXPathHolder${holderUniqueId}" class="d-inline-block mw-100 text-break">
       <code id="elementXPath"></code>
-    </span>
-    <div id="elementHtmlHolder${holderUniqueId}" class="border rounded my-3 p-2 bg-grey-100">
+    </p>
+    <div id="elementHtmlHolder${holderUniqueId}" class="border rounded my-3 p-2 bg-grey-100 text-break">
       <code id="elementHtml">
 
       </code>
