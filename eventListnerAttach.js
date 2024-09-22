@@ -1,4 +1,5 @@
-/* -- Jessie Original --
+/* -- Jessie Original -- */
+/*
 // Event Listeners
 const debuggerAttachSwitch = document.getElementById('debuggerAttach') //tabbeeToggle
 debuggerAttachSwitch.addEventListener('click', async function () {
@@ -97,4 +98,37 @@ tabbeeToggle.addEventListener('click', async function () {
       status: false,
     })
   }
+})
+
+const highlightToggle = document.getElementById('highlightToggle')
+highlightToggle.addEventListener('click', async function () {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+  let status
+  if (highlightToggle.checked) {
+    status = true
+  } else {
+    status = false
+  }
+  chrome.runtime.sendMessage({
+    type: 'HIGHLIGHT_MISSING',
+    tabId: tab.id,
+    status: status,
+  })
+})
+
+const makeAccessibleToggle = document.getElementById('makeAccessibleToggle')
+makeAccessibleToggle.addEventListener('click', async function () {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+  console.log(`Current tab ID: ${tab.id}`)
+  let status
+  if (makeAccessibleToggle.checked) {
+    status = true
+  } else {
+    status = false
+  }
+  chrome.runtime.sendMessage({
+    type: 'A11YFIXES_INNIT',
+    tabId: tab.id,
+    status: status,
+  })
 })

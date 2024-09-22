@@ -30,10 +30,16 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       // give the settings to change
       // Set the settingStatus
       if (!settings[tabId]) {
+        /* Jessie's settings (Why highlight and A11yFix true onload???) */
+        // settings[tabId] = {
+        //   highlight: true,
+        //   debuggerAttach: false,
+        //   A11yFix: true,
+        // }
         settings[tabId] = {
-          highlight: true,
+          highlight: false,
           debuggerAttach: false,
-          A11yFix: true,
+          A11yFix: false,
         }
       }
       chrome.runtime.sendMessage({

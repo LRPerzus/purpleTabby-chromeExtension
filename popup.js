@@ -230,9 +230,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === 'SAVED_SETTINGS') {
     console.log(`popup.js received message.type ${message.type}`)
     const mapOfIdToKeys = {
-      highlight: 'highlightItemsA11yTreeSwitch',
-      debuggerAttach: 'debuggerAttach',
-      A11yFix: 'a11yFixesSwitch',
+      highlight: 'highlightToggle',
+      debuggerAttach: 'tabbeeToggle',
+      A11yFix: 'makeAccessibleToggle',
     }
     for (const key in message.settings) {
       // Get the corresponding ID from the map
