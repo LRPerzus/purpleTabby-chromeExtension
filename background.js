@@ -88,11 +88,11 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
       for (const check of scriptChecks) {
         try {
-          console.log('check.status:', check.status)
+          // console.log('check.status:', check.status)
           await sendMessageAndWait(tabId, check.message, check.status)
-          console.log(`${check.name} is already injected.`)
+          // console.log(`${check.name} is already injected.`)
         } catch {
-          console.log(`${check.name} is not injected.`)
+          // console.log(`${check.name} is not injected.`)
           missingScripts.push(check.name)
         }
       }
@@ -237,7 +237,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       settings[tabId].debuggerAttach = request.status
     }
     if (!debuggerAttached[tabId]) {
-      console.log('DEBUGGER_ATTACH')
       await attachDebugger(tabId)
       await enableAccessibility(tabId)
       await enableDOMDomain(tabId)
@@ -280,7 +279,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         const allFrameNames = frameTreeResults
 
         const domDictionary = nodeMap
-        console.log('domDictionary', domDictionary)
+        // console.log('domDictionary', domDictionary)
         // console.log("resolveNodes",resolveNodes);
         // console.log("eventListnersList",eventListnersList);
 
@@ -333,11 +332,11 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       'foundElements',
       noClicks
     )
-    console.log('inStorage foundElement', inStorage)
+    // console.log('inStorage foundElement', inStorage)
 
     const foundElement = request.data.foundElements
     const tabId = request.data.tabId
-    console.log('foundElement', foundElement)
+    // console.log('foundElement', foundElement)
 
     await areScansFinished(tabId)
   } else if (request.type === 'clickableElements_XPATHS_DONE') {
@@ -365,12 +364,12 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       'clickableElements',
       noClicks
     )
-    console.log(
-      'inStorage clickableElements',
-      request.tabId,
-      noClicks,
-      inStorage
-    )
+    // console.log(
+    //   'inStorage clickableElements',
+    //   request.tabId,
+    //   noClicks,
+    //   inStorage
+    // )
 
     await areScansFinished(request.tabId)
   } else if (request.type === 'MISSING_FOUND') {
@@ -738,7 +737,7 @@ function injectMissingScripts(tabId, missingScripts) {
                 )
               )
             } else {
-              console.log(`Injected ${scriptName} successfully.`)
+              // console.log(`Injected ${scriptName} successfully.`)
               resolve()
             }
           }
