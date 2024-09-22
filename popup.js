@@ -1,3 +1,5 @@
+/* -- Jessie's Original Code -- */
+/*
 let allMissing
 let tabId
 
@@ -184,4 +186,190 @@ function createFrame(key, array) {
 
   // Append the accordion item to the accordion container (Results)
   document.getElementById('Results').appendChild(accordionItem)
+}
+*/
+
+/*
+-- Changes by KC
+- New UI logic for populating issues via createIssueElementsGroupHolder
+- Add global variables for UI, classList add/remove d-none where necessary
+-- 
+*/
+
+/*
+-- TODO
+- Toggle show/hide logic for accordionGroup and issuesCount for when scanning is in progress
+- Check w Jessie on what key main body and uniqueId var is for
+- Colourful escapeCode for elementHtml
+-- 
+*/
+
+let allMissing
+let tabId
+const accordionGroup = document.getElementById('accordionGroup')
+const issues = document.getElementById('issues')
+const issuesCount = document.getElementById('issuesCount')
+
+chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+  tabId = tabs[0]?.id || request.tabId
+})
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+  chrome.runtime.sendMessage({ type: 'PlUGIN_CLICKED', tabId: tab.id })
+
+  console.log(
+    `popup.js script loaded | current tabId: ${tabId} | 'PLUGIN_CLICKED' message sent`
+  )
+})
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'POPUP_STATUS') {
+    sendResponse({ success: true })
+    return true
+  } else if (message.type === 'SAVED_SETTINGS') {
+    console.log(`popup.js received message.type ${message.type}`)
+    const mapOfIdToKeys = {
+      highlight: 'highlightItemsA11yTreeSwitch',
+      debuggerAttach: 'debuggerAttach',
+      A11yFix: 'a11yFixesSwitch',
+    }
+    for (const key in message.settings) {
+      // Get the corresponding ID from the map
+      const elementId = mapOfIdToKeys[key]
+      // console.log('elementId', elementId)
+      if (elementId) {
+        const element = document.getElementById(elementId)
+        // Perform operations with the element
+        if (element.type === 'checkbox') {
+          // Set the checkbox state based on messageSetting
+          element.checked = message.settings[key]
+          // console.log(
+          //   `Checkbox with ID ${elementId} set to ${element.checked}.`
+          // )
+        } else {
+          console.warn(`Element with ID ${elementId} is not a checkbox.`)
+        }
+      }
+    }
+  } else if (message.type === 'PLUGIN_READY') {
+    console.log(`popup.js received message.type ${message.type}`)
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tabId = tabs[0]?.id || request.tabId
+      if (tabId) {
+        chrome.runtime.sendMessage({ type: 'OVERLAY_CREATED', tabId: tabId })
+        sendResponse({ success: true })
+      } else {
+        console.error('Unable to get the active tab.')
+        sendResponse({ success: false, error: 'Unable to get the active tab.' })
+      }
+    })
+    return true
+  } else if (message.type === 'SCANNING_INNIT') {
+    console.log(`popup.js received message.type ${message.type}`)
+    chrome.runtime.sendMessage({
+      type: 'SCANING_START from PU.js',
+      tabId: tabId,
+    })
+  } else if (message.type === 'UPDATE_OVERLAY') {
+    console.log(`popup.js received message.type ${message.type}`)
+
+    // Get the settings from the message
+    const settings = message.settings
+    const tabId = message.tabId
+
+    console.log(
+      `${message.type} received successfully | settings is: ${settings} | tabId is: ${tabId}`
+    )
+
+    console.log(
+      `tabbeeToggle is: ${document.getElementById('tabbeeToggle').checked}`
+    )
+
+    if (document.getElementById('tabbeeToggle').checked) {
+      console.log(
+        `inside if, tabbeeToggle is: ${document.getElementById('tabbeeToggle').checked}`
+      )
+
+      // Reset id="collapseOne" to empty
+      document.getElementById('collapseOne').innerHTML = ''
+
+      for (const [key, array] of Object.entries(message.data.framesDict)) {
+        createFrame(key, array)
+      }
+
+      if (accordionGroup.classList.contains('d-none')) {
+        accordionGroup.classList.remove('d-none')
+      } else {
+        console.log(`accordionGroup is ${accordionGroup}`)
+      }
+    }
+
+    console.log(`Line 346: ${message.type} end of script`)
+  }
+})
+
+function createFrame(key, array) {
+  console.log(`createFrame function called`)
+
+  // Ensure 'key' has a default value
+  if (key === '') {
+    key = 'main body'
+  }
+
+  issuesCount.innerHTML = array.length
+
+  if (issues.classList.contains('d-none')) {
+    issues.classList.remove('d-none')
+  } else {
+    console.log(`issues is ${issues}`)
+  }
+
+  // Create a unique id for each accordion section
+  // const uniqueId = `accordion-${key.replace(/\s+/g, '-')}`
+
+  for (i = 0; i < array.length; i++) {
+    document
+      .getElementById('collapseOne')
+      .appendChild(createIssueElementsGroupHolder([i]))
+
+    document.getElementById(`elementXPathHolder${[i]}`).innerHTML =
+      JSON.stringify(array[i].xpath, null, 2).replace(/"/g, '')
+
+    document.getElementById(`elementHtmlHolder${[i]}`).textContent =
+      JSON.stringify(array[i].code).replace(/"/g, '')
+  }
+}
+
+// Creates the UI component for each issue
+function createIssueElementsGroupHolder(holderUniqueId) {
+  const issueElementsGroupTemplate = `
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <p>Element XPath</p>
+    <div class="border border-1 rounded bg-grey-100 copy-icon">
+      <img src="assets/files.svg" width="24" height="24" alt="File Icon" />
+    </div>
+  </div>
+  <div>
+    <span id="elementXPathHolder${holderUniqueId}" class="mw-100">
+      <code id="elementXPath"></code>
+    </span>
+    <div id="elementHtmlHolder${holderUniqueId}" class="border rounded my-3 p-2 bg-grey-100">
+      <code id="elementHtml">
+
+      </code>
+    </div>
+  </div>`
+
+  const issueElementsGroupHolder = Object.assign(
+    document.createElement('div'),
+    {
+      id: `issueElementsGroupHolder${holderUniqueId}`,
+      className: 'accordion-body my-4 mx-3 rounded custom-border',
+    }
+  )
+
+  issueElementsGroupHolder.innerHTML = issueElementsGroupTemplate
+
+  return issueElementsGroupHolder
 }
