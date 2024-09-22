@@ -146,8 +146,8 @@ function a11yTreeToDOM(notEmptyNamesXapths) {
           if (element.shadowRoot) {
             element = element.shadowRoot.children[changesChildIndex]
           } else {
-            console.log('no shadowRoot', changesChildIndex)
-            console.log('element.children', element.children)
+            // console.log('no shadowRoot', changesChildIndex)
+            // console.log('element.children', element.children)
             if (missingDiv !== element) {
               element = missingDiv
             }

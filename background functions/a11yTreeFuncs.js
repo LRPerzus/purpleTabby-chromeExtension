@@ -17,7 +17,7 @@ export async function getFullAXTree(tabId, frameId) {
 
 export async function fullA11yTreeFilter(tabId, fullA11yTree) {
   const backEndIdWithName = {}
-  console.log('fullA11yTreeFilter', fullA11yTree)
+  //   console.log('fullA11yTreeFilter', fullA11yTree)
   const listOfRolesThatWillBeSeen = ['button']
   let count = 0
   for (const obj of fullA11yTree) {
@@ -39,14 +39,14 @@ export async function fullA11yTreeFilter(tabId, fullA11yTree) {
           parentNode = (
             await queryAXTreeByBackendNodeId(tabId, obj.backendDOMNodeId)
           ).nodes
-          console.log(
-            'fullA11yTreeFilter update to the parentIds',
-            obj.backendDOMNodeId
-          )
-          console.log('fullA11yTreeFilter parentNode', parentNode)
+          // console.log(
+          //   'fullA11yTreeFilter update to the parentIds',
+          //   obj.backendDOMNodeId
+          // )
+          //   console.log('fullA11yTreeFilter parentNode', parentNode)
           if (parentNode.length > 0) {
             obj.parentId = parseInt(parentNode[0].parentId)
-            console.log('The change', obj.parentId)
+            // console.log('The change', obj.parentId)
           }
         } catch (e) {
           console.log(
@@ -65,12 +65,12 @@ export async function fullA11yTreeFilter(tabId, fullA11yTree) {
         parentId: parseInt(obj.parentId),
       }
     } else {
-      console.log('fullA11yTreeFilter cannot get xpath from element?')
+      //   console.log('fullA11yTreeFilter cannot get xpath from element?')
     }
     count++
   }
 
-  console.log('fullA11yTreeFilter DONE')
+  //   console.log('fullA11yTreeFilter DONE')
   return backEndIdWithName
 }
 

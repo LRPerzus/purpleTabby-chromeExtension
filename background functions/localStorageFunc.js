@@ -23,7 +23,7 @@ export async function storeDataForTab(tabId, data, type, noClicked = null) {
   try {
     // Store data in chrome.storage.session
     await chrome.storage.session.set({ [key]: data })
-    console.log(`Data stored for tab ${tabId} ${type} data: ${data}.`)
+    // console.log(`Data stored for tab ${tabId} ${type} data: ${data}.`)
   } catch (error) {
     console.error(`Error storing data for tab ${tabId}: ${error}`)
   }

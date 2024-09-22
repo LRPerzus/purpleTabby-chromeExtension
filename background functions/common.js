@@ -13,7 +13,7 @@ import { getFromLocal } from './localStorageFunc.js'
         True or False if its been attached (Currently broken)
 */
 export async function setAttributeValue(tabId, nodeId, name) {
-  console.log('setAttributeValue nodeId', nodeId)
+  //   console.log('setAttributeValue nodeId', nodeId)
 
   try {
     // Step 1: Set the attribute
@@ -70,14 +70,14 @@ export async function areScansFinished(tabId) {
     )
     if (foundElements && foundElements.length > 0) {
       A11yTree = foundElements
-      console.log('GET FROM LOCAL A11yTree:', A11yTree)
+      // console.log('GET FROM LOCAL A11yTree:', A11yTree)
 
       // Do something with A11yTree
     } else {
-      console.log('foundElements does not exist or is empty')
+      // console.log('foundElements does not exist or is empty')
     }
   } catch (error) {
-    console.error('Error retrieving foundElements:', error)
+    // console.error('Error retrieving foundElements:', error)
     // A11yTree remains null if there's an error
   }
 
@@ -88,13 +88,13 @@ export async function areScansFinished(tabId) {
       'clickableElements',
       currentClick
     )
-    console.log('GET FROM LOCAL clickableElements', clickable)
+    // console.log('GET FROM LOCAL clickableElements', clickable)
     if (clickable && clickable.length > 0) {
       clickAbleElements = clickable
-      console.log('clickableElements:', clickAbleElements)
+      // console.log('clickableElements:', clickAbleElements)
       // Do something with A11yTree
     } else {
-      console.log('clickableElements does not exist or is empty')
+      // console.log('clickableElements does not exist or is empty')
     }
   } catch (error) {
     console.error('Error retrieving clickableElements:', error)

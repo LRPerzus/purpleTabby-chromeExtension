@@ -29,18 +29,18 @@ export async function collectDOMNodes(tabId) {
     try {
       // Add backendNodeId and nodeId to the dictionary
       if (node.backendNodeId) {
-        console.log('Adding to the dict', node.backendNodeId)
-        console.log(`Adding to the dict ${node.backendNodeId} ${node.nodeId} `)
+        // console.log('Adding to the dict', node.backendNodeId)
+        // console.log(`Adding to the dict ${node.backendNodeId} ${node.nodeId} `)
         nodeMap[node.backendNodeId] = node.nodeId
         const { jsRuntimeObj, change } = await resolveNode(
           tabId,
           node.nodeId,
           node.backendNodeId
         )
-        console.log('Outer jsRuntimeObj', jsRuntimeObj)
+        // console.log('Outer jsRuntimeObj', jsRuntimeObj)
         if (change) {
           resolveNodes[node.backendNodeId] = change
-          console.log('getEventListeners change', change)
+          // console.log('getEventListeners change', change)
         }
         if (jsRuntimeObj) {
           const jsRuntimeObjId = jsRuntimeObj.objectId
@@ -64,7 +64,7 @@ export async function collectDOMNodes(tabId) {
           await traverseNode(child)
         }
       } else {
-        console.warn('No shadowRoot is not an array:', node)
+        // console.warn('No shadowRoot is not an array:', node)
       }
 
       // Process children recursively

@@ -39,10 +39,10 @@ export async function processFrameTrees(tabId, frameTree) {
   const promises = frameTree.map(async (frameId) => {
     console.log('Processing frame ID:', frameId)
     const fullA11yTree = await getFullAXTree(tabId, frameId)
-    console.log('WHOLE A11y TREE', fullA11yTree)
+    // console.log('WHOLE A11y TREE', fullA11yTree)
 
     const onlyNames = await fullA11yTreeFilter(tabId, fullA11yTree.nodes)
-    console.log('Filtered tree A11y Whole:', onlyNames)
+    // console.log('Filtered tree A11y Whole:', onlyNames)
 
     for (const key in onlyNames) {
       if (onlyNames.hasOwnProperty(key)) {
@@ -69,19 +69,19 @@ export async function settingAttributeNode(
   let bId
   const promises = Object.keys(backendDOMNodeIds).map(async (backendId) => {
     try {
-      console.log('settingAttributeNode', backendId)
+      //   console.log('settingAttributeNode', backendId)
       bId = backendId
       correspondingNodeId = domDictionary[backendId]
-      console.log('correspondingNodeId backendId', correspondingNodeId)
+      //   console.log('correspondingNodeId backendId', correspondingNodeId)
 
       // Not found in the DOM TRY using the parentId cause sometimes A11yTree might get ::before nodes
       if (correspondingNodeId) {
-        console.log('OK GOOD NO ISSUE', backendId)
+        // console.log('OK GOOD NO ISSUE', backendId)
       } else {
-        console.log(
-          'settingAttributeNode Erm it does not exists domDictionary:',
-          backendId
-        )
+        // console.log(
+        //   'settingAttributeNode Erm it does not exists domDictionary:',
+        //   backendId
+        // )
         const parentOfBackendId = backendDOMNodeIds[backendId].parentId
         correspondingNodeId = domDictionary[parentOfBackendId]
       }
@@ -90,9 +90,9 @@ export async function settingAttributeNode(
         correspondingNodeId,
         'purple_tabby_a11yTree'
       )
-      console.log('attribute?', attribute)
+      //   console.log('attribute?', attribute)
       if (attribute !== true && attribute === 'redo') {
-        console.log('redooooing', backendId)
+        // console.log('redooooing', backendId)
         const tryAgainBId = parseInt(backendId)
         const tryAgain = await doubleCheckNodeId(tabId, tryAgainBId)
         console.log('tryAgain', backendId, tryAgain)
@@ -110,9 +110,9 @@ export async function settingAttributeNode(
           )
         }
       }
-      console.log('set attribute?', backendId, attribute)
+      //   console.log('set attribute?', backendId, attribute)
     } catch (error) {
-      console.log(`settingAttributeNode Error: ${error}`, backendId)
+      //   console.log(`settingAttributeNode Error: ${error}`, backendId)
     }
   })
 
