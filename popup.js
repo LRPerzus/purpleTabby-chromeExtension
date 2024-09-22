@@ -340,11 +340,22 @@ function createFrame(key, array) {
       .getElementById('collapseOne')
       .appendChild(createIssueElementsGroupHolder([i]))
 
-    document.getElementById(`elementXPathHolder${[i]}`).innerHTML =
-      JSON.stringify(array[i].xpath, null, 2).replace(/"/g, '')
+    document.getElementById(`elementXPath${[i]}`).innerHTML = JSON.stringify(
+      array[i].xpath,
+      null,
+      2
+    ).replace(/"/g, '')
 
-    document.getElementById(`elementHtmlHolder${[i]}`).textContent =
-      JSON.stringify(array[i].code).replace(/"/g, '')
+    document.getElementById(`elementHtml${i}`).textContent = array[i].code
+      .replace(/\n/g, '')
+      .replace(/\u00A0/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+
+    hljs.highlightElement(document.getElementById(`elementHtml${[i]}`))
+    document
+      .getElementById(`elementHtml${[i]}`)
+      .classList.add('custom-code-wrap')
 
     document
       .getElementById(`copyButton${i}`)
@@ -390,12 +401,11 @@ function createIssueElementsGroupHolder(holderUniqueId) {
   </div>
   <div class="mw-100">
     <p id="elementXPathHolder${holderUniqueId}" class="d-inline-block mw-100 text-break">
-      <code id="elementXPath"></code>
+      <code id="elementXPath${holderUniqueId}" class="custom-code-wrap"></code>
     </p>
     <div id="elementHtmlHolder${holderUniqueId}" class="border rounded my-3 p-2 bg-grey-100 text-break">
-      <code id="elementHtml">
+    <pre><code class="html" id="elementHtml${holderUniqueId}"></code></pre>
 
-      </code>
     </div>
   </div>`
 

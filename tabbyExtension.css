@@ -102,12 +102,15 @@ p,
   background-color: var(--grey-100);
 }
 
-.code-look {
-  font-family: monospace;
-  background-color: #f4f4f4;
-  padding: 10px;
-  border: 1px solid #ddd;
-  white-space: pre;
+.custom-code-wrap {
+  white-space: pre-wrap; /* Preserve whitespace and wrap lines */
+  overflow-wrap: break-word; /* Break long words */
+  max-width: 100%; /* Don't exceed the parent's width */
+  background: var(--grey-100); /* Optional: background color */
+}
+
+pre code.hljs {
+  padding: unset !important;
 }
 
 .copy-icon {
