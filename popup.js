@@ -332,7 +332,10 @@ function createFrame(key, array) {
   // Create a unique id for each accordion section
   // const uniqueId = `accordion-${key.replace(/\s+/g, '-')}`
 
-  for (i = 0; i < array.length; i++) {
+  for (let i = 0; i < array.length; i++) {
+    const dataToCopy = []
+    dataToCopy[i] = JSON.stringify(array[i], null, 2)
+
     document
       .getElementById('collapseOne')
       .appendChild(createIssueElementsGroupHolder([i]))
@@ -342,16 +345,47 @@ function createFrame(key, array) {
 
     document.getElementById(`elementHtmlHolder${[i]}`).textContent =
       JSON.stringify(array[i].code).replace(/"/g, '')
+
+    document
+      .getElementById(`copyButton${i}`)
+      .addEventListener('click', async function () {
+        // Copy the data to clipboard
+        try {
+          await navigator.clipboard.writeText(dataToCopy[i])
+          document.getElementById(`copyStatus${i}`).innerText = 'Copied!'
+
+          setTimeout(() => {
+            document.getElementById(`copyStatus${i}`).innerText = ''
+          }, 2000)
+        } catch (error) {
+          console.error('Failed to copy text: ', error)
+        }
+      })
   }
 }
 
 // Creates the UI component for each issue
 function createIssueElementsGroupHolder(holderUniqueId) {
   const issueElementsGroupTemplate = `
-  <div class="d-flex justify-content-between align-items-center mb-2">
-    <p>Element XPath</p>
-    <div class="border border-1 rounded bg-grey-100 copy-icon">
-      <img src="assets/files.svg" width="24" height="24" alt="File Icon" />
+  <div
+    class="d-flex justify-content-between align-items-center mb-2"
+  >
+    <div><p>Element XPath</p></div>
+    <div>
+      <span id="copyStatus${holderUniqueId}" class="mx-2"></span>
+
+      <button
+        id="copyButton${holderUniqueId}"
+        class="border border-1 rounded bg-grey-100 copy-icon"
+        aria-label="Copy file icon"
+      >
+        <img
+          src="assets/files.svg"
+          width="24"
+          height="24"
+          alt="File Icon"
+        />
+      </button>
     </div>
   </div>
   <div class="mw-100">
