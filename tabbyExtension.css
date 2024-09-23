@@ -169,6 +169,17 @@ pre code.hljs {
   padding-left: 2px;
 }
 
+#titleToggleGroup .form-switch .form-check-input:checked::before {
+  color: var(--grey-base);
+  content: 'ON';
+  padding-left: 2px;
+}
+
+#titleToggleGroup .form-check-input:checked {
+  background-color: #32d583;
+  border: #32d583;
+}
+
 .accordion {
   --bs-accordion-border-color: transparent;
   border: 1px solid var(--grey-400);

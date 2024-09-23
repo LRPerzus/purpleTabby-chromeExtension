@@ -4,6 +4,7 @@ const accordionGroup = document.getElementById('accordionGroup')
 const issues = document.getElementById('issues')
 const issuesCount = document.getElementById('issuesCount')
 const currentTabUrl = document.getElementById('currentTabUrl')
+const tooltipTriggerEl = document.querySelector('[data-bs-toggle="tooltip"]')
 
 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
   tabId = tabs[0]?.id || request.tabId
@@ -19,6 +20,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   currentTabUrl.href = tab.url
   currentTabUrl.innerHTML = tab.title
+
+  const tooltip = new bootstrap.Tooltip(tooltipTriggerEl)
+
+  // Accessibility for tooltip
+  tooltipTriggerEl.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      tooltip.show()
+    }
+  })
+
+  tooltipTriggerEl.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') {
+      tooltip.hide()
+    }
+  })
 })
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
