@@ -360,7 +360,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                         if (setting.A11yFix) // This one will continue with highlight later there is another highlight check
                         {
                             console.log("A11YFIXES_Start");
-                            chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data});
+                            chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict , tabId:tabId});
                         }
                         else if (setting.highlight) // Just highlight
                         {
@@ -399,7 +399,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
                     if (settings[tabId].A11yFix) // This one will continue with highlight later there is another highlight check
                     {
-                        chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict});
+                        chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict, tabId:tabId});
                     }
                     else if (settings[tabId].highlight) // Just highlight
                     {
@@ -423,21 +423,21 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     else if (request.type === "A11YFIXES_INNIT")
     {
         const tabId = request.tabId;
-        const missingXpaths = await getFromLocal(tabId,"missingXpath",false,request.siteurl);        ;
-        if (settings[request.tabId] && request.status)
-        {
-            settings[request.tabId].A11yFix = request.status;
-        }
-        console.log("A11YFIXES_INNIT missingXpaths:",missingXpaths);
-
+        const missingXpaths = await getFromLocal(tabId,"missingXpath",false,request.siteurl);
         if (settings[request.tabId].A11yFix)
         {
-            chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:missingXpaths.framesDict});
+            chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:missingXpaths.framesDict,tabId:tabId});
         }
         else
         {
             // TODO add a remove A11yFixes
         }
+
+        if (settings[request.tabId] && request.status)
+        {
+            settings[request.tabId].A11yFix = request.status;
+        }
+        console.log("A11YFIXES_INNIT missingXpaths:",missingXpaths);
     }
     else if (request.type === "ERROR_REFRESHNEED")
     {
@@ -529,6 +529,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         Promise.all(fetchPromises)
             .then(() => {
                 console.log("arialLabelsFramesDict", arialLabelsFramesDict);
+                console.log("tabId",tabId);
                 // once we got all the frames we can get send in it to fix the label
                 chrome.tabs.sendMessage(tabId,{ type: "SET_ARIA_LABELS", missingXpaths:arialLabelsFramesDict})                    
 
