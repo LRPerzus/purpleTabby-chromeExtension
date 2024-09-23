@@ -7,7 +7,7 @@ export async function resolveNode(tabId, nodeId, backendNodeId) {
                 const message = chrome.runtime.lastError.message;
                 if (message.includes("No node with given id found")) { 
                     const tryAgain = await doubleCheckNodeId(tabId, backendNodeId);
-                    console.log("doublecheck tryAgain",tryAgain);
+                    // console.log("doublecheck tryAgain",tryAgain);
                     // nodeId 0 is weird i think its bests to check again why it would be 0
                     if (tryAgain.nodeId !== nodeId && tryAgain.nodeId > 0) {
                         const jsRuntimeObj = await resolveNode(tabId, tryAgain.nodeId, backendNodeId);

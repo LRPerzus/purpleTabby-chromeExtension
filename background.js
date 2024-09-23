@@ -74,9 +74,10 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     else if (request.type === "HIGHLIGHT_MISSING")
     {
         console.log("HIGHLIGHT_MISSING Received",request.tabId);
-        if (settings[request.tabId])
+        if (settings[request.tabId] && request.status)
         {
             settings[request.tabId].highlight = request.status;
+            console.log("HIGHLIGHT_MISSING Changed status",request.status);
         }
         const missingXpath = await getFromLocal(request.tabId,"missingXpath",false,request.siteUrl);
         let data;
@@ -88,7 +89,15 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             data = "undefined"
         }
         console.log("HIGHLIGHT_MISSING missingXpath",missingXpath)
-        chrome.tabs.sendMessage(request.tabId, { type: "HIGHLIGHT", data:data.framesDict });
+
+        if (settings[request.tabId].highlight)
+        {
+            chrome.tabs.sendMessage(request.tabId, { type: "HIGHLIGHT", data:data.framesDict });
+        }
+        else
+        {
+            // TODO add a remove highlights
+        }
         
     }
     else if (request.type === "RESCAN_INNIT")
@@ -347,7 +356,22 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                         else{
                             data = "undefined"
                         }
-                        chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict,tabId:tabId})                    
+
+                        if (setting.A11yFix) // This one will continue with highlight later there is another highlight check
+                        {
+                            console.log("A11YFIXES_Start");
+                            chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data});
+                        }
+                        else if (setting.highlight) // Just highlight
+                        {
+                            console.log("MISSING_FOUND HIGHLIGHT")
+                            chrome.tabs.sendMessage(tabId,{ type: "HIGHLIGHT", data:data.framesDict});
+                        }
+                        else
+                        {
+                            // TODO REMOVE BOTH
+                            console.log("NONE");
+                        }
                     }
                     return; // Exit the callback if there's an error
                 }
@@ -363,6 +387,30 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                         settings:settings[tabId],
                         tabId:tabId
                     });
+
+                    let data;
+                    if (mergedMissingXpaaths!== undefined)
+                    {
+                        data = mergedMissingXpaaths;
+                    }
+                    else{
+                        data = "undefined"
+                    }
+
+                    if (settings[tabId].A11yFix) // This one will continue with highlight later there is another highlight check
+                    {
+                        chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict});
+                    }
+                    else if (settings[tabId].highlight) // Just highlight
+                    {
+                        console.log("MISSING_FOUND HIGHLIGHT")
+                        chrome.tabs.sendMessage(tabId,{ type: "HIGHLIGHT", data:data.framesDict});
+                    }
+                    else
+                    {
+                        // TODO REMOVE BOTH
+                        console.log("NONE");
+                    }
                 } else {
                     console.log("No response or unsuccessful status.");
                 }
@@ -376,12 +424,20 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     {
         const tabId = request.tabId;
         const missingXpaths = await getFromLocal(tabId,"missingXpath",false,request.siteurl);        ;
-        if (settings[request.tabId])
+        if (settings[request.tabId] && request.status)
         {
             settings[request.tabId].A11yFix = request.status;
         }
         console.log("A11YFIXES_INNIT missingXpaths:",missingXpaths);
-        chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:missingXpaths.framesDict});
+
+        if (settings[request.tabId].A11yFix)
+        {
+            chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:missingXpaths.framesDict});
+        }
+        else
+        {
+            // TODO add a remove A11yFixes
+        }
     }
     else if (request.type === "ERROR_REFRESHNEED")
     {

@@ -66,7 +66,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       tabId: message.tabId,
     })
   } else if (message.type === 'A11YFIXES_Start') {
-    console.log('A11YFIXES_Start message.data', message.missingXpaths)
+    console.log('A11YFIXES_Start message.missingXpaths', message.missingXpaths)
 
     if (message.missingXpaths !== 'undefined') {
       const framesMissingXpathsDict = message.missingXpaths;
