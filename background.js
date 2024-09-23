@@ -133,9 +133,9 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             {
                 settings[tabId] = 
                 {
-                    highlight:true,
+                    highlight:false,
                     debuggerAttach:false ,
-                    A11yFix:true,
+                    A11yFix:false,
                 }
             }
 
