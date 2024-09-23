@@ -212,7 +212,7 @@ function createIssueElementsGroupHolder(holderUniqueId) {
   </div>
   <div class="mw-100">
     <p id="elementXPathHolder${holderUniqueId}" class="d-inline-block mw-100 text-break">
-      <code id="elementXPath${holderUniqueId}" class="custom-code-wrap"></code>
+      <code id="elementXPath${holderUniqueId}" ></code>
     </p>
     <div id="elementHtmlHolder${holderUniqueId}" class="border rounded my-3 p-2 bg-grey-100 text-break">
     <pre><code class="html" id="elementHtml${holderUniqueId}"></code></pre>

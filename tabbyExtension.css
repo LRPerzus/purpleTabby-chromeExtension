@@ -44,7 +44,6 @@ p,
 
 .url-group {
   background-color: var(--grey-300);
-  border-radius: 0.5rem 0.5rem 0 0;
   border-top: solid 0.5px var(--grey-400);
   font-size: 0.9rem;
 }
@@ -79,13 +78,7 @@ p,
   border-bottom: solid 0.125rem var(--blue-500) !important;
 }
 
-/* #tabbyHighlight .form-check-input:not(:checked) {
-  border-color: red;
-  background-color: lightpink;
-} */
-
 .make-accessible-group {
-  border-radius: 0 0 0.5rem 0.5rem;
   border-bottom: solid 0.5px var(--grey-400);
   border-top: solid 0.5px var(--grey-400);
   padding: 1.5rem 1rem;
