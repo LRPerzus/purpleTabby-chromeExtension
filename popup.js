@@ -43,7 +43,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ success: true })
     return true
   } else if (message.type === 'SAVED_SETTINGS') {
-    console.log(`popup.js received message.type ${message.type}`)
     const mapOfIdToKeys = {
       highlight: 'highlightToggle',
       debuggerAttach: 'tabbeeToggle',
@@ -68,7 +67,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
     }
   } else if (message.type === 'PLUGIN_READY') {
-    console.log(`popup.js received message.type ${message.type}`)
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const tabId = tabs[0]?.id || request.tabId
       if (tabId) {
@@ -81,31 +79,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     })
     return true
   } else if (message.type === 'SCANNING_INNIT') {
-    console.log(`popup.js received message.type ${message.type}`)
     chrome.runtime.sendMessage({
       type: 'SCANING_START',
       tabId: tabId,
     })
   } else if (message.type === 'UPDATE_OVERLAY') {
-    console.log(`popup.js received message.type ${message.type}`)
-
     // Get the settings from the message
     const settings = message.settings
     const tabId = message.tabId
 
-    console.log(
-      `${message.type} received successfully | settings is: ${settings} | tabId is: ${tabId}`
-    )
-
-    console.log(
-      `tabbeeToggle is: ${document.getElementById('tabbeeToggle').checked}`
-    )
-
     if (document.getElementById('tabbeeToggle').checked) {
-      console.log(
-        `inside if, tabbeeToggle is: ${document.getElementById('tabbeeToggle').checked}`
-      )
-
       // Reset id="collapseOne" to empty
       document.getElementById('collapseOne').innerHTML = ''
 
@@ -119,14 +102,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.log(`accordionGroup is ${accordionGroup}`)
       }
     }
-
-    console.log(`Line 346: ${message.type} end of script`)
   }
 })
 
 function createFrame(key, array) {
-  console.log(`createFrame function called`)
-
   // Ensure 'key' has a default value
   if (key === '') {
     key = 'main body'
