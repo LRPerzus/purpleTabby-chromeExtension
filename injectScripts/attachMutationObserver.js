@@ -63,7 +63,8 @@ const callback = async (mutationList, observer) => {
       mutation.attributeName !== "tabby-has-listener" && 
       mutation.attributeName !== "purple_tabby_a11ytree" &&
       mutation.attributeName !== "style" &&
-      mutation.attributeName !== "purple_tabby_missing"
+      mutation.attributeName !== "purple_tabby_missing" &&
+      mutation.attributeName !== "aria-label"
     ) {
       console.log(mutation)
       // Attribute changes are considered significant for resetting the timeout
@@ -91,16 +92,16 @@ const callback = async (mutationList, observer) => {
       {
         try
         {
-          chrome.runtime.sendMessage({ type: "SCANING_START",tabId:tabId}); 
+          chrome.runtime.sendMessage({ type: "SCANING_START",tabId:tabId,debugger:"Hey from debugger"}); 
         }
         catch (e)
         {
-          if (e.message === "Uncaught Error: Extension context invalidated.")
+          if (e.message === "Extension context invalidated.")
           {
             console.warn("UPDATED EXTENSION PLEASE REFRESH");
           }
           else{
-            console.error("UPDATED EXTENSION PLEASE REFRESH");
+            console.error(e.message);
           }
         }
       }
@@ -153,7 +154,7 @@ if (document.readyState === 'loading') {
 
 // Chrome extension message listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === "CHECK_MutationObserver_JS") {
+  if (message.type === "CHECK_MUTATIONOBSERVER_JS") {
     sendResponse({ status: "MUTATIONOBSERVER_READY" });
   }
 });

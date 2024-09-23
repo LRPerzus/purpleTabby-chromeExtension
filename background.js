@@ -14,11 +14,18 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     if (request.type === "PlUGIN_CLICKED") {
         const tabId = request.tabId;
         try {
-            // Clear data for the tab if needed
-            // await clearDataForTab(tabId);
-        
-            // Attaches the number of clicks
-            await updateNoClicksTabID(tabId);
+           // give the settings to change
+             // Set the settingStatus
+            if (!settings[tabId])
+            {
+                settings[tabId] = 
+                {
+                    highlight:false,
+                    debuggerAttach:false ,
+                    A11yFix:false,
+                }
+            }
+            chrome.runtime.sendMessage({ type: "SAVED_SETTINGS", settings: settings[tabId] })
         
             const scriptChecks = [
                 { name: "content.js", message: "CHECK_CONTENT_JS", status: "CONTENT_READY" },
@@ -27,7 +34,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 { name: "getClickableElementsListeners.js", message: "CHECK_CLICKABLE_ELEMENTS_LISTENERS_JS", status: "CLICKABLE_ELEMENTS_READY" },
                 { name: "overlayListeners.js", message: "CHECK_OVERLAY_LISTENERS_JS", status: "OVERLAY_LISTENERS_READY" },
                 { name: "getClickableItems.js", message: "CHECK_GETCLICKABLE_JS", status: "GET_GETCLICKABL_READY" },
-                { name:"attachMutationObserver.js",message:"CHECK_MutationObserver_JS",status:"MUTATIONOBSERVER_READY"}
+                { name:"attachMutationObserver.js",message:"CHECK_MUTATIONOBSERVER_JS",status:"MUTATIONOBSERVER_READY"},
+                { name:"screenshotElement.js",message:"CHECK_SCREENSHOTELEMENT_JS",status:"SCREENSHOTELEMENT_READY"}
             ];
         
             const missingScripts = [];
@@ -50,17 +58,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 console.log("All scripts are loaded and ready.");
             }
 
-            // Set the settingStatus
-            if (!settings[tabId])
-            {
-                settings[tabId] = 
-                {
-                    highlight:true,
-                    continousScanning:true,
-                    A11yFix:true,
-                }
-            }
-        
             // Now that all scripts are ready, send the "OVERLAY_CREATED" message
             chrome.runtime.sendMessage({ type: "PLUGIN_READY", tabId: tabId }, (response) => {
                 if (chrome.runtime.lastError) {
@@ -77,7 +74,11 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     else if (request.type === "HIGHLIGHT_MISSING")
     {
         console.log("HIGHLIGHT_MISSING Received",request.tabId);
-        const missingXpath = await getFromLocal(request.tabId,"missingXpath");
+        if (settings[request.tabId])
+        {
+            settings[request.tabId].highlight = request.status;
+        }
+        const missingXpath = await getFromLocal(request.tabId,"missingXpath",false,request.siteUrl);
         let data;
         if (missingXpath !== undefined)
         {
@@ -102,13 +103,14 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     else if (request.type === "OVERLAY_CREATED") {
         console.log("Overlay created, preparing to request AX tree and clickableElements.");
         const tabId = request.tabId;
+        const siteUrl = request.siteUrl;
         console.log("OVERLAY_CREATED tabId",tabId)
-        const missingXpaths = await getFromLocal(request.tabId,"missingXpath");
+        const missingXpaths = await getFromLocal(tabId,"missingXpath",false,siteUrl);        ;
         console.log("OVERLAY_CREATED missingXpaths",missingXpaths);
 
-        if (missingXpaths !== undefined || (await isDebuggerAttached(request.tabId) === undefined || !debuggerAttached[tabId] && debuggerAttached[tabId] !== true))
+        if (missingXpaths !== undefined || (await isDebuggerAttached(request.tabId) === undefined && !debuggerAttached[tabId] && debuggerAttached[tabId] !== true))
         {
-            chrome.runtime.sendMessage({type: "UPDATE_OVERLAY",data:missingXpaths});
+            chrome.runtime.sendMessage({type: "UPDATE_OVERLAY",data:missingXpaths,settings:settings[request.tabId],tabId:request.tabId});
         }
         else
         {
@@ -119,9 +121,27 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     }
     else if (request.type === "SCANING_START")
     {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (request.debugger)
+        {
+            console.log(request.debugger);
+        }
+
+        chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
             let tabId = tabs[0]?.id || request.tabId;
-            if (tabId) {
+            // Set the settingStatus
+            if (!settings[tabId])
+            {
+                settings[tabId] = 
+                {
+                    highlight:true,
+                    debuggerAttach:false ,
+                    A11yFix:true,
+                }
+            }
+
+            if (tabId &&  (debuggerAttached[tabId] && debuggerAttached[tabId] === true)) {
+                // Attaches the number of clicks
+                await updateNoClicksTabID(tabId,true);
                 if (request.tabId)
                 {
                     if (request.tabId === tabId)
@@ -145,7 +165,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                     sendResponse({ success: true });
                 }
             } else {
-                console.error("Unable to get the active tab.");
+                console.log("Debugger not attached or undable to get active tab");
                 sendResponse({ success: false, error: "Unable to get the active tab." });
             }
         });
@@ -153,73 +173,87 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         // Return true to indicate the response will be sent asynchronously
         return true;
     }
+    else if(request.type === "DEBUGGER_ATTACH")
+    {
+        const tabId = request.tabId;
+        if (settings[request.tabId])
+        {
+            settings[tabId].debuggerAttach = request.status;
+        }
+        if (!debuggerAttached[tabId])
+        {
+            console.log("DEBUGGER_ATTACH");
+            await attachDebugger(tabId);
+            await enableAccessibility(tabId);
+            await enableDOMDomain(tabId)
+            debuggerAttached[tabId] = true;
+        }
+    }
+    else if(request.type === "DEBUGGER_DETTACH")
+    {
+        const tabId = request.tabId;
+        if (settings[request.tabId])
+        {
+            settings[tabId].debuggerAttach = request.status;
+        }
+        console.log("Dettaching");
+        await detachDebugger(tabId);
+        delete debuggerAttached[tabId];
+    }
+
     else if (request.type === "GET_AX_TREE") {
         // console.log("Message received in background script:", request);
         try {
             const tabId = request.tabId;
-            console.log("When GET_AX_TREE is triggered debugger is:",isDebuggerAttached(tabId));
+            console.log("When GET_AX_TREE is triggered debugger is:",await isDebuggerAttached(tabId));
 
-            if (await isDebuggerAttached(request.tabId) === undefined || !debuggerAttached[tabId] && debuggerAttached[tabId] !== true)
+            if (debuggerAttached[tabId])
             {
-                await attachDebugger(tabId);
-                debuggerAttached[tabId] = true;
-            }
-            await enableAccessibility(tabId);
-            await enableDOMDomain(tabId)
+                // Full DOM DICT TREE
+                const frameTreePromise = getFrameTree(tabId);
+                console.log("frameTreePromise",await frameTreePromise);
+                
+                // Run collectDOMNodes and processFrameTrees concurrently
+                const [domResults, frameTreeResults] = await Promise.all([
+                    collectDOMNodes(tabId),
+                    frameTreePromise.then(frameTree => processFrameTrees(tabId, frameTree))
+                ]).catch(error => {
+                    console.error("Error in Promise.all:", error);
+                });
 
-            // Full DOM DICT TREE
-            const frameTreePromise = getFrameTree(tabId);
+                // Access the results
+                const { nodeMap, resolveNodes, eventListnersList } = domResults;
+                const allFrameNames = frameTreeResults;
+                
+                const domDictionary = nodeMap; 
+                console.log("domDictionary",domDictionary); 
+                // console.log("resolveNodes",resolveNodes);
+                // console.log("eventListnersList",eventListnersList);
+
+                // Set Attribute tabby-has-listener = "true"
+                await addAttributeEventList(tabId,domDictionary,eventListnersList);
+
+                // Set Attribute purple_tabby_a11yTree
+                await settingAttributeNode(tabId, allFrameNames, domDictionary);
+
             
-            // Run collectDOMNodes and processFrameTrees concurrently
-            const [domResults, frameTreeResults] = await Promise.all([
-                collectDOMNodes(tabId),
-                frameTreePromise.then(frameTree => processFrameTrees(tabId, frameTree))
-            ]).catch(error => {
-                console.error("Error in Promise.all:", error);
-            });
+                // Find the Xpaths in the DOM
+                const data = {
+                    tabId:tabId,
+                }
+                // To force a download
+                // const json = JSON.stringify(fullA11yTree, null, 2);
 
-            console.log("CAN I GET HERE?");
+                // // Send the data to the content script or popup
+                // chrome.tabs.sendMessage(tabId,{
+                //     type: "DOWNLOAD_Name_A11yTree",
+                //     data: json
+                // });
 
-            // Access the results
-            const { nodeMap, resolveNodes, eventListnersList } = domResults;
-            const allFrameNames = frameTreeResults;
-            
-            const domDictionary = nodeMap; 
-            console.log("domDictionary",domDictionary); 
-            // console.log("resolveNodes",resolveNodes);
-            // console.log("eventListnersList",eventListnersList);
-
-            // Set Attribute tabby-has-listener = "true"
-            await addAttributeEventList(tabId,domDictionary,eventListnersList);
-
-            // Set Attribute purple_tabby_a11yTree
-            await settingAttributeNode(tabId, allFrameNames, domDictionary);
-
-           
-            // Find the Xpaths in the DOM
-            const data = {
-                tabId:tabId,
+                chrome.tabs.sendMessage(tabId, { type: "FULL_A11yTree_DOM_XPATHS", data: data }); 
+                // Use chrome tab cause runtime is not the same
+                // Tabs are used to send back to another script 
             }
-            if (debuggerAttached)
-            {   
-                console.log("Dettaching")
-                await detachDebugger(tabId);
-            }
-
-            // To force a download
-            // const json = JSON.stringify(fullA11yTree, null, 2);
-
-            // // Send the data to the content script or popup
-            // chrome.tabs.sendMessage(tabId,{
-            //     type: "DOWNLOAD_Name_A11yTree",
-            //     data: json
-            // });
-
-            chrome.tabs.sendMessage(tabId, { type: "FULL_A11yTree_DOM_XPATHS", data: data }); 
-            // Use chrome tab cause runtime is not the same
-            // Tabs are used to send back to another script 
-
-
         } catch (error) {
             console.error("Error processing AX Tree:", error, JSON.stringify(error));
         }
@@ -232,8 +266,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         storeDataForTab(request.data.tabId,request.data.foundElements,"foundElements",noClicks);
         chrome.tabs.sendMessage(request.data.tabId,{ type: "A11yTree_Stored" });
 
-
-        const inStorage = await getFromLocal(request.data.tabId,"foundElements",noClicks)
+        const inStorage = await getFromLocal(request.data.tabId,"foundElements",noClicks);
         console.log("inStorage foundElement",inStorage);
         
         const foundElement = request.data.foundElements;
@@ -269,14 +302,52 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
     else if (request.type === "MISSING_FOUND")
     {
+        const tabId = request.data.tabId;
+        // previous errors data
+        const previousMissingXpath = await getFromLocal(tabId,"missingXpath",false,request.siteurl);
+        let mergedFramesDict;
+        let mergedMissingList = [];
+
+        if (previousMissingXpath)
+        {
+            // cause each is its own dict kinda
+            ({mergedFramesDict, mergedMissingList } = mergeDictionaries(request.data.framesDict, previousMissingXpath.framesDict, mergedMissingList));
+        }
+        else 
+        {
+            mergedFramesDict = request.data.framesDict,
+            mergedMissingList = request.data.missing;
+        }
+        
+        const mergedMissingXpaaths = {
+            framesDict:mergedFramesDict,
+            missing : mergedMissingList,
+            tabId : tabId
+        };
+        console.log("mergedMissingXpaaths",mergedMissingXpaaths);
+
         // STORE MISSINGXAPATHS
-        storeDataForTab(request.data.tabId,request.data,"missingXpath");
+        storeDataForTab(request.data.tabId,mergedMissingXpaaths,"missingXpath",false,request.siteurl);
+
         try {
-            chrome.runtime.sendMessage({ type: "POPUP_STATUS" }, (response) => {
+            chrome.runtime.sendMessage({ type: "POPUP_STATUS" }, async (response) => {
                 if (chrome.runtime.lastError) {
                     if ( chrome.runtime.lastError.message.includes("Receiving end does not exist."))
                     {
                         console.log("POPUP IS NOT OPEN");
+                        const setting = settings[tabId];
+                        console.log("setting", setting);
+
+
+                        let data;
+                        if (mergedMissingXpaaths!== undefined)
+                        {
+                            data = mergedMissingXpaaths;
+                        }
+                        else{
+                            data = "undefined"
+                        }
+                        chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict,tabId:tabId})                    
                     }
                     return; // Exit the callback if there's an error
                 }
@@ -288,7 +359,9 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                     // Send the data to the content script or popup
                     chrome.runtime.sendMessage({
                         type: "UPDATE_OVERLAY",
-                        data: request.data
+                        data: request.data,
+                        settings:settings[tabId],
+                        tabId:tabId
                     });
                 } else {
                     console.log("No response or unsuccessful status.");
@@ -302,8 +375,11 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     else if (request.type === "A11YFIXES_INNIT")
     {
         const tabId = request.tabId;
-        const missingXpaths = await getFromLocal(tabId,"missingXpath");
-
+        const missingXpaths = await getFromLocal(tabId,"missingXpath",false,request.siteurl);        ;
+        if (settings[request.tabId])
+        {
+            settings[request.tabId].A11yFix = request.status;
+        }
         console.log("A11YFIXES_INNIT missingXpaths:",missingXpaths);
         chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:missingXpaths.framesDict});
     }
@@ -340,7 +416,69 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     {
         sendResponse({status: "connected"});
     }
+    else if (request.type === "GET_API_ARIALABELS") {
+        const screenshotsFramesDict = request.screenshotsFrameDict;
+        const tabId = request.tabId;
+        const arialLabelsFramesDict = {};
+        const fetchPromises = []; // Array to hold fetch promises
     
+        for (const framekey of Object.keys(screenshotsFramesDict)) {
+            console.log("framekey", framekey);
+            const payload = {
+                content: screenshotsFramesDict[framekey]
+            };
+    
+            console.log("payload", payload);
+            
+            // Create a fetch promise and push it to the array
+            const fetchPromise = fetch('https://api.read-dev.pic.net.sg/process_a11y', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(result => {
+                console.log('Success:', result);
+                const formattedResponse = {};
+                const ocr = result.ocr || {};
+                const type = result.type || {};
+    
+                Object.keys(ocr).forEach(key => {
+                    const ocrValue = ocr[key] || '';
+                    const typeValue = type[key] || '';
+    
+                    if (typeValue && ocrValue) {
+                        formattedResponse[key] = `${typeValue} ${ocrValue}`;
+                    } else if (typeValue && !ocrValue) {
+                        formattedResponse[key] = typeValue;
+                    } else if (!typeValue && ocrValue) {
+                        formattedResponse[key] = ocrValue;
+                    } else {
+                        formattedResponse[key] = '';
+                    }
+                });
+    
+                console.log('Formatted Response:', formattedResponse);
+                arialLabelsFramesDict[framekey] = formattedResponse;
+            })
+            .catch(error => console.error('Error:', error));
+    
+            fetchPromises.push(fetchPromise); // Add the promise to the array
+        }
+    
+        // Wait for all fetch requests to complete
+        Promise.all(fetchPromises)
+            .then(() => {
+                console.log("arialLabelsFramesDict", arialLabelsFramesDict);
+                // once we got all the frames we can get send in it to fix the label
+                chrome.tabs.sendMessage(tabId,{ type: "SET_ARIA_LABELS", missingXpaths:arialLabelsFramesDict})                    
+
+
+            });
+    };
     return true; // Indicate that you will send a response asynchronously
 });
 
@@ -503,7 +641,7 @@ async function clearDataForTab(tabId) {
 }  
 // Example: Clear local storage when the extension is installed or updated
 chrome.runtime.onInstalled.addListener(() => {
-    // clearLocalStorage();
+// clearLocalStorage();
 });
   
 // Function to send a message and wait for a specific response
@@ -556,4 +694,34 @@ async function isDebuggerAttached(tabId) {
         }
         return (attached);
     });
+}
+
+function mergeDictionaries(dict1, dict2, mergedMissingList) {
+    const mergedFramesDict = { ...dict1 }; // Create a shallow copy of dict1
+  
+    for (let key in dict2) {
+        if (mergedFramesDict[key]) {
+            // If the key exists in both dictionaries, concatenate the arrays
+            const mergedArray = [...mergedFramesDict[key]]; // Start with the existing array
+  
+            // Add items from dict2[key], checking for duplicates based on 'xpath'
+            dict2[key].forEach(newItem => {
+                const exists = mergedArray.some(existingItem => 
+                    existingItem.xpath === newItem.xpath
+                );
+  
+                if (!exists) {
+                    mergedArray.push(newItem);
+                    mergedMissingList.push(array);
+                }
+            });
+  
+            mergedFramesDict[key] = mergedArray;
+        } else {
+            // If the key is only in dict2, copy it to mergedFramesDict
+            mergedFramesDict[key] = [...dict2[key]];
+        }
+    }   
+
+    return { mergedFramesDict, mergedMissingList };
 }

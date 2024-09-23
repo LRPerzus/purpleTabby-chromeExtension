@@ -1,40 +1,64 @@
-// Event Listeners
-const rescanButton = document.getElementById('rescanSwitch');
-rescanButton.addEventListener('click', async function() {
-    const resultsDiv = document.getElementById("Results");
-    resultsDiv.innerHTML='<h2 class="title"> </h2>';
-    resultsDiv.style.display="none";
+console.log('eventListnerAttach.js: loaded')
 
-    const loadingSpinner = document.getElementById('spinner');
-    loadingSpinner.style.display="block";
+const tabbeeToggle = document.getElementById('tabbeeToggle')
+tabbeeToggle.addEventListener('click', async function () {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
 
-    const highlightButton = document.querySelector(".purpleTabby #highlightItemsA11yTreeSwitch");
-    const rescanButton = document.querySelector(".purpleTabby #rescanSwitch");
-    const A11yFixes = document.querySelector(".purpleTabby #a11yFixesSwitch");
+  if (tabbeeToggle.checked) {
+    console.log(`tabbeeToggle: ${tabbeeToggle.checked} | tabId: ${tab.id}`)
+    console.log(`ELA.js: sending TABBEE_TOGGLE_ON message`)
+    chrome.runtime.sendMessage({
+      type: 'DEBUGGER_ATTACH',
+      tabId: tab.id,
+      status: true,
+    })
 
-    // Unhide button
-    highlightButton.parentElement.style.display = 'none';
-    rescanButton.parentElement.style.display = 'none';
-    A11yFixes.parentElement.style.display = 'none';
+    console.log(`ELA.js: sending SCANNING_START message`)
+    chrome.runtime.sendMessage({
+      type: 'SCANING_START',
+      tabId: tab.id,
+      status: true,
+    })
+  } else {
+    tabbeeToggle.checked = false
+    console.log(`ELA.js: sending TABBEE_TOGGLE_OFF message`)
+    chrome.runtime.sendMessage({
+      type: 'DEBUGGER_DETTACH',
+      tabId: tab.id,
+      status: false,
+    })
+  }
+})
 
+const highlightToggle = document.getElementById('highlightToggle')
+highlightToggle.addEventListener('click', async function () {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+  let status
+  if (highlightToggle.checked) {
+    status = true
+  } else {
+    status = false
+  }
+  chrome.runtime.sendMessage({
+    type: 'HIGHLIGHT_MISSING',
+    tabId: tab.id,
+    status: status,
+  })
+})
 
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    console.log(`Current tab ID: ${tab.id}`);
-    chrome.runtime.sendMessage({ type: "RESCAN_INNIT" , tabId:tab.id});
-});
-
-const highlightButton = document.getElementById("highlightItemsA11yTreeSwitch");
-highlightButton.addEventListener('click', async function() {
-    // Get the current active tab
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    console.log(`Current tab ID: ${tab.id}`);
-    chrome.runtime.sendMessage({ type: "HIGHLIGHT_MISSING" , tabId:tab.id});
-});
-
-const a11yFix = document.getElementById("a11yFixesSwitch");
-a11yFix.addEventListener('click', async function() {
-    // Get the current active tab
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    console.log(`Current tab ID: ${tab.id}`);
-    chrome.runtime.sendMessage({ type: "A11YFIXES_INNIT" , tabId:tab.id});
-});
+const makeAccessibleToggle = document.getElementById('makeAccessibleToggle')
+makeAccessibleToggle.addEventListener('click', async function () {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+  console.log(`Current tab ID: ${tab.id}`)
+  let status
+  if (makeAccessibleToggle.checked) {
+    status = true
+  } else {
+    status = false
+  }
+  chrome.runtime.sendMessage({
+    type: 'A11YFIXES_INNIT',
+    tabId: tab.id,
+    status: status,
+  })
+})

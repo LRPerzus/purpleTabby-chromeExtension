@@ -12,14 +12,25 @@
   ],
   "host_permissions": [
     "https://*/*",
-    "http://*/*"
+    "http://*/*",
+    "https://api.read-dev.pic.net.sg/process_a11y"
   ],
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "libs/html2canvas.min.js",
+        "highlight.min.js",
+        "styles/default.min.css"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "tabbyExtension.html",
     "default_icon": "purpleA11yLogo.png"
   }, 
   "content_scripts": [
@@ -31,7 +42,9 @@
       "./injectScripts/a11yTreeListeners.js",
       "./injectScripts/getClickableElementsListeners.js",
       "./injectScripts/overlayListeners.js",
-      "./injectScripts/attachMutationObserver.js"
+      "./injectScripts/attachMutationObserver.js",
+      "./injectScripts/screenshotElement.js",
+      "./libs/html2canvas.min.js"
     ]
     }
   ]
