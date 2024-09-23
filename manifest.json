@@ -21,12 +21,16 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["libs/html2canvas.min.js"],
+      "resources": [
+        "libs/html2canvas.min.js",
+        "highlight.min.js",
+        "styles/default.min.css"
+      ],
       "matches": ["<all_urls>"]
     }
   ],
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "tabbyExtension.html",
     "default_icon": "purpleA11yLogo.png"
   }, 
   "content_scripts": [

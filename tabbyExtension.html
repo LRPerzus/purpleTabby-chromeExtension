@@ -7,6 +7,8 @@
       content="script-src 'self' 'unsafe-inline'"
     />
     <link rel="stylesheet" href="css/bootstrap.min.css" />
+    <link rel="stylesheet" href="css/a11y-light.min.css" />
+
     <script src="js/bootstrap.bundle.min.js"></script>
 
     <!-- This is for the spinner -->
@@ -46,8 +48,8 @@
       <div id="urlGroup" class="group-container url-group">
         <p>
           Current site:
-          <a href="https://www.tech.gov.sg"
-            >Government Technology Agency of Singapore</a
+          <a id="currentTabUrl" href="https://www.tech.gov.sg" target="_blank"
+            >Current Tab Url Title</a
           >
         </p>
       </div>
@@ -73,16 +75,17 @@
         id="overviewIssuesGroup"
         class="group-container overview-issues-group py-3 d-flex flex-row justify-content-center align-items-center"
       >
-        <div id="overview" class="overview mx-2 p-2 border-bottom">
+        <div id="overview" class="overview mx-2 p-2 border-bottom d-none">
           <p>Overview</p>
         </div>
 
+        <!-- TODO: add back class="issues, border-bottom" when UI complete -->
         <div
           id="issues"
-          class="issues d-flex flex-row justify-content-center align-items-center mx-2 p-2 border-bottom gap-3"
+          class="d-flex flex-row justify-content-center align-items-center mx-2 p-2 gap-3 d-none"
         >
           <p>Issues</p>
-          <div class="issues-count">27</div>
+          <div id="issuesCount" class="issues-count"></div>
         </div>
       </div>
 
@@ -112,7 +115,7 @@
         <!-- ModalWarning -->
         <div
           id="modalWarning"
-          class="modal-warning d-flex flex-row align-items-center border border-1 rounded p-3 my-3"
+          class="modal-warning d-flex flex-row align-items-center border border-1 rounded p-3 my-3 d-none"
         >
           <div>
             <img
@@ -140,7 +143,7 @@
         </div>
 
         <!-- Accordion -->
-        <div id="accordionGroup" class="accordion my-3">
+        <div id="accordionGroup" class="accordion my-3 d-none">
           <div class="accordion-item">
             <h2 class="accordion-header">
               <button
@@ -159,31 +162,7 @@
               class="accordion-collapse collapse"
               data-bs-parent="#accordionGroup"
             >
-              <div class="accordion-body my-4 mx-3 rounded custom-border">
-                <div class="d-flex justify-content-between align-items-center">
-                  <p>Element <code>${xpath}</code></p>
-                  <div class="border border-1 rounded bg-grey-100 copy-icon">
-                    <img
-                      src="assets/files.svg"
-                      width="24"
-                      height="24"
-                      alt="File Icon"
-                    />
-                  </div>
-                </div>
-                <div class="border rounded my-3 p-2 bg-grey-100">
-                  <code id="code-snippet">
-                    <button
-                      id="main-search"
-                      class="sgds-button is-white is-large search-toggle"
-                      data-target="searchbar-main"
-                      type="button"
-                    >
-                      Hello
-                    </button>
-                  </code>
-                </div>
-              </div>
+              <!--Content dynamically loaded via createIssueElementsGroupHolder(holderUniqueId) -->
             </div>
           </div>
         </div>
@@ -220,7 +199,8 @@
     </div>
 
     <script src="popup.js"></script>
+    <script src="highlight.min.js"></script>
     <script src="eventListnerAttach.js"></script>
-    <script src="tabbyExtension.js"></script>
+    <!-- <script src="tabbyExtension.js"></script> -->
   </body>
 </html>

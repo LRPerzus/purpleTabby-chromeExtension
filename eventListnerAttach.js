@@ -1,19 +1,27 @@
-// Event Listeners
-const debuggerAttachSwitch = document.getElementById('debuggerAttach') //tabbeeToggle
-debuggerAttachSwitch.addEventListener('click', async function () {
+console.log('eventListnerAttach.js: loaded')
+
+const tabbeeToggle = document.getElementById('tabbeeToggle')
+tabbeeToggle.addEventListener('click', async function () {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-  console.log(`Current tab ID: ${tab.id}`)
-  if (debuggerAttachSwitch.checked) {
-    console.log('attach it')
-    debuggerAttachSwitch.checked = true
+
+  if (tabbeeToggle.checked) {
+    console.log(`tabbeeToggle: ${tabbeeToggle.checked} | tabId: ${tab.id}`)
+    console.log(`ELA.js: sending TABBEE_TOGGLE_ON message`)
     chrome.runtime.sendMessage({
       type: 'DEBUGGER_ATTACH',
       tabId: tab.id,
       status: true,
     })
+
+    console.log(`ELA.js: sending SCANNING_START message`)
+    chrome.runtime.sendMessage({
+      type: 'SCANING_START',
+      tabId: tab.id,
+      status: true,
+    })
   } else {
-    console.log('dettach it')
-    debuggerAttachSwitch.checked = false
+    tabbeeToggle.checked = false
+    console.log(`ELA.js: sending TABBEE_TOGGLE_OFF message`)
     chrome.runtime.sendMessage({
       type: 'DEBUGGER_DETTACH',
       tabId: tab.id,
@@ -22,34 +30,28 @@ debuggerAttachSwitch.addEventListener('click', async function () {
   }
 })
 
-const highlightButton = document.getElementById('highlightItemsA11yTreeSwitch')
-highlightButton.addEventListener('click', async function () {
-  // Get the current active tab
+const highlightToggle = document.getElementById('highlightToggle')
+highlightToggle.addEventListener('click', async function () {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-  console.log(`Current tab ID: ${tab.id}`)
   let status
-  if (highlightButton.checked) {
+  if (highlightToggle.checked) {
     status = true
   } else {
     status = false
   }
-  const siteUrl = window.location.href;
-
   chrome.runtime.sendMessage({
     type: 'HIGHLIGHT_MISSING',
     tabId: tab.id,
     status: status,
-    siteUrl:siteUrl
   })
 })
 
-const a11yFix = document.getElementById('a11yFixesSwitch')
-a11yFix.addEventListener('click', async function () {
-  // Get the current active tab
+const makeAccessibleToggle = document.getElementById('makeAccessibleToggle')
+makeAccessibleToggle.addEventListener('click', async function () {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   console.log(`Current tab ID: ${tab.id}`)
   let status
-  if (a11yFix.checked) {
+  if (makeAccessibleToggle.checked) {
     status = true
   } else {
     status = false
@@ -58,6 +60,5 @@ a11yFix.addEventListener('click', async function () {
     type: 'A11YFIXES_INNIT',
     tabId: tab.id,
     status: status,
-    siteUrl:tab.url
   })
 })

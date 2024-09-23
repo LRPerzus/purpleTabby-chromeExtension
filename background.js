@@ -16,15 +16,15 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         try {
            // give the settings to change
              // Set the settingStatus
-             if (!settings[tabId])
-             {
-                 settings[tabId] = 
-                 {
-                     highlight:true,
-                     debuggerAttach:false ,
-                     A11yFix:true,
-                 }
-             }
+            if (!settings[tabId])
+            {
+                settings[tabId] = 
+                {
+                    highlight:false,
+                    debuggerAttach:false ,
+                    A11yFix:false,
+                }
+            }
             chrome.runtime.sendMessage({ type: "SAVED_SETTINGS", settings: settings[tabId] })
         
             const scriptChecks = [
