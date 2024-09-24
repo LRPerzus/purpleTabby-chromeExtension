@@ -1,6 +1,6 @@
 import {getFromLocal} from "./localStorageFunc.js"
 /* 
-    Function to set attribute purple_tabby_a11yTree to DOM items via Debugger DOM commands
+    Function to set attribute purple_tabby_a11ytree to DOM items via Debugger DOM commands
     Reason: 
         We want to find the direct items from the A11yTree using the backendDomId we can find the node of the DOM.
         Once we find the corresponding node we can set our own unique attribute so that we can extract them directly
@@ -13,7 +13,7 @@ import {getFromLocal} from "./localStorageFunc.js"
         True or False if its been attached (Currently broken)
 */
 export async function setAttributeValue(tabId, nodeId, name) {
-    console.log("setAttributeValue nodeId", nodeId);
+    // console.log("setAttributeValue nodeId", nodeId);
 
     try {
         // Step 1: Set the attribute
@@ -54,14 +54,14 @@ export async function areScansFinished(tabId)
     let A11yTree = null; 
     let clickAbleElements = null;
     const currentClick = await getFromLocal(tabId,"noClicks");
-    console.log("currentClick",currentClick);
-    console.log("tabId",tabId);
+    // console.log("currentClick",currentClick);
+    // console.log("tabId",tabId);
     
     try {
         const foundElements = await getFromLocal(tabId,"foundElements",currentClick);
         if (foundElements && foundElements.length > 0) {
             A11yTree = foundElements;
-            console.log('GET FROM LOCAL A11yTree:', A11yTree);
+            // console.log('GET FROM LOCAL A11yTree:', A11yTree);
 
             // Do something with A11yTree
         } else {
@@ -78,7 +78,7 @@ export async function areScansFinished(tabId)
         console.log("GET FROM LOCAL clickableElements", clickable)
         if (clickable && clickable.length > 0) {
             clickAbleElements = clickable;
-            console.log('clickableElements:', clickAbleElements);
+            // console.log('clickableElements:', clickAbleElements);
             // Do something with A11yTree
         } else {
             console.log('clickableElements does not exist or is empty');

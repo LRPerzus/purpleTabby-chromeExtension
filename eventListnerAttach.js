@@ -18,6 +18,7 @@ tabbeeToggle.addEventListener('click', async function () {
       type: 'SCANING_START',
       tabId: tab.id,
       status: true,
+      from: "EVENT LISTNER"
     })
   } else {
     tabbeeToggle.checked = false

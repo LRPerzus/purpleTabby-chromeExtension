@@ -92,7 +92,7 @@ const callback = async (mutationList, observer) => {
       {
         try
         {
-          chrome.runtime.sendMessage({ type: "SCANING_START",tabId:tabId,debugger:"Hey from debugger"}); 
+          chrome.runtime.sendMessage({ type: "SCANING_START",tabId:tabId,debugger:"Hey from debugger",from:"CALL AFTER MUTATOION"}); 
         }
         catch (e)
         {
@@ -134,7 +134,7 @@ const startObserving = () => {
       console.log("No mutations detected after DOMContentLoaded, setting DOM as stable.");
       if (isConnectedDebuuger)
       {
-        chrome.runtime.sendMessage({ type: "SCANING_START"}); 
+        chrome.runtime.sendMessage({ type: "SCANING_START" , from:"MUTATION OBSERVER"}); 
       }
     }
   }, 1000);
