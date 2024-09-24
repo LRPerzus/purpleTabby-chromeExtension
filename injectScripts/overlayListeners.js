@@ -62,8 +62,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
   } else if (message.type === 'START_RESCANNING') {
     chrome.runtime.sendMessage({
-      type: 'OVERLAY_CREATED',
+      type: 'SCANING_START',
       tabId: message.tabId,
+      from:"RESCANNING DUE TO MUTATION"
     })
   } else if (message.type === 'A11YFIXES_Start') {
     console.log('A11YFIXES_Start message.missingXpaths', message.missingXpaths)

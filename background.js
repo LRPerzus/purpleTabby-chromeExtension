@@ -8,6 +8,7 @@ import {storeDataForTab,clearLocalStorage,getFromLocal} from "./background funct
 let firstClick = {};
 let debuggerAttached = {};
 let settings = {};
+let scanningQueueDictionary = {};
 
 // --- Event Listeners from the injecte scripts to here
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
@@ -100,15 +101,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         }
         
     }
-    else if (request.type === "RESCAN_INNIT")
-    {
-        console.log("Rescanning",request.tabId);
-        // firstClick[request.tabid] = request.tabid.url;
-        
-        // updates the number
-        await updateNoClicksTabID(request.tabId,true);
-        chrome.tabs.sendMessage(request.tabId, { type: "START_RESCANNING" , tabId:request.tabId});
-    }
     else if (request.type === "OVERLAY_CREATED") {
         console.log("Overlay created, preparing to request AX tree and clickableElements.");
         const tabId = request.tabId;
@@ -130,52 +122,81 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     }
     else if (request.type === "SCANING_START")
     {
+        console.log("SCANING_START",request.from);
         if (request.debugger)
         {
             console.log(request.debugger);
         }
 
+       
         chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
             let tabId = tabs[0]?.id || request.tabId;
-            // Set the settingStatus
-            if (!settings[tabId])
-            {
-                settings[tabId] = 
-                {
-                    highlight:false,
-                    debuggerAttach:false ,
-                    A11yFix:false,
-                }
-            }
 
-            if (tabId &&  (debuggerAttached[tabId] && debuggerAttached[tabId] === true)) {
-                // Attaches the number of clicks
-                await updateNoClicksTabID(tabId,true);
-                if (request.tabId)
+            if (tabId)
+            {
+                // Set the settingStatus
+                if (!settings[tabId])
                 {
-                    if (request.tabId === tabId)
+                    settings[tabId] = 
                     {
-                        tabId = request.tabId;
-                        console.log("Sending Can get messages to tabId:", tabId);
+                        highlight:false,
+                        debuggerAttach:false ,
+                        A11yFix:false,
+                    }
+                }
+
+                if (!(debuggerAttached[tabId] && debuggerAttached[tabId] === true))
+                {
+                    console.log("Debugger not attached");
+                    sendResponse({ success: false, error: "Debugger not Attached" });
+                }
+                else if (scanningQueueDictionary[tabId] && scanningQueueDictionary[tabId].redo !== true)
+                {
+                    console.log("There is already a scan going into process.");
+                    // Update it to do another snapshot cause there were chnages previously
+                    scanningQueueDictionary[tabId].redo = true;
+                    console.log("UPDATED scanningQueueDictionary[tabId].redo",scanningQueueDictionary[tabId].redo);
+                    sendResponse({ success: false, error: "Scan already in progress" });
+                }
+                else { // All is good so can scan
+        
+                    // set a dict of it is scanning
+                    scanningQueueDictionary[tabId] = {
+                        currentScanning:true,
+                        redo:false
+                    };
+
+                    // Attaches the number of clicks
+                    await updateNoClicksTabID(tabId,true);
+                    if (request.tabId)
+                    {
+                        if (request.tabId === tabId)
+                        {
+                            tabId = request.tabId;
+                            console.log("Sending Can get messages to tabId:", tabId);
+                            chrome.tabs.sendMessage(tabId, { type: "Can_Get_Tree", tabId: tabId });
+                            chrome.tabs.sendMessage(tabId, { type: "Can_find_clickable", tabId: tabId });
+                            sendResponse({ success: true });
+                        }
+                        else
+                        {
+                            console.log(`The active tab has moved (tabId Query ${tabId} | request.tabId ${request.tabId})`);
+                            sendResponse({ success: false });
+                        }
+                    }
+                    else
+                    {
                         chrome.tabs.sendMessage(tabId, { type: "Can_Get_Tree", tabId: tabId });
                         chrome.tabs.sendMessage(tabId, { type: "Can_find_clickable", tabId: tabId });
                         sendResponse({ success: true });
                     }
-                    else
-                    {
-                        console.log(`The active tab has moved (tabId Query ${tabId} | request.tabId ${request.tabId})`);
-                        sendResponse({ success: false });
-                    }
                 }
-                else
-                {
-                    chrome.tabs.sendMessage(tabId, { type: "Can_Get_Tree", tabId: tabId });
-                    chrome.tabs.sendMessage(tabId, { type: "Can_find_clickable", tabId: tabId });
-                    sendResponse({ success: true });
-                }
-            } else {
-                console.log("Debugger not attached or undable to get active tab");
+            }
+            else
+            {
+                console.log("undable to get active tab");
                 sendResponse({ success: false, error: "Unable to get the active tab." });
+
             }
         });
 
@@ -311,7 +332,9 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
     else if (request.type === "MISSING_FOUND")
     {
+        // At this point the scan has finished
         const tabId = request.data.tabId;
+
         // previous errors data
         const previousMissingXpath = await getFromLocal(tabId,"missingXpath",false,request.siteurl);
         let mergedFramesDict;
@@ -338,15 +361,62 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         // STORE MISSINGXAPATHS
         storeDataForTab(request.data.tabId,mergedMissingXpaaths,"missingXpath",false,request.siteurl);
 
-        try {
-            chrome.runtime.sendMessage({ type: "POPUP_STATUS" }, async (response) => {
-                if (chrome.runtime.lastError) {
-                    if ( chrome.runtime.lastError.message.includes("Receiving end does not exist."))
-                    {
-                        console.log("POPUP IS NOT OPEN");
-                        const setting = settings[tabId];
-                        console.log("setting", setting);
+        console.log("MISSING_FOUND scanningQueueDictionary[tabId].redo ",scanningQueueDictionary[tabId].redo );
+        // Updates the scanningQueueDictionary
+        if (scanningQueueDictionary[tabId] && scanningQueueDictionary[tabId].redo !== true)
+        {
+            // Remove
+            delete scanningQueueDictionary[tabId]
 
+            // Continue with end of scanning process
+            try {
+                chrome.runtime.sendMessage({ type: "POPUP_STATUS" }, async (response) => {
+                    if (chrome.runtime.lastError) {
+                        if ( chrome.runtime.lastError.message.includes("Receiving end does not exist."))
+                        {
+                            console.log("POPUP IS NOT OPEN");
+                            const setting = settings[tabId];
+                            console.log("setting", setting);
+
+
+                            let data;
+                            if (mergedMissingXpaaths!== undefined)
+                            {
+                                data = mergedMissingXpaaths;
+                            }
+                            else{
+                                data = "undefined"
+                            }
+
+                            if (setting.A11yFix) // This one will continue with highlight later there is another highlight check
+                            {
+                                console.log("A11YFIXES_Start");
+                                chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict , tabId:tabId});
+                            }
+                            else if (setting.highlight) // Just highlight
+                            {
+                                console.log("MISSING_FOUND HIGHLIGHT")
+                                chrome.tabs.sendMessage(tabId,{ type: "HIGHLIGHT", data:data.framesDict});
+                            }
+                            else
+                            {
+                                // TODO REMOVE BOTH
+                                console.log("NONE");
+                            }
+                        }
+                        return; // Exit the callback if there's an error
+                    }
+            
+                    if (response && response.success) {
+                        console.log("Popup status response received:", response);
+                        console.log("Stored in missingXpath:", request.data);
+                        // Send the data to the content script or popup
+                        chrome.runtime.sendMessage({
+                            type: "UPDATE_OVERLAY",
+                            data: request.data,
+                            settings:settings[tabId],
+                            tabId:tabId
+                        });
 
                         let data;
                         if (mergedMissingXpaaths!== undefined)
@@ -357,12 +427,11 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                             data = "undefined"
                         }
 
-                        if (setting.A11yFix) // This one will continue with highlight later there is another highlight check
+                        if (settings[tabId].A11yFix) // This one will continue with highlight later there is another highlight check
                         {
-                            console.log("A11YFIXES_Start");
-                            chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict , tabId:tabId});
+                            chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict, tabId:tabId});
                         }
-                        else if (setting.highlight) // Just highlight
+                        else if (settings[tabId].highlight) // Just highlight
                         {
                             console.log("MISSING_FOUND HIGHLIGHT")
                             chrome.tabs.sendMessage(tabId,{ type: "HIGHLIGHT", data:data.framesDict});
@@ -372,52 +441,19 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                             // TODO REMOVE BOTH
                             console.log("NONE");
                         }
+                    } else {
+                        console.log("No response or unsuccessful status.");
                     }
-                    return; // Exit the callback if there's an error
-                }
-        
-                if (response && response.success) {
-                    console.log("Popup status response received:", response);
-                    console.log("Stored in missingXpath:", request.data);
-                    const tabId = request.data.tabId;
-                    // Send the data to the content script or popup
-                    chrome.runtime.sendMessage({
-                        type: "UPDATE_OVERLAY",
-                        data: request.data,
-                        settings:settings[tabId],
-                        tabId:tabId
-                    });
-
-                    let data;
-                    if (mergedMissingXpaaths!== undefined)
-                    {
-                        data = mergedMissingXpaaths;
-                    }
-                    else{
-                        data = "undefined"
-                    }
-
-                    if (settings[tabId].A11yFix) // This one will continue with highlight later there is another highlight check
-                    {
-                        chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict, tabId:tabId});
-                    }
-                    else if (settings[tabId].highlight) // Just highlight
-                    {
-                        console.log("MISSING_FOUND HIGHLIGHT")
-                        chrome.tabs.sendMessage(tabId,{ type: "HIGHLIGHT", data:data.framesDict});
-                    }
-                    else
-                    {
-                        // TODO REMOVE BOTH
-                        console.log("NONE");
-                    }
-                } else {
-                    console.log("No response or unsuccessful status.");
-                }
-            });
-        } catch (e) {
-            console.error("Caught error:", e.message);
-        }        
+                });
+            } catch (e) {
+                console.error("Caught error:", e.message);
+            }        
+        }
+        else  if (scanningQueueDictionary[tabId].redo === true)// there is a new scan coming in so need to rescan again (Could be from a mutation or something)
+        {
+            console.log("There was a another request of scanning during a scan");
+            chrome.tabs.sendMessage(tabId, { type: "START_RESCANNING" , tabId:tabId});
+        }
     }
 
     else if (request.type === "A11YFIXES_INNIT")
@@ -769,7 +805,7 @@ function mergeDictionaries(dict1, dict2, mergedMissingList) {
   
                 if (!exists) {
                     mergedArray.push(newItem);
-                    mergedMissingList.push(array);
+                    mergedMissingList.push(newItem);
                 }
             });
   

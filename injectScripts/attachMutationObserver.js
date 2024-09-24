@@ -61,7 +61,8 @@ const callback = async (mutationList, observer) => {
       isVisibleFocusAble(mutation.target) && 
       // DO NOT TOUCH IF IT IS THE ATTRIBUTES WE ADDED IN
       mutation.attributeName !== "tabby-has-listener" && 
-      mutation.attributeName !== "purple_tabby_a11ytree" &&
+      mutation.attributeName !== "purple_tabby_a11yTree" &&
+      mutation.attributeName !== "purple_tabby_a11ytree" && // IDK WHY BUT IT THINKS LIKE CANNOT CAMMEL BACK?
       mutation.attributeName !== "style" &&
       mutation.attributeName !== "purple_tabby_missing" &&
       mutation.attributeName !== "aria-label"
@@ -92,7 +93,7 @@ const callback = async (mutationList, observer) => {
       {
         try
         {
-          chrome.runtime.sendMessage({ type: "SCANING_START",tabId:tabId,debugger:"Hey from debugger"}); 
+          chrome.runtime.sendMessage({ type: "SCANING_START",tabId:tabId,debugger:"Hey from debugger",from:"CALL AFTER MUTATOION"}); 
         }
         catch (e)
         {
@@ -134,7 +135,7 @@ const startObserving = () => {
       console.log("No mutations detected after DOMContentLoaded, setting DOM as stable.");
       if (isConnectedDebuuger)
       {
-        chrome.runtime.sendMessage({ type: "SCANING_START"}); 
+        chrome.runtime.sendMessage({ type: "SCANING_START" , from:"MUTATION OBSERVER"}); 
       }
     }
   }, 1000);

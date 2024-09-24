@@ -64,7 +64,7 @@ export async function collectDOMNodes(tabId) {
                     await traverseNode(child);
                 }
             } else {
-                console.warn("No shadowRoot is not an array:", node);
+                // console.warn("No shadowRoot is not an array:", node);
             }
 
             // Process children recursively

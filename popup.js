@@ -68,6 +68,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.runtime.sendMessage({
       type: 'SCANING_START',
       tabId: tabId,
+      from:"popup.js"
     })
   } else if (message.type === 'UPDATE_OVERLAY') {
     console.log(`popup.js received message.type ${message.type}`)
