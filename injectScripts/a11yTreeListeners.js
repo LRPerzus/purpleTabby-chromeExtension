@@ -76,7 +76,7 @@ function findAllWithAttribute(selector, root = document) {
 function a11yTreeToDOM()
 {
     try {
-        const elementsWithPurpleTabby = findAllWithAttribute('[purple_tabby_a11yTree]');
+        const elementsWithPurpleTabby = findAllWithAttribute('[purple_tabby_a11ytree]');
         // console.log("a11yTreeToDOM_elementsWithPurpleTabby",elementsWithPurpleTabby)
         // console.log()
         const foundElements = []

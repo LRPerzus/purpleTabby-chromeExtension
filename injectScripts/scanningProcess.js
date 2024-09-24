@@ -97,7 +97,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     // Has children with that are in A11yTree
                     // Evaluate XPath to find any descendants with the attribute
                     const descendantResult = document.evaluate(
-                        './/*[@purple_tabby_a11yTree="true"]', // XPath expression to find any descendants
+                        './/*[@purple_tabby_a11ytree="true"]', // XPath expression to find any descendants
                         parent, // Context node (parent element)
                         null, // Namespace resolver (null if not needed)
                         XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, // Result type to get all matching nodes

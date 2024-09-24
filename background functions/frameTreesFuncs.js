@@ -76,7 +76,7 @@ export async function settingAttributeNode(tabId, backendDOMNodeIds, domDictiona
                 const parentOfBackendId = backendDOMNodeIds[backendId].parentId;
                 correspondingNodeId = domDictionary[parentOfBackendId];
             }
-            const attribute = await setAttributeValue(tabId, correspondingNodeId,"purple_tabby_a11yTree");
+            const attribute = await setAttributeValue(tabId, correspondingNodeId,"purple_tabby_a11ytree");
             console.log("attribute?",attribute)
             if (attribute !== true && attribute === "redo")
             {
@@ -88,7 +88,7 @@ export async function settingAttributeNode(tabId, backendDOMNodeIds, domDictiona
                 {
                     // console.log("new nodeId",tryAgain.nodeId);
                     domDictionary[backendId] = tryAgain.nodeId;
-                    const attribute = await setAttributeValue(tabId, tryAgain.nodeId,"purple_tabby_a11yTree");
+                    const attribute = await setAttributeValue(tabId, tryAgain.nodeId,"purple_tabby_a11ytree");
                 }
             }
             // console.log("set attribute?",backendId, attribute);

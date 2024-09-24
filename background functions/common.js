@@ -1,6 +1,6 @@
 import {getFromLocal} from "./localStorageFunc.js"
 /* 
-    Function to set attribute purple_tabby_a11yTree to DOM items via Debugger DOM commands
+    Function to set attribute purple_tabby_a11ytree to DOM items via Debugger DOM commands
     Reason: 
         We want to find the direct items from the A11yTree using the backendDomId we can find the node of the DOM.
         Once we find the corresponding node we can set our own unique attribute so that we can extract them directly

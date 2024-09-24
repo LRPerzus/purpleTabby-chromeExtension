@@ -263,7 +263,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 // Set Attribute tabby-has-listener = "true"
                 await addAttributeEventList(tabId,domDictionary,eventListnersList);
 
-                // Set Attribute purple_tabby_a11yTree
+                // Set Attribute purple_tabby_a11ytree
                 await settingAttributeNode(tabId, allFrameNames, domDictionary);
 
             
