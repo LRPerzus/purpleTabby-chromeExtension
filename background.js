@@ -342,8 +342,9 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
         if (previousMissingXpath)
         {
+            console.log("THERE WAS PRIVUOUS DATA");
             // cause each is its own dict kinda
-            ({mergedFramesDict, mergedMissingList } = mergeDictionaries(request.data.framesDict, previousMissingXpath.framesDict, mergedMissingList));
+            ({mergedFramesDict, mergedMissingList} = mergeDictionaries(request.data.framesDict, previousMissingXpath.framesDict, mergedMissingList));
         }
         else 
         {
@@ -789,32 +790,34 @@ async function isDebuggerAttached(tabId) {
     });
 }
 
-function mergeDictionaries(dict1, dict2, mergedMissingList) {
-    const mergedFramesDict = { ...dict1 }; // Create a shallow copy of dict1
-  
-    for (let key in dict2) {
+function mergeDictionaries(newestSCANINFODICT, previousSCANINFODICT, mergedMissingList) {
+    const mergedFramesDict = { ...newestSCANINFODICT }; // Start with a copy of the newest scan info
+
+    // Iterate over each key in previousSCANINFODICT
+    for (let key in previousSCANINFODICT) {
         if (mergedFramesDict[key]) {
-            // If the key exists in both dictionaries, concatenate the arrays
-            const mergedArray = [...mergedFramesDict[key]]; // Start with the existing array
-  
-            // Add items from dict2[key], checking for duplicates based on 'xpath'
-            dict2[key].forEach(newItem => {
-                const exists = mergedArray.some(existingItem => 
-                    existingItem.xpath === newItem.xpath
-                );
-  
-                if (!exists) {
-                    mergedArray.push(newItem);
-                    mergedMissingList.push(newItem);
-                }
+            // If key exists in both newest and previous, merge the arrays
+            const mergedArray = [...mergedFramesDict[key]]; // Copy existing array from newest
+
+            // Directly push all items from previous into mergedArray and mergedMissingList
+            previousSCANINFODICT[key].forEach(previousItem => {
+                mergedArray.push(previousItem); // Add the previousItem directly
+                mergedMissingList.push(previousItem); // Also add it to the missing list
+                console.log(`Added missing xpath: ${previousItem.xpath} from previous scan info`);
             });
-  
+
+            // Update the mergedFramesDict with the merged array for this key
             mergedFramesDict[key] = mergedArray;
         } else {
-            // If the key is only in dict2, copy it to mergedFramesDict
-            mergedFramesDict[key] = [...dict2[key]];
+            // If the key doesn't exist in the newest, copy it from previous and add all items to missing list
+            mergedFramesDict[key] = [...previousSCANINFODICT[key]];
+            previousSCANINFODICT[key].forEach(previousItem => {
+                mergedMissingList.push(previousItem);
+                console.log(`Added new key and missing xpath: ${previousItem.xpath}`);
+            });
         }
-    }   
+    }
 
     return { mergedFramesDict, mergedMissingList };
 }
+

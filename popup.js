@@ -92,8 +92,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       // Reset id="collapseOne" to empty
       document.getElementById('collapseOne').innerHTML = ''
-
+      console.log("LR TETSING message.data.framesDict",message.data.framesDict);
       for (const [key, array] of Object.entries(message.data.framesDict)) {
+        console.log("LR TETSING key",key);
         createFrame(key, array)
       }
 
@@ -126,6 +127,7 @@ function createFrame(key, array) {
 
   // Create a unique id for each accordion section
   // const uniqueId = `accordion-${key.replace(/\s+/g, '-')}`
+
 
   for (let i = 0; i < array.length; i++) {
     const dataToCopy = []
