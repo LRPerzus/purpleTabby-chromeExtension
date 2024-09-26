@@ -24,6 +24,41 @@ function loadHtml2Canvas() {
       document.head.appendChild(script);
     });
   }
+
+// Function to check if the screenshot is blank
+function isCanvasBlank(canvas) {
+  const context = canvas.getContext('2d');
+  const pixelData = context.getImageData(0, 0, canvas.width, canvas.height).data;
+  
+  // Check for all white or transparent pixels
+  for (let i = 0; i < pixelData.length; i += 4) {
+      const r = pixelData[i];     // Red channel
+      const g = pixelData[i + 1]; // Green channel
+      const b = pixelData[i + 2]; // Blue channel
+      const a = pixelData[i + 3]; // Alpha channel
+      
+      // If the pixel is not white (255,255,255) and not fully transparent (a !== 0), return false
+      if (!(r === 255 && g === 255 && b === 255 && a === 255) && a !== 0) {
+          return false;
+      }
+  }
+  return true; // All pixels are either white or transparent
+}
+
+function createBase64FromImage(img) {
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width;
+  canvas.height = img.height;
+
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+
+  // Get the Base64 string from the canvas
+  const base64String = canvas.toDataURL('image/png');
+
+  console.log(base64String); // This will log the Base64 representation of the image
+  // You can add further logic here to use the Base64 string
+}
   
 // Function to capture a screenshot of a specific element
 function captureElementScreenshot(element) {
@@ -33,8 +68,42 @@ function captureElementScreenshot(element) {
 
     if (window.html2canvas) {
       window.html2canvas(element).then(canvas => {
-        const dataUrl = canvas.toDataURL('image/png');
-        element.setAttribute("style",elementPreviousStyle);
+        const isBlank = isCanvasBlank(canvas);
+        // Find the element with `type="image"`
+        const imageElement = element.matches('[type="image"]') ? element : element.querySelector('[type="image"]');
+
+        // Check if that element also has a `src` attribute
+        const hasTypeImageWithSrc = imageElement && imageElement.hasAttribute('src');        
+
+        let dataUrl;
+        if (!isBlank)
+        {
+          dataUrl = canvas.toDataURL('image/png');
+          element.setAttribute("style",elementPreviousStyle);
+        }
+        else if (imageElement && hasTypeImageWithSrc)//another way to find it has any type images stored in it
+        {
+          console.log("here?")
+          // Get the Base64 representation of the image
+          const imgSrc = imageElement.getAttribute('src');
+          
+          // Create an image object to load the source
+          const img = new Image();
+          img.src = imgSrc;
+
+          // Create a canvas to draw the image
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+
+          // Get the Base64 string from the canvas
+          dataUrl  = canvas.toDataURL('image/png');
+          
+        }
+      
         resolve(dataUrl);
       }).catch(error => {
         console.error('Error capturing screenshot:', error, "At:", element);

@@ -162,7 +162,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             console.log("xpaths", xpaths);
 
             for (const xpath in xpaths) {
-                const ariaLabel = xpaths[xpath];
+                let ariaLabel = (xpaths[xpath]).replace("_negative","");
                 let bodyNode = document.body;
                 let currentNode = undefined;
 
@@ -203,6 +203,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
                     if (element) {
                         console.log("setAriaLabel", ariaLabel);
+                        if (ariaLabel === "") // If both the OCR and the type are _negative set it as could not be found lah
+                        {
+                          ariaLabel = "Could not be determined";
+                        }
                         element.setAttribute("aria-label", ariaLabel);
                     }
 
