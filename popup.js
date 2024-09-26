@@ -93,132 +93,97 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       let totalLength = 0
       accordionGroup.innerHTML = ''
 
-      for (const [key, array] of Object.entries(message.data.framesDict)) {
-        createFrame(key, array)
-        totalLength += array.length
-      }
-
+      totalLength = message.data.missing.length
       issuesCount.innerHTML = totalLength
 
-      if (accordionGroup.classList.contains('d-none')) {
+      const prettyPrintFramesDict = (framesDictData) => {
+        // Iterate over the entries of the library object
+        return Object.entries(framesDictData).map(([key, value]) => {
+          const newKey =
+            key === '' ? 'mainBody' : key.startsWith('/') ? 'iFrame' : 'unknown'
+
+          // Create a new structure for each entry
+          const newValue = value.map((item) => ({
+            keyType:
+              key === ''
+                ? 'main body'
+                : key.startsWith('/')
+                ? `iFrame_${key}`
+                : 'unknown',
+            xpath: item.xpath,
+            code: item.code,
+          }))
+          return [newKey, newValue]
+        })
+      }
+
+      const issueElementsUIData = prettyPrintFramesDict(message.data.framesDict)
+
+      createFrame(issueElementsUIData)
+
+      if (
+        accordionGroup.classList.contains('d-none') &&
+        issues.classList.contains('d-none')
+      ) {
         accordionGroup.classList.remove('d-none')
+        issues.classList.remove('d-none')
       } else {
+        console.log('accordionGroup and issues are already visible.')
       }
     }
   }
 })
 
-function createFrame(key, array) {
-  // Ensure 'key' has a default value
-  switch (true) {
-    case key === '':
-      key = 'MainBody'
+function createFrame(data) {
+  for (let i = 0; i < data.length; i++) {
+    const [key, entries] = data[i] // Destructure to get the key and entries array
 
-      const mainBodyContainer = createKeyTypeGroupHolder(key)
-      accordionGroup.appendChild(mainBodyContainer)
+    console.log(`data[i] is: ${data[i]}`)
 
-      for (let i = 0; i < array.length; i++) {
-        const dataToCopy = []
-        dataToCopy[i] = JSON.stringify(array[i], null, 2)
+    const keyTypeContainers = createKeyTypeGroupHolder(key)
+    accordionGroup.appendChild(keyTypeContainers)
 
-        document
-          .getElementById(`collapse${key}`)
-          .appendChild(createIssueElementsGroupHolder(key, [i]))
+    for (let j = 0; j < entries.length; j++) {
+      const dataToCopy = []
+      dataToCopy[j] = JSON.stringify(entries[j], null, 2)
 
-        document.getElementById(`elementXPath${key}${[i]}`).innerHTML =
-          JSON.stringify(array[i].xpath, null, 2).replace(/"/g, '')
+      document
+        .getElementById(`collapse${key}`)
+        .appendChild(createIssueElementsGroupHolder(key, [j]))
 
-        document.getElementById(`elementHtml${key}${i}`).textContent = array[
-          i
-        ].code
-          .replace(/\n/g, '')
-          .replace(/\u00A0/g, '')
-          .replace(/\s+/g, ' ')
-          .trim()
+      document.getElementById(`elementXPath${key}${[j]}`).innerHTML =
+        JSON.stringify(entries[j].xpath, null, 2).replace(/"/g, '')
 
-        hljs.highlightElement(
-          document.getElementById(`elementHtml${key}${[i]}`)
-        )
-        document
-          .getElementById(`elementHtml${key}${[i]}`)
-          .classList.add('custom-code-wrap')
+      document.getElementById(`elementHtml${key}${j}`).textContent = entries[
+        i
+      ].code
+        .replace(/\n/g, '')
+        .replace(/\u00A0/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
 
-        document
-          .getElementById(`copyButton${key}${i}`)
-          .addEventListener('click', async function () {
-            // Copy the data to clipboard
-            try {
-              await navigator.clipboard.writeText(dataToCopy[i])
-              document.getElementById(`copyStatus${key}${i}`).innerText =
-                'Copied!'
+      hljs.highlightElement(document.getElementById(`elementHtml${key}${[j]}`))
+      document
+        .getElementById(`elementHtml${key}${[j]}`)
+        .classList.add('custom-code-wrap')
 
-              setTimeout(() => {
-                document.getElementById(`copyStatus${key}${i}`).innerText = ''
-              }, 2000)
-            } catch (error) {
-              console.error('Failed to copy text: ', error)
-            }
-          })
-      }
+      document
+        .getElementById(`copyButton${key}${j}`)
+        .addEventListener('click', async function () {
+          // Copy the data to clipboard
+          try {
+            await navigator.clipboard.writeText(dataToCopy[j])
+            document.getElementById(`copyStatus${key}${j}`).innerText =
+              'Copied!'
 
-      break
-
-    case key.startsWith('/'):
-      key = 'IFrame'
-
-      const iFrameContainer = createKeyTypeGroupHolder(key)
-      accordionGroup.appendChild(iFrameContainer)
-
-      for (let i = 0; i < array.length; i++) {
-        const dataToCopy = []
-        dataToCopy[i] = JSON.stringify(array[i], null, 2)
-
-        document
-          .getElementById(`collapse${key}`)
-          .appendChild(createIssueElementsGroupHolder(key, [i]))
-
-        document.getElementById(`elementXPath${key}${[i]}`).innerHTML =
-          JSON.stringify(array[i].xpath, null, 2).replace(/"/g, '')
-
-        document.getElementById(`elementHtml${key}${i}`).textContent = array[
-          i
-        ].code
-          .replace(/\n/g, '')
-          .replace(/\u00A0/g, '')
-          .replace(/\s+/g, ' ')
-          .trim()
-
-        hljs.highlightElement(
-          document.getElementById(`elementHtml${key}${[i]}`)
-        )
-        document
-          .getElementById(`elementHtml${key}${[i]}`)
-          .classList.add('custom-code-wrap')
-
-        document
-          .getElementById(`copyButton${key}${i}`)
-          .addEventListener('click', async function () {
-            // Copy the data to clipboard
-            try {
-              await navigator.clipboard.writeText(dataToCopy[i])
-              document.getElementById(`copyStatus${key}${i}`).innerText =
-                'Copied!'
-
-              setTimeout(() => {
-                document.getElementById(`copyStatus${key}${i}`).innerText = ''
-              }, 2000)
-            } catch (error) {
-              console.error('Failed to copy text: ', error)
-            }
-          })
-      }
-      break
-  }
-
-  if (issues.classList.contains('d-none')) {
-    issues.classList.remove('d-none')
-  } else {
-    console.log(`issues is ${issues}`)
+            setTimeout(() => {
+              document.getElementById(`copyStatus${key}${j}`).innerText = ''
+            }, 2000)
+          } catch (error) {
+            console.error('Failed to copy text: ', error)
+          }
+        })
+    }
   }
 }
 
@@ -257,17 +222,17 @@ function createKeyTypeGroupHolder(keyType) {
 }
 
 // Creates the UI component for each issue to be populated in each keyType
-function createIssueElementsGroupHolder(keyType, holderUniqueId) {
+function createIssueElementsGroupHolder(keyType, entriesIndex) {
   const issueElementsGroupTemplate = `
   <div
     class="d-flex justify-content-between align-items-center mb-2"
   >
     <div><p>Element XPath</p></div>
     <div>
-      <span id="copyStatus${keyType}${holderUniqueId}" class="mx-2"></span>
+      <span id="copyStatus${keyType}${entriesIndex}" class="mx-2"></span>
 
       <button
-        id="copyButton${keyType}${holderUniqueId}"
+        id="copyButton${keyType}${entriesIndex}"
         class="border border-1 rounded bg-grey-100 copy-icon"
         aria-label="Copy file icon"
       >
@@ -281,11 +246,11 @@ function createIssueElementsGroupHolder(keyType, holderUniqueId) {
     </div>
   </div>
   <div class="mw-100">
-    <p id="elementXPathHolder${keyType}${holderUniqueId}" class="d-inline-block mw-100 text-break">
-      <code id="elementXPath${keyType}${holderUniqueId}" ></code>
+    <p id="elementXPathHolder${keyType}${entriesIndex}" class="d-inline-block mw-100 text-break">
+      <code id="elementXPath${keyType}${entriesIndex}" ></code>
     </p>
-    <div id="elementHtmlHolder${keyType}${holderUniqueId}" class="border rounded my-3 p-2 bg-grey-100 text-break">
-    <pre><code class="html" id="elementHtml${keyType}${holderUniqueId}"></code></pre>
+    <div id="elementHtmlHolder${keyType}${entriesIndex}" class="border rounded my-3 p-2 bg-grey-100 text-break">
+    <pre><code class="html" id="elementHtml${keyType}${entriesIndex}"></code></pre>
 
     </div>
   </div>`
@@ -293,7 +258,7 @@ function createIssueElementsGroupHolder(keyType, holderUniqueId) {
   const issueElementsGroupHolder = Object.assign(
     document.createElement('div'),
     {
-      id: `issueElementsGroupHolder${keyType}${holderUniqueId}`,
+      id: `issueElementsGroupHolder${keyType}${entriesIndex}`,
       className: 'accordion-body my-4 mx-3 rounded custom-border',
       // className: 'accordion-body my-4 mx-3 rounded custom-border bg-warning', // devnotes
     }
