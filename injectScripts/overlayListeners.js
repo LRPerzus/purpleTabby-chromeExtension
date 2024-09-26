@@ -1,3 +1,6 @@
+// Global value
+let currBatchB64ImagesDict; // this will be removed and added constantly
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'HIGHLIGHT') {
     console.log('HIGHLIGHT message.data', message.data)
@@ -120,34 +123,47 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
         })
         console.log('A11Y_FIX Screenshots Start')
+        console.log("Example",elementsFoundInFrame);
+
         // GET SCREENSHOT for the current frame
         loadHtml2Canvas()
-          .then(() => {
-            captureVisibleElements(elementsFoundInFrame)
-              .then((screenshotsFrameDict) => {
-                // Read the screenshots to get aria labels
-                try
-                {
-                  console.log(screenshotsFrameDict);
-                  // API Request for the aria labels
-                  chrome.runtime.sendMessage({
-                    type: 'GET_API_ARIALABELS',
-                    tabId:tabId,
-                    screenshotsFrameDict: screenshotsFrameDict,
-                  },);
+        .then(async () => {
+            // For each frame and its found elements
+            for (const [frame, elementsFoundList] of Object.entries(elementsFoundInFrame)) {
+                const splitBatches = splitIntoChunks(elementsFoundList, 10); // Split into chunks of 10
+
+                console.log("splitBatches", splitBatches);
+
+                // Use a for...of loop to iterate over batches
+                for (const batch of splitBatches) {
+                    console.log("Batch", batch);
+
+                    try {
+                        // Define an async function to handle the await
+                        const handleBatch = async (batch) => {
+                            currBatchB64ImagesDict = await captureVisibleElements(batch, frame); // Capture the visible elements
+                            console.log("currBatchB64ImagesDict", currBatchB64ImagesDict);
+
+                            // Send message with the screenshots
+                            await chrome.runtime.sendMessage({
+                                type: 'GET_API_ARIALABELS',
+                                tabId: tabId,
+                                screenshotsFrameDict: currBatchB64ImagesDict,
+                            });
+                        };
+
+                        // Call the async function and wait for it to complete before moving to the next batch
+                        await handleBatch(batch);
+                    } catch (error) {
+                        console.error('Error capturing screenshots:', error);
+                    }
                 }
-                catch(error)
-                {
-  
-                }
-              })
-              .catch((error) => {
-                console.error('Error capturing screenshots:', error)
-              })
-          })
-          .catch((error) => {
-            console.error('Failed to load html2canvas:', error)
-          })
+                // At this point, all batches for the current frame have been processed before moving to the next frame
+            }
+        })
+        .catch((error) => {
+            console.error('Failed to load html2canvas:', error);
+        });
       }
     }
   } else if (message.type === 'SET_ARIA_LABELS') {
@@ -199,6 +215,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         );
                     }
 
+                    console.log("LR TESTING currentNode",currentNode);
                     const element = currentNode.singleNodeValue;
 
                     if (element) {
@@ -228,3 +245,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ status: 'OVERLAY_LISTENERS_READY' })
   }
 })
+
+
+function splitIntoChunks(array, chunkSize) {
+  console.log("splitIntoChunks array",array)
+  const result = [];
+  for (let i = 0; i < array.length; i += chunkSize) {
+      result.push(array.slice(i, i + chunkSize));
+  }
+  return result;
+}

@@ -510,6 +510,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         sendResponse({status: "connected"});
     }
     else if (request.type === "GET_API_ARIALABELS") {
+        console.log("GET_API_ARIALABELS",request.screenshotsFrameDict);
         const screenshotsFramesDict = request.screenshotsFrameDict;
         const tabId = request.tabId;
         const arialLabelsFramesDict = {};
@@ -518,7 +519,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         for (const framekey of Object.keys(screenshotsFramesDict)) {
             console.log("framekey", framekey);
             const payload = {
-                content: screenshotsFramesDict[framekey]
+                content: screenshotsFramesDict[frame]
             };
     
             console.log("payload", payload);

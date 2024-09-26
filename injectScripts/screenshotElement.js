@@ -1,5 +1,4 @@
-// Set variables
-let concurrencyLimit = 25;
+let concurrencyLimit = 10; // must be same as line 133
 let elementLimit = 40;
 
 // Function to load html2canvas from the local 'libs' folder
@@ -115,57 +114,50 @@ function captureElementScreenshot(element) {
   });
 }
 
-async function captureVisibleElements(elementsFoundDict) {
+async function captureVisibleElements(elementsFoundDict,frameKey) {
   // Dictionary to store screenshots from all frames
   let allResults = {};
 
-  // Loop through each frame in the dictionary
-  for (const [frame, elementsFoundList] of Object.entries(elementsFoundDict)) {
-    console.log(`Processing frame: ${frame}`);
-    
-    // Check how many elements are found
-    console.log('Found elements for screenshot:', elementsFoundList.length);
-    console.log('Concurrency limit:', concurrencyLimit);
-    console.log('Element limit:', elementLimit);
+  // Check how many elements are found
+  console.log('Found elements for screenshot:', elementsFoundDict.length);
+  console.log('Concurrency limit:', concurrencyLimit);
+  console.log('Element limit:', elementLimit);
 
-    // Limit the number of elements per frame to elementLimit
-    const limitedElements = elementsFoundList.slice(0, elementLimit);
+  // Limit the number of elements to elementLimit
+  const limitedElements = elementsFoundDict.slice(0, elementLimit);
 
-    // Function to process elements with concurrency limit
-    const processElements = async (elements, limit) => {
-      const results = {};
-      const executing = [];
-      
-      for (const { xpath, element } of elements) {
-        const p = captureElementScreenshot(element).then(result => {
-          const base64Data = result.split(',')[1];
-          results[xpath]= base64Data ;  // Store result as an object with xpath and screenshot
-        }).catch(error => {
-          console.error('Error in captureElementScreenshot:', error);
-        }).finally(() => {
-          executing.splice(executing.indexOf(p), 1);
-        });
-        
-        executing.push(p);
-        if (executing.length >= limit) {
-          await Promise.race(executing);
-        }
+  // Function to process elements with concurrency limit
+  const processElements = async (elements, limit) => {
+    const results = {};
+    const executing = [];
+
+    for (const { xpath, element } of elements) {
+      const p = captureElementScreenshot(element).then(result => {
+        const base64Data = result.split(',')[1];
+        results[xpath] = base64Data;  // Store result as an object with xpath and screenshot
+      }).catch(error => {
+        console.error('Error in captureElementScreenshot:', error);
+      }).finally(() => {
+        executing.splice(executing.indexOf(p), 1);
+      });
+
+      executing.push(p);
+      if (executing.length >= limit) {
+        await Promise.race(executing);
       }
-      
-      await Promise.all(executing);
-      return results;
-    };
+    }
 
-    // Process elements in the current frame and store them in allResults under the corresponding frame
-    const frameResults = await processElements(limitedElements, concurrencyLimit);
-    allResults[frame] = frameResults;  // Store the results array for this frame
-  }
+    await Promise.all(executing);
+    return results;
+  };
 
-  return allResults;  // Return the combined results for all frames
+  // Process elements and store them in allResults
+  const frameResults = await processElements(limitedElements, concurrencyLimit);
+  allResults[frameKey] = frameResults;  // Store the results under a default key (since there are no frame identifiers)
+
+  return allResults;  // Return the combined results
 }
 
-
-  
 
 // Chrome extension message listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
