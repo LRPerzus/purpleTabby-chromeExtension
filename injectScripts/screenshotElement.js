@@ -132,30 +132,23 @@ async function captureVisibleElements(elementsFoundDict, frameKey) {
 // Function to process elements in batches
 const processElementsInBatches = async (elements, concurrencyLimit) => {
   const results = {};
+  const batch = elements.slice(0, concurrencyLimit); // Only take the first batch
   
-  // Split the elements into batches of size concurrencyLimit
-  const batches = [];
-  for (let i = 0; i < elements.length; i += concurrencyLimit) {
-    batches.push(elements.slice(i, i + concurrencyLimit));
-  }
-
-  // Process each batch sequentially
-  for (const batch of batches) {
-    const executing = batch.map(({ xpath, element }) => 
-      captureElementScreenshot(element).then(result => {
+  const executing = batch.map(({ xpath, element }) =>
+    captureElementScreenshot(element).then(result => {
+      if (result) {
         const base64Data = result.split(',')[1];
-        results[xpath] = base64Data;  // Store result with xpath as key
-      }).catch(error => {
-        console.error('Error in captureElementScreenshot:', error);
-      })
-    );
-    
-    // Wait for the current batch to complete before proceeding to the next
-    await Promise.all(executing);
-  }
-
+        results[xpath] = base64Data;
+      }
+    }).catch(error => {
+      console.error('Error in captureElementScreenshot:', error);
+    })
+  );
+  
+  await Promise.all(executing);
   return results;
 };
+
 
 
 // Chrome extension message listener
