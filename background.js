@@ -519,7 +519,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         for (const framekey of Object.keys(screenshotsFramesDict)) {
             console.log("framekey", framekey);
             const payload = {
-                content: screenshotsFramesDict[frame]
+                content: screenshotsFramesDict[framekey]
             };
     
             console.log("payload", payload);

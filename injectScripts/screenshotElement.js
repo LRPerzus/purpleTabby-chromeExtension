@@ -114,11 +114,8 @@ function captureElementScreenshot(element) {
   });
 }
 
-async function captureVisibleElements(elementsFoundDict,frameKey) {
-  // Dictionary to store screenshots from all frames
+async function captureVisibleElements(elementsFoundDict, frameKey) {
   let allResults = {};
-
-  // Check how many elements are found
   console.log('Found elements for screenshot:', elementsFoundDict.length);
   console.log('Concurrency limit:', concurrencyLimit);
   console.log('Element limit:', elementLimit);
@@ -126,37 +123,39 @@ async function captureVisibleElements(elementsFoundDict,frameKey) {
   // Limit the number of elements to elementLimit
   const limitedElements = elementsFoundDict.slice(0, elementLimit);
 
-  // Function to process elements with concurrency limit
-  const processElements = async (elements, limit) => {
-    const results = {};
-    const executing = [];
+  // Process elements and store them in allResults
+  const frameResults = await processElementsInBatches(limitedElements, concurrencyLimit);
+  allResults[frameKey] = frameResults;
 
-    for (const { xpath, element } of elements) {
-      const p = captureElementScreenshot(element).then(result => {
+  return allResults;
+}
+// Function to process elements in batches
+const processElementsInBatches = async (elements, concurrencyLimit) => {
+  const results = {};
+  
+  // Split the elements into batches of size concurrencyLimit
+  const batches = [];
+  for (let i = 0; i < elements.length; i += concurrencyLimit) {
+    batches.push(elements.slice(i, i + concurrencyLimit));
+  }
+
+  // Process each batch sequentially
+  for (const batch of batches) {
+    const executing = batch.map(({ xpath, element }) => 
+      captureElementScreenshot(element).then(result => {
         const base64Data = result.split(',')[1];
-        results[xpath] = base64Data;  // Store result as an object with xpath and screenshot
+        results[xpath] = base64Data;  // Store result with xpath as key
       }).catch(error => {
         console.error('Error in captureElementScreenshot:', error);
-      }).finally(() => {
-        executing.splice(executing.indexOf(p), 1);
-      });
-
-      executing.push(p);
-      if (executing.length >= limit) {
-        await Promise.race(executing);
-      }
-    }
-
+      })
+    );
+    
+    // Wait for the current batch to complete before proceeding to the next
     await Promise.all(executing);
-    return results;
-  };
+  }
 
-  // Process elements and store them in allResults
-  const frameResults = await processElements(limitedElements, concurrencyLimit);
-  allResults[frameKey] = frameResults;  // Store the results under a default key (since there are no frame identifiers)
-
-  return allResults;  // Return the combined results
-}
+  return results;
+};
 
 
 // Chrome extension message listener
