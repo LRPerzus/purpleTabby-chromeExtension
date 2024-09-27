@@ -93,7 +93,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 console.log("parent",parent);
                 console.log(`!inList(A11yTree, elementXpath) ${elementXpath}`, !inList(A11yTree, elementXpath));
         
-                if (parent && !inList(A11yTree, elementXpath) && (parent.tagName.toLowerCase()=== "a" ||parent.hasAttribute('tabby-has-listener'))) {
+                if (parent && !inList(A11yTree, elementXpath) && (parent.tagName.toLowerCase()=== "a" || parent.hasAttribute('tabby-has-listener'))) {
                     // Has children with that are in A11yTree
                     // Evaluate XPath to find any descendants with the attribute
                     const descendantResult = document.evaluate(
@@ -135,6 +135,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             missing:missing,
             framesDict:framesDict
         }
+        console.log("DATA TO MISSING_FOUND",data)
         chrome.runtime.sendMessage({ type: "MISSING_FOUND", data: data,siteUrl:siteUrl });
     }
     else if (message.type === "CHECK_SCANNING_PROCESS_JS")

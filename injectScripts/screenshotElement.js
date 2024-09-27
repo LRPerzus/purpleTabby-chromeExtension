@@ -66,7 +66,7 @@ function captureElementScreenshot(element) {
     element.removeAttribute("style");
 
     if (window.html2canvas) {
-      window.html2canvas(element).then(canvas => {
+      window.html2canvas(element,{ useCORS: true,allowTaint: true}).then(canvas => {
         const isBlank = isCanvasBlank(canvas);
         // Find the element with `type="image"`
         const imageElement = element.matches('[type="image"]') ? element : element.querySelector('[type="image"]');

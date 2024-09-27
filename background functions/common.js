@@ -59,14 +59,18 @@ export async function areScansFinished(tabId)
     
     try {
         const foundElements = await getFromLocal(tabId,"foundElements",currentClick);
-        if (foundElements && foundElements.length > 0) {
-            A11yTree = foundElements;
-            // console.log('GET FROM LOCAL A11yTree:', A11yTree);
-
-            // Do something with A11yTree
-        } else {
-            console.log('foundElements does not exist or is empty');
+        console.log(" HERE LR foundElements",foundElements)
+        if (foundElements !== undefined)
+        {
+            if (foundElements.length > 0) {
+                A11yTree = foundElements;
+                // console.log('GET FROM LOCAL A11yTree:', A11yTree);
+                // Do something with A11yTree
+            } else {
+                A11yTree = []
+            }
         }
+       
     } catch (error) {
         console.error('Error retrieving foundElements:', error);
         // A11yTree remains null if there's an error
@@ -97,6 +101,7 @@ export async function areScansFinished(tabId)
             A11yTree: A11yTree,
             tabId, tabId
         }
+        console.log("SENDING OVER TO SCAN_COMEPLETE",data);
         chrome.tabs.sendMessage(tabId, { type: "SCAN_COMEPLETE", data:data });
 
     }

@@ -334,12 +334,13 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     {
         // At this point the scan has finished
         const tabId = request.data.tabId;
+        console.log("TESING request.data.missing;",request.data.missing);
 
         // previous errors data
         const previousMissingXpath = await getFromLocal(tabId,"missingXpath",false,request.siteurl);
         let mergedFramesDict;
         let mergedMissingList = [];
-
+        
         if (previousMissingXpath)
         {
             console.log("THERE WAS PRIVUOUS DATA");
@@ -362,7 +363,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         // STORE MISSINGXAPATHS
         storeDataForTab(request.data.tabId,mergedMissingXpaaths,"missingXpath",false,request.siteurl);
 
-        console.log("MISSING_FOUND scanningQueueDictionary[tabId].redo ",scanningQueueDictionary[tabId].redo );
+        // console.log("MISSING_FOUND scanningQueueDictionary[tabId].redo ",scanningQueueDictionary[tabId].redo );
         // Updates the scanningQueueDictionary
         if (scanningQueueDictionary[tabId] && scanningQueueDictionary[tabId].redo !== true)
         {
@@ -450,7 +451,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 console.error("Caught error:", e.message);
             }        
         }
-        else  if (scanningQueueDictionary[tabId].redo === true)// there is a new scan coming in so need to rescan again (Could be from a mutation or something)
+        else  if(scanningQueueDictionary[tabId] && scanningQueueDictionary[tabId].redo !== undefined && scanningQueueDictionary[tabId].redo === true)
         {
             console.log("There was a another request of scanning during a scan");
             chrome.tabs.sendMessage(tabId, { type: "START_RESCANNING" , tabId:tabId});
