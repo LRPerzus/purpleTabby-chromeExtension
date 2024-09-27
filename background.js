@@ -182,6 +182,12 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     return true
   } else if (request.type === 'SCANING_START') {
     console.log('SCANING_START', request.from)
+
+    // TODO: Change icon when its ready
+    chrome.action.setIcon({
+      path: 'assets/scanning-extension-icon.png',
+    })
+
     if (request.debugger) {
       console.log(request.debugger)
     }

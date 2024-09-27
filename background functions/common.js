@@ -110,6 +110,10 @@ export async function areScansFinished(tabId) {
       tabId,
     }
     chrome.tabs.sendMessage(tabId, { type: 'SCAN_COMEPLETE', data: data })
+    // TODO: Change icon when its ready
+    chrome.action.setIcon({
+      path: 'assets/default-extension-icon.png',
+    })
   }
 }
 

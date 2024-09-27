@@ -3,7 +3,14 @@
   "name": "Accessibility Tree Extension",
   "version": "1.0",
   "description": "A Chrome extension to access and display the accessibility tree.",
-  "permissions": ["activeTab", "scripting", "tabs", "debugger", "storage"],
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "tabs",
+    "debugger",
+    "storage",
+    "browserAction"
+  ],
   "host_permissions": [
     "https://*/*",
     "http://*/*",
@@ -25,7 +32,7 @@
   ],
   "action": {
     "default_popup": "tabbyExtension.html",
-    "default_icon": "purpleA11yLogo.png"
+    "default_icon": "assets/default-extension-icon.png"
   },
   "content_scripts": [
     {
