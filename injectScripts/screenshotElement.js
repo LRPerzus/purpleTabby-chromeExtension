@@ -58,12 +58,65 @@ function createBase64FromImage(img) {
   console.log(base64String); // This will log the Base64 representation of the image
   // You can add further logic here to use the Base64 string
 }
+
+
+// ---------------------------  WORKING ON FIXING THE CNA ---------------------------------------------------------------
+
+// Function to check if background has a url in it either in ::before or ::after
+function doesItHaveURLInBackground(element) {
+  // Helper function to check if a style contains a background URL
+  function checkBackgroundImage(style) {
+    const backgroundImage = style.getPropertyValue('background-image');
+    const urlMatch = backgroundImage.match(/url\(["']?(.+?)["']?\)/);
+    return urlMatch ? urlMatch[1] : null; // Return the URL or null
+  }
+
+  // Check the element itself
+  const elementStyle = window.getComputedStyle(element);
+  let backgroundUrl = checkBackgroundImage(elementStyle);
+  if (backgroundUrl) {
+    return backgroundUrl;
+  }
+
+  // Check ::before pseudo-element
+  const beforeStyle = window.getComputedStyle(element, '::before');
+  backgroundUrl = checkBackgroundImage(beforeStyle);
+  if (backgroundUrl) {
+    return backgroundUrl;
+  }
+
+  // Check ::after pseudo-element
+  const afterStyle = window.getComputedStyle(element, '::after');
+  backgroundUrl = checkBackgroundImage(afterStyle);
+  if (backgroundUrl) {
+    return backgroundUrl;
+  }
+
+  // Recursively check all children
+  const children = element.children;
+  for (let i = 0; i < children.length; i++) {
+    backgroundUrl = doesItHaveURLInBackground(children[i]);
+    if (backgroundUrl) {
+      return backgroundUrl;
+    }
+  }
+
+  // If no URL found anywhere
+  return null;
+}
+
   
 // Function to capture a screenshot of a specific element
 function captureElementScreenshot(element) {
   return new Promise((resolve, reject) => {
     const elementPreviousStyle = element.getAttribute("style");
     element.removeAttribute("style");
+
+    const backgroundImgUrl = doesItHaveURLInBackground(element);
+    if (backgroundImgUrl)
+    {
+      console.log("background",backgroundImgUrl);
+    }
 
     if (window.html2canvas) {
       window.html2canvas(element,{ useCORS: true,allowTaint: true}).then(canvas => {
