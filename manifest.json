@@ -8,8 +8,7 @@
     "scripting",
     "tabs",
     "debugger",
-    "storage",
-    "browserAction"
+    "storage"
   ],
   "host_permissions": [
     "https://*/*",

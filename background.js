@@ -183,11 +183,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   } else if (request.type === 'SCANING_START') {
     console.log('SCANING_START', request.from)
 
-    // TODO: Change icon when its ready
-    chrome.action.setIcon({
-      path: 'assets/scanning-extension-icon.png',
-    })
-
     if (request.debugger) {
       console.log(request.debugger)
     }
@@ -222,7 +217,10 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
           sendResponse({ success: false, error: 'Scan already in progress' })
         } else {
           // All is good so can scan
-
+          // TODO: Change icon when its ready
+          chrome.action.setIcon({
+            path: 'assets/scanning-extension-icon.png',
+          })
           // set a dict of it is scanning
           scanningQueueDictionary[tabId] = {
             currentScanning: true,
@@ -380,17 +378,27 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
     await areScansFinished(tabId)
   } else if (request.type === 'clickableElements_XPATHS_DONE') {
-    let noClicks = await getFromLocal(request.tabId, 'noClicks')
-    if (noClicks === undefined) {
-      // there is a possibility that it runs too fast faster than the localStorage collection
-      let count = 0
-      while (noClicks === undefined && count <= 3) {
-        console.warn('noclicks for storage is not defined')
-        noClicks = await getFromLocal(request.tabId, 'noClicks')
-        count++
-      }
-    }
+    let noClicks = await getFromLocal(request.tabId,"noClicks");
+        if (noClicks === undefined) // there is a possibility that it runs too fast faster than the localStorage collection
+        {
+            let count = 0
+            while (noClicks === undefined && count <= 3)
+            {
+                console.warn("noclicks for storage is not defined");
+                noClicks = await getFromLocal(request.tabId,"noClicks");
+                count++;
+            }
+        }
 
+        storeDataForTab(request.tabId,request.clickableElements,"clickableElements",noClicks)
+        // chrome.tabs.sendMessage(request.tabId,{ type: "clickable_stored" });
+
+        
+        const inStorage = await getFromLocal(request.tabId,"clickableElements",noClicks)
+        console.log("inStorage clickableElements",request.tabId,noClicks,inStorage);
+
+        await areScansFinished(request.tabId);
+  }
     else if (request.type === "MISSING_FOUND")
     {
         // At this point the scan has finished
@@ -516,29 +524,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         {
             console.log("There was a another request of scanning during a scan");
             chrome.tabs.sendMessage(tabId, { type: "START_RESCANNING" , tabId:tabId});
-        }
-=======
-    storeDataForTab(
-      request.tabId,
-      request.clickableElements,
-      'clickableElements',
-      noClicks
-    )
-    // chrome.tabs.sendMessage(request.tabId,{ type: "clickable_stored" });
-
-    const inStorage = await getFromLocal(
-      request.tabId,
-      'clickableElements',
-      noClicks
-    )
-    console.log(
-      'inStorage clickableElements',
-      request.tabId,
-      noClicks,
-      inStorage
-    )
-
-    await areScansFinished(request.tabId)
+        };
   } else if (request.type === 'MISSING_FOUND') {
     // At this point the scan has finished
     const tabId = request.data.tabId
@@ -733,7 +719,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     } else {
       sendResponse({ tabId: null })
     }
-    else if (request.type === "GET_API_ARIALABELS") {
+  }
+  else if (request.type === "GET_API_ARIALABELS") {
         console.log("GET_API_ARIALABELS",request.screenshotsFrameDict);
         const screenshotsFramesDict = request.screenshotsFrameDict;
         const tabId = request.tabId;
@@ -785,10 +772,21 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             .catch(error => console.error('Error:', error));
     
             fetchPromises.push(fetchPromise); // Add the promise to the array
+        } 
+        Promise.all(fetchPromises)
+        .then(() => {
+            console.log("arialLabelsFramesDict", arialLabelsFramesDict);
+            console.log("tabId",tabId);
+            // once we got all the frames we can get send in it to fix the label
+            chrome.tabs.sendMessage(tabId,{ type: "SET_ARIA_LABELS", missingXpaths:arialLabelsFramesDict})                    
 
-  } else if (request.type === 'TEST_CONNECTION') {
+
+        });
+  }
+  else if (request.type === 'TEST_CONNECTION') {
     sendResponse({ status: 'connected' })
-  } else if (request.type === 'GET_API_ARIALABELS') {
+  } 
+  else if (request.type === 'GET_API_ARIALABELS') {
     const screenshotsFramesDict = request.screenshotsFrameDict
     const tabId = request.tabId
     const arialLabelsFramesDict = {}

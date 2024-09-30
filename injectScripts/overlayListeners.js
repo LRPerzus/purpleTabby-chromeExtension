@@ -252,5 +252,3 @@ function splitIntoChunks(array, chunkSize) {
   }
   return result;
 }
-
-
