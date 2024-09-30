@@ -70,7 +70,11 @@ function isInOpenDetails(element) {
 }
 // Function to check if an element is visible
 const isVisibleFocusAble = (el) => {
-    if (el.nodeName === "#text") // cause #text cannot getComputedStyle
+    if (!el)
+    {
+        return false;
+    }
+    if (el.nodeName !== undefined  && el.nodeName === "#text") // cause #text cannot getComputedStyle
     {
         return false;
     }

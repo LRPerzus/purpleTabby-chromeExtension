@@ -391,6 +391,133 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       }
     }
 
+    else if (request.type === "MISSING_FOUND")
+    {
+        // At this point the scan has finished
+        const tabId = request.data.tabId;
+        console.log("TESING request.data.missing;",request.data.missing);
+
+        // previous errors data
+        const previousMissingXpath = await getFromLocal(tabId,"missingXpath",false,request.siteurl);
+        let mergedFramesDict;
+        let mergedMissingList = [];
+        
+        if (previousMissingXpath)
+        {
+            console.log("THERE WAS PRIVUOUS DATA");
+            // cause each is its own dict kinda
+            ({mergedFramesDict, mergedMissingList} = mergeDictionaries(request.data.framesDict, previousMissingXpath.framesDict, mergedMissingList));
+        }
+        else 
+        {
+            mergedFramesDict = request.data.framesDict,
+            mergedMissingList = request.data.missing;
+        }
+        
+        const mergedMissingXpaaths = {
+            framesDict:mergedFramesDict,
+            missing : mergedMissingList,
+            tabId : tabId
+        };
+        console.log("mergedMissingXpaaths",mergedMissingXpaaths);
+
+        // STORE MISSINGXAPATHS
+        storeDataForTab(request.data.tabId,mergedMissingXpaaths,"missingXpath",false,request.siteurl);
+
+        // console.log("MISSING_FOUND scanningQueueDictionary[tabId].redo ",scanningQueueDictionary[tabId].redo );
+        // Updates the scanningQueueDictionary
+        if (scanningQueueDictionary[tabId] && scanningQueueDictionary[tabId].redo !== true)
+        {
+            // Remove
+            delete scanningQueueDictionary[tabId]
+
+            // Continue with end of scanning process
+            try {
+                chrome.runtime.sendMessage({ type: "POPUP_STATUS" }, async (response) => {
+                    if (chrome.runtime.lastError) {
+                        if ( chrome.runtime.lastError.message.includes("Receiving end does not exist."))
+                        {
+                            console.log("POPUP IS NOT OPEN");
+                            const setting = settings[tabId];
+                            console.log("setting", setting);
+
+
+                            let data;
+                            if (mergedMissingXpaaths!== undefined)
+                            {
+                                data = mergedMissingXpaaths;
+                            }
+                            else{
+                                data = "undefined"
+                            }
+
+                            if (setting.A11yFix) // This one will continue with highlight later there is another highlight check
+                            {
+                                console.log("A11YFIXES_Start");
+                                chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict , tabId:tabId});
+                            }
+                            else if (setting.highlight) // Just highlight
+                            {
+                                console.log("MISSING_FOUND HIGHLIGHT")
+                                chrome.tabs.sendMessage(tabId,{ type: "HIGHLIGHT", data:data.framesDict});
+                            }
+                            else
+                            {
+                                // TODO REMOVE BOTH
+                                console.log("NONE");
+                            }
+                        }
+                        return; // Exit the callback if there's an error
+                    }
+            
+                    if (response && response.success) {
+                        console.log("Popup status response received:", response);
+                        console.log("Stored in missingXpath:", request.data);
+                        // Send the data to the content script or popup
+                        chrome.runtime.sendMessage({
+                            type: "UPDATE_OVERLAY",
+                            data: request.data,
+                            settings:settings[tabId],
+                            tabId:tabId
+                        });
+
+                        let data;
+                        if (mergedMissingXpaaths!== undefined)
+                        {
+                            data = mergedMissingXpaaths;
+                        }
+                        else{
+                            data = "undefined"
+                        }
+
+                        if (settings[tabId].A11yFix) // This one will continue with highlight later there is another highlight check
+                        {
+                            chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict, tabId:tabId});
+                        }
+                        else if (settings[tabId].highlight) // Just highlight
+                        {
+                            console.log("MISSING_FOUND HIGHLIGHT")
+                            chrome.tabs.sendMessage(tabId,{ type: "HIGHLIGHT", data:data.framesDict});
+                        }
+                        else
+                        {
+                            // TODO REMOVE BOTH
+                            console.log("NONE");
+                        }
+                    } else {
+                        console.log("No response or unsuccessful status.");
+                    }
+                });
+            } catch (e) {
+                console.error("Caught error:", e.message);
+            }        
+        }
+        else  if(scanningQueueDictionary[tabId] && scanningQueueDictionary[tabId].redo !== undefined && scanningQueueDictionary[tabId].redo === true)
+        {
+            console.log("There was a another request of scanning during a scan");
+            chrome.tabs.sendMessage(tabId, { type: "START_RESCANNING" , tabId:tabId});
+        }
+=======
     storeDataForTab(
       request.tabId,
       request.clickableElements,
@@ -606,6 +733,59 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     } else {
       sendResponse({ tabId: null })
     }
+    else if (request.type === "GET_API_ARIALABELS") {
+        console.log("GET_API_ARIALABELS",request.screenshotsFrameDict);
+        const screenshotsFramesDict = request.screenshotsFrameDict;
+        const tabId = request.tabId;
+        const arialLabelsFramesDict = {};
+        const fetchPromises = []; // Array to hold fetch promises
+    
+        for (const framekey of Object.keys(screenshotsFramesDict)) {
+            console.log("framekey", framekey);
+            const payload = {
+                content: screenshotsFramesDict[framekey]
+            };
+    
+            console.log("payload", payload);
+            
+            // Create a fetch promise and push it to the array
+            const fetchPromise = fetch('https://api.read-dev.pic.net.sg/process_a11y', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(result => {
+                console.log('Success:', result);
+                const formattedResponse = {};
+                const ocr = result.ocr || {};
+                const type = result.type || {};
+    
+                Object.keys(ocr).forEach(key => {
+                    const ocrValue = ocr[key] || '';
+                    const typeValue = type[key] || '';
+    
+                    if (typeValue && ocrValue) {
+                        formattedResponse[key] = `${typeValue} ${ocrValue}`;
+                    } else if (typeValue && !ocrValue) {
+                        formattedResponse[key] = typeValue;
+                    } else if (!typeValue && ocrValue) {
+                        formattedResponse[key] = ocrValue;
+                    } else {
+                        formattedResponse[key] = '';
+                    }
+                });
+    
+                console.log('Formatted Response:', formattedResponse);
+                arialLabelsFramesDict[framekey] = formattedResponse;
+            })
+            .catch(error => console.error('Error:', error));
+    
+            fetchPromises.push(fetchPromise); // Add the promise to the array
+
   } else if (request.type === 'TEST_CONNECTION') {
     sendResponse({ status: 'connected' })
   } else if (request.type === 'GET_API_ARIALABELS') {

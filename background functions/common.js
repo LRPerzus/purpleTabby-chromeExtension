@@ -55,22 +55,33 @@ export async function setAttributeValue(tabId, nodeId, name) {
     Function that is used after each finished message for A11y Tree and get clickableElements to check if the scan is finished
     It checks if in the local storage stores both A11yTree and clickableElements.
 */
-export async function areScansFinished(tabId) {
-  let A11yTree = null
-  let clickAbleElements = null
-  const currentClick = await getFromLocal(tabId, 'noClicks')
-  // console.log("currentClick",currentClick);
-  // console.log("tabId",tabId);
+export async function areScansFinished(tabId)
+{
+    let A11yTree = null; 
+    let clickAbleElements = null;
+    const currentClick = await getFromLocal(tabId,"noClicks");
+    // console.log("currentClick",currentClick);
+    // console.log("tabId",tabId);
+    
+    try {
+        const foundElements = await getFromLocal(tabId,"foundElements",currentClick);
+        console.log(" HERE LR foundElements",foundElements)
+        if (foundElements !== undefined)
+        {
+            if (foundElements.length > 0) {
+                A11yTree = foundElements;
+                // console.log('GET FROM LOCAL A11yTree:', A11yTree);
+                // Do something with A11yTree
+            } else {
+                A11yTree = []
+            }
+        }
+       
+    } catch (error) {
+        console.error('Error retrieving foundElements:', error);
+        // A11yTree remains null if there's an error
+    }
 
-  try {
-    const foundElements = await getFromLocal(
-      tabId,
-      'foundElements',
-      currentClick
-    )
-    if (foundElements && foundElements.length > 0) {
-      A11yTree = foundElements
-      // console.log('GET FROM LOCAL A11yTree:', A11yTree);
 
       // Do something with A11yTree
     } else {
