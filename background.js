@@ -9,6 +9,8 @@ let firstClick = {};
 let debuggerAttached = {};
 let settings = {};
 let scanningQueueDictionary = {};
+let arialLabelsFramesDict = {};
+
 
 // --- Event Listeners from the injecte scripts to here
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
@@ -512,20 +514,30 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         sendResponse({status: "connected"});
     }
     else if (request.type === "GET_API_ARIALABELS") {
-        console.log("GET_API_ARIALABELS",request.screenshotsFrameDict);
+        console.log("GET_API_ARIALABELS", request.screenshotsFrameDict);
         const screenshotsFramesDict = request.screenshotsFrameDict;
         const tabId = request.tabId;
-        const arialLabelsFramesDict = {};
         const fetchPromises = []; // Array to hold fetch promises
     
         for (const framekey of Object.keys(screenshotsFramesDict)) {
             console.log("framekey", framekey);
+            const successB64 = screenshotsFramesDict[framekey].success;
+            const errorB64 = screenshotsFramesDict[framekey].error;
             const payload = {
-                content: screenshotsFramesDict[framekey]
+                content: successB64
             };
+            
+            arialLabelsFramesDict[framekey] = {};
     
             console.log("payload", payload);
-            
+            console.log("errorB64", errorB64);
+
+            // For error
+            Object.keys(errorB64).forEach(xpathKey => {
+                arialLabelsFramesDict[framekey][xpathKey] = "clickable element";
+            })
+
+    
             // Create a fetch promise and push it to the array
             const fetchPromise = fetch('https://api.read-dev.pic.net.sg/process_a11y', {
                 method: 'POST',
@@ -558,9 +570,16 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 });
     
                 console.log('Formatted Response:', formattedResponse);
-                arialLabelsFramesDict[framekey] = formattedResponse;
+                arialLabelsFramesDict[framekey] = {
+                    ...arialLabelsFramesDict[framekey],  // Merge with the previous updates
+                    ...formattedResponse                 // Overwrite or add new keys from formattedResponse
+                };
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => {
+                console.error('Error:', error);
+                // If there's an error, we can add the error details to the arialLabelsFramesDict
+                arialLabelsFramesDict[framekey] = { error: 'Fetch error occurred' };
+            });
     
             fetchPromises.push(fetchPromise); // Add the promise to the array
         }
@@ -569,13 +588,17 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         Promise.all(fetchPromises)
             .then(() => {
                 console.log("arialLabelsFramesDict", arialLabelsFramesDict);
-                console.log("tabId",tabId);
-                // once we got all the frames we can get send in it to fix the label
-                chrome.tabs.sendMessage(tabId,{ type: "SET_ARIA_LABELS", missingXpaths:arialLabelsFramesDict})                    
-
-
+                console.log("tabId", tabId);
+                // Once we got all the frames we can get send it to fix the label
+                chrome.tabs.sendMessage(tabId, { type: "SET_ARIA_LABELS", missingXpaths: arialLabelsFramesDict });
             });
-    };
+    }
+    else if (request.type ="CLEAR_arialLabelsFramesDict")
+    {
+        // clear ariaLabel
+        arialLabelsFramesDict = {}; 
+    }
+    
     return true; // Indicate that you will send a response asynchronously
 });
 

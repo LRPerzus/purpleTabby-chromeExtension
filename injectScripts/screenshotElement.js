@@ -108,64 +108,70 @@ function doesItHaveURLInBackground(element) {
   
 // Function to capture a screenshot of a specific element
 function captureElementScreenshot(element) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => { // No reject here
     const elementPreviousStyle = element.getAttribute("style");
     element.removeAttribute("style");
 
     const backgroundImgUrl = doesItHaveURLInBackground(element);
-    if (backgroundImgUrl)
-    {
-      console.log("background",backgroundImgUrl);
+    if (backgroundImgUrl) {
+      console.log("background", backgroundImgUrl);
     }
 
     if (window.html2canvas) {
-      window.html2canvas(element,{ useCORS: true,allowTaint: true}).then(canvas => {
-        const isBlank = isCanvasBlank(canvas);
-        // Find the element with `type="image"`
-        const imageElement = element.matches('[type="image"]') ? element : element.querySelector('[type="image"]');
+      // Using a try-catch block to catch errors from html2canvas
+      try {
+        window.html2canvas(element, { useCORS: true, allowTaint: true })
+          .then(canvas => {
+            const isBlank = isCanvasBlank(canvas);
+            // Find the element with `type="image"`
+            const imageElement = element.matches('[type="image"]') ? element : element.querySelector('[type="image"]');
 
-        // Check if that element also has a `src` attribute
-        const hasTypeImageWithSrc = imageElement && imageElement.hasAttribute('src');        
+            // Check if that element also has a `src` attribute
+            const hasTypeImageWithSrc = imageElement && imageElement.hasAttribute('src');        
 
-        let dataUrl;
-        if (!isBlank)
-        {
-          dataUrl = canvas.toDataURL('image/png');
-          element.setAttribute("style",elementPreviousStyle);
-        }
-        else if (imageElement && hasTypeImageWithSrc)//another way to find it has any type images stored in it
-        {
-          console.log("here?")
-          // Get the Base64 representation of the image
-          const imgSrc = imageElement.getAttribute('src');
-          
-          // Create an image object to load the source
-          const img = new Image();
-          img.src = imgSrc;
+            let dataUrl = null; // Default to null
+            if (!isBlank) {
+              dataUrl = canvas.toDataURL('image/png');
+            } else if (imageElement && hasTypeImageWithSrc) {
+              // Get the Base64 representation of the image
+              const imgSrc = imageElement.getAttribute('src');
+              const img = new Image();
+              img.src = imgSrc;
 
-          // Create a canvas to draw the image
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
+              // Create a canvas to draw the image
+              const imgCanvas = document.createElement('canvas');
+              imgCanvas.width = img.width;
+              imgCanvas.height = img.height;
 
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0);
+              const ctx = imgCanvas.getContext('2d');
+              ctx.drawImage(img, 0, 0);
 
-          // Get the Base64 string from the canvas
-          dataUrl  = canvas.toDataURL('image/png');
-          
-        }
-      
-        resolve(dataUrl);
-      }).catch(error => {
-        console.error('Error capturing screenshot:', error, "At:", element);
-        reject(error);
-      });
+              // Get the Base64 string from the canvas
+              dataUrl = imgCanvas.toDataURL('image/png');
+            }
+
+            element.setAttribute("style", elementPreviousStyle);
+            resolve(dataUrl); // Resolve with the dataUrl or null
+          })
+          .catch(error => {
+            // Handle the error from html2canvas directly
+            console.error('Error capturing screenshot:', error.message, "At:", element);
+            // You might want to log the entire error object for more details
+            console.error(error);
+            resolve(null); // Resolve with null on error
+          });
+      } catch (error) {
+        // Handle any synchronous errors that might occur
+        console.error('Synchronous error when calling html2canvas:', error.message);
+        resolve("error"); // Resolve with null on synchronous error
+      }
     } else {
-      reject(new Error('html2canvas is not available'));
+      console.error('html2canvas is not available');
+      resolve(null); // Resolve with null if html2canvas is not available
     }
   });
 }
+
 
 async function captureVisibleElements(elementsFoundDict, frameKey) {
   let allResults = {};
@@ -184,14 +190,21 @@ async function captureVisibleElements(elementsFoundDict, frameKey) {
 }
 // Function to process elements in batches
 const processElementsInBatches = async (elements, concurrencyLimit) => {
-  const results = {};
+  const results = {
+    success:{},
+    error:{}
+  };
   const batch = elements.slice(0, concurrencyLimit); // Only take the first batch
   
   const executing = batch.map(({ xpath, element }) =>
     captureElementScreenshot(element).then(result => {
-      if (result) {
+      if (result !== null) { // if could not capture might add something to fix CNA HERE
         const base64Data = result.split(',')[1];
-        results[xpath] = base64Data;
+        results.success[xpath] = base64Data;
+      }
+      else
+      {
+        results.error[xpath] = "error";
       }
     }).catch(error => {
       console.error('Error in captureElementScreenshot:', error);

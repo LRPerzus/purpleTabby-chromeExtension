@@ -122,7 +122,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         console.log('A11Y_FIX Screenshots Start');
         console.log('Example', elementsFoundInFrame);
-        
+        const limitBatches = 3;
+        let batchesCount = 0
+        console.log("LIMIT",limitBatches);
+
         // Once done another for loop
         // GET SCREENSHOT for the current frame
         loadHtml2Canvas()
@@ -144,7 +147,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                             console.log('currBatchB64ImagesDict', currBatchB64ImagesDict);
 
                             // Send message with the screenshots for the current batch
-                            await chrome.runtime.sendMessage({
+                            chrome.runtime.sendMessage({
                                 type: 'GET_API_ARIALABELS',
                                 tabId: tabId,
                                 screenshotsFrameDict: currBatchB64ImagesDict,
@@ -152,7 +155,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         };
 
                         // Call the async function and wait for it to complete before moving to the next batch
-                        await handleBatch(batch);
+                        if (batchesCount <= limitBatches)
+                        {
+                          console.log("Under stil",batchesCount);
+                          batchesCount++;
+                          console.log("now",batchesCount);
+                          await handleBatch(batch);
+                        }
                     } catch (error) {
                         console.error('Error capturing screenshots:', error);
                     }
@@ -214,11 +223,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         );
                     }
 
-                    console.log("LR TESTING currentNode",currentNode);
+                    // console.log("LR TESTING currentNode",currentNode);
                     const element = currentNode.singleNodeValue;
 
                     if (element) {
-                        console.log("setAriaLabel", ariaLabel);
+                        // console.log("setAriaLabel", ariaLabel);
                         if (ariaLabel === "") // If both the OCR and the type are _negative set it as could not be found lah
                         {
                           ariaLabel = "Could not be determined";
@@ -235,10 +244,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         // Wait for all promises to resolve
         Promise.all(promises).then(() => {
-            // Send another message to the backend here
-            console.log('All aria-labels set. Sending message to backend...');
-            chrome.runtime.sendMessage({type: 'HIGHLIGHT_MISSING',tabId:tabId},);
-        });
+          console.log('All aria-labels set. Sending message to backend...');
+          chrome.runtime.sendMessage({ type: 'CLEAR_arialLabelsFramesDict', tabId: tabId }, () => {
+              // Callback for first message. Now send the second message.
+              chrome.runtime.sendMessage({ type: 'HIGHLIGHT_MISSING', tabId: tabId }, () => {
+                  console.log('Both messages sent.');
+              });
+          });
+      });      
     }
 }else if (message.type === 'CHECK_OVERLAY_LISTENERS_JS') {
     sendResponse({ status: 'OVERLAY_LISTENERS_READY' })

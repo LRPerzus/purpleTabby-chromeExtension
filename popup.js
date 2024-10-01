@@ -85,6 +85,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       from: 'popup.js',
     })
   } else if (message.type === 'UPDATE_OVERLAY') {
+    console.log("UPDATEOVERLAY");
     // Get the settings from the message
     const settings = message.settings
     const tabId = message.tabId
@@ -137,47 +138,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 function createFrame(data) {
   for (let i = 0; i < data.length; i++) {
     const [key, entries] = data[i] // Destructure to get the key and entries array
-
     console.log(`data[i] is: ${data[i]}`)
-
-    const keyTypeContainers = createKeyTypeGroupHolder(key)
+    const keyTypeContainers = createKeyTypeGroupHolder(key + [i])
     accordionGroup.appendChild(keyTypeContainers)
-
     for (let j = 0; j < entries.length; j++) {
       const dataToCopy = []
       dataToCopy[j] = JSON.stringify(entries[j], null, 2)
-
       document
-        .getElementById(`collapse${key}`)
-        .appendChild(createIssueElementsGroupHolder(key, [j]))
-
-      document.getElementById(`elementXPath${key}${[j]}`).innerHTML =
+        .getElementById(`collapse${key + [i]}`)
+        .appendChild(createIssueElementsGroupHolder(key + [i], [j]))
+      document.getElementById(`elementXPath${key}${[i]}${[j]}`).innerHTML =
         JSON.stringify(entries[j].xpath, null, 2).replace(/"/g, '')
-
-      document.getElementById(`elementHtml${key}${j}`).textContent = entries[
-        i
-      ].code
-        .replace(/\n/g, '')
-        .replace(/\u00A0/g, '')
-        .replace(/\s+/g, ' ')
-        .trim()
-
-      hljs.highlightElement(document.getElementById(`elementHtml${key}${[j]}`))
+      document.getElementById(`elementHtml${key}${[i]}${[j]}`).textContent =
+        entries[j].code
+          .replace(/\n/g, '')
+          .replace(/\u00A0/g, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+      hljs.highlightElement(
+        document.getElementById(`elementHtml${key}${[i]}${[j]}`)
+      )
       document
-        .getElementById(`elementHtml${key}${[j]}`)
+        .getElementById(`elementHtml${key}${[i]}${[j]}`)
         .classList.add('custom-code-wrap')
-
       document
-        .getElementById(`copyButton${key}${j}`)
+        .getElementById(`copyButton${key}${[i]}${[j]}`)
         .addEventListener('click', async function () {
           // Copy the data to clipboard
           try {
             await navigator.clipboard.writeText(dataToCopy[j])
-            document.getElementById(`copyStatus${key}${j}`).innerText =
+            document.getElementById(`copyStatus${key}${[i]}${[j]}`).innerText =
               'Copied!'
-
             setTimeout(() => {
-              document.getElementById(`copyStatus${key}${j}`).innerText = ''
+              document.getElementById(
+                `copyStatus${key}${[i]}${[j]}`
+              ).innerText = ''
             }, 2000)
           } catch (error) {
             console.error('Failed to copy text: ', error)
@@ -185,7 +180,7 @@ function createFrame(data) {
         })
     }
   }
-}
+} (edited) 
 
 // Creates the UI component for each keyType
 function createKeyTypeGroupHolder(keyType) {
