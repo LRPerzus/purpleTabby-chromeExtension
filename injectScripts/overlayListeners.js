@@ -118,50 +118,52 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     elementsFoundInFrame[frameKey].push({ xpath: xpath, element: element });
                 }
             });
-
-            console.log('A11Y_FIX Screenshots Start');
-            console.log('Example', elementsFoundInFrame);
-
-            // GET SCREENSHOT for the current frame
-            loadHtml2Canvas()
-                .then(async () => {
-                    // Process frames one by one and ensure all batches are processed before moving to the next frame
-                    for (const [frame, elementsFoundList] of Object.entries(elementsFoundInFrame)) {
-                        const splitBatches = splitIntoChunks(elementsFoundList, 10); // Split into chunks of 10
-
-                        console.log('splitBatches', splitBatches);
-
-                        // Use a for...of loop to iterate over batches in the current frame
-                        for (const batch of splitBatches) {
-                            console.log('Batch', batch);
-
-                            try {
-                                // Define an async function to handle the batch processing
-                                const handleBatch = async (batch) => {
-                                    currBatchB64ImagesDict = await captureVisibleElements(batch, frame); // Capture the visible elements
-                                    console.log('currBatchB64ImagesDict', currBatchB64ImagesDict);
-
-                                    // Send message with the screenshots for the current batch
-                                    await chrome.runtime.sendMessage({
-                                        type: 'GET_API_ARIALABELS',
-                                        tabId: tabId,
-                                        screenshotsFrameDict: currBatchB64ImagesDict,
-                                    });
-                                };
-
-                                // Call the async function and wait for it to complete before moving to the next batch
-                                await handleBatch(batch);
-                            } catch (error) {
-                                console.error('Error capturing screenshots:', error);
-                            }
-                        }
-                        // All batches for the current frame have been processed before moving to the next frame
-                    }
-                })
-                .catch((error) => {
-                    console.error('Failed to load html2canvas:', error);
-                });
         }
+
+        console.log('A11Y_FIX Screenshots Start');
+        console.log('Example', elementsFoundInFrame);
+        
+        // Once done another for loop
+        // GET SCREENSHOT for the current frame
+        loadHtml2Canvas()
+        .then(async () => {
+            // Process frames one by one and ensure all batches are processed before moving to the next frame
+            for (const [frame, elementsFoundList] of Object.entries(elementsFoundInFrame)) {
+                const splitBatches = splitIntoChunks(elementsFoundList, 10); // Split into chunks of 10
+
+                console.log('splitBatches', splitBatches);
+
+                // Use a for...of loop to iterate over batches in the current frame
+                for (const batch of splitBatches) {
+                    console.log('Batch', batch);
+
+                    try {
+                        // Define an async function to handle the batch processing
+                        const handleBatch = async (batch) => {
+                            currBatchB64ImagesDict = await captureVisibleElements(batch, frame); // Capture the visible elements
+                            console.log('currBatchB64ImagesDict', currBatchB64ImagesDict);
+
+                            // Send message with the screenshots for the current batch
+                            await chrome.runtime.sendMessage({
+                                type: 'GET_API_ARIALABELS',
+                                tabId: tabId,
+                                screenshotsFrameDict: currBatchB64ImagesDict,
+                            });
+                        };
+
+                        // Call the async function and wait for it to complete before moving to the next batch
+                        await handleBatch(batch);
+                    } catch (error) {
+                        console.error('Error capturing screenshots:', error);
+                    }
+                }
+                // All batches for the current frame have been processed before moving to the next frame
+            }
+        })
+        .catch((error) => {
+            console.error('Failed to load html2canvas:', error);
+        });
+
     }
   } else if (message.type === 'SET_ARIA_LABELS') {
     console.log('A11YFIXES_Start message.data', message.missingXpaths);
