@@ -10,6 +10,8 @@ let debuggerAttached = {};
 let settings = {};
 let scanningQueueDictionary = {};
 let arialLabelsFramesDict = {};
+let globalScreenshotsFramesDict;
+let globalFetchPromises = [];
 
 
 // --- Event Listeners from the injecte scripts to here
@@ -152,7 +154,9 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                     console.log("Debugger not attached");
                     sendResponse({ success: false, error: "Debugger not Attached" });
                 }
-                else if (scanningQueueDictionary[tabId] && scanningQueueDictionary[tabId].redo !== true)
+                else if (scanningQueueDictionary[tabId] 
+                    && (scanningQueueDictionary[tabId].currentScanning === true|| scanningQueueDictionary[tabId].currentFixing === true)
+                )
                 {
                     console.log("There is already a scan going into process.");
                     // Update it to do another snapshot cause there were chnages previously
@@ -166,6 +170,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                     // set a dict of it is scanning
                     scanningQueueDictionary[tabId] = {
                         currentScanning:true,
+                        currentFixing:false,
+                        currentHiliging:false,
                         redo:false
                     };
 
@@ -347,6 +353,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         if (previousMissingXpath)
         {
             console.log("THERE WAS PRIVUOUS DATA");
+            console.log("Previous data",previousMissingXpath.framesDict);
+            console.log("New data",request.data.framesDict);
             // cause each is its own dict kinda
             ({mergedFramesDict, mergedMissingList} = mergeDictionaries(request.data.framesDict, previousMissingXpath.framesDict, mergedMissingList));
         }
@@ -396,6 +404,14 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                             if (setting.A11yFix) // This one will continue with highlight later there is another highlight check
                             {
                                 console.log("A11YFIXES_Start");
+                                // Update scanningQueueDictionary to tell it to not do a scan once it starts this
+                                scanningQueueDictionary[tabId] = {
+                                    currentScanning:false,
+                                    currentFixing:true,
+                                    currentHiligting:false,
+                                    redo:false
+                                };
+
                                 chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict , tabId:tabId});
                             }
                             else if (setting.highlight) // Just highlight
@@ -457,6 +473,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         else  if(scanningQueueDictionary[tabId] && scanningQueueDictionary[tabId].redo !== undefined && scanningQueueDictionary[tabId].redo === true)
         {
             console.log("There was a another request of scanning during a scan");
+            scanningQueueDictionary[tabId].redo = false;
+            scanningQueueDictionary[tabId].currentScanning = false;
             chrome.tabs.sendMessage(tabId, { type: "START_RESCANNING" , tabId:tabId});
         }
     }
@@ -515,19 +533,27 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     }
     else if (request.type === "GET_API_ARIALABELS") {
         console.log("GET_API_ARIALABELS", request.screenshotsFrameDict);
-        const screenshotsFramesDict = request.screenshotsFrameDict;
-        const tabId = request.tabId;
-        const fetchPromises = []; // Array to hold fetch promises
-    
-        for (const framekey of Object.keys(screenshotsFramesDict)) {
+        globalScreenshotsFramesDict = request.screenshotsFrameDict;
+        globalFetchPromises = []; // Array to hold fetch promises
+        
+        //Rest the arialabelFrameDict
+        arialLabelsFramesDict = {
+
+        };
+
+        for (const framekey of Object.keys(globalScreenshotsFramesDict)) {
             console.log("framekey", framekey);
-            const successB64 = screenshotsFramesDict[framekey].success;
-            const errorB64 = screenshotsFramesDict[framekey].error;
+
+            // Reset it
+            arialLabelsFramesDict[framekey] = {};
+
+
+            let successB64 = globalScreenshotsFramesDict[framekey].success;
+            let errorB64 = globalScreenshotsFramesDict[framekey].error;
             const payload = {
                 content: successB64
             };
             
-            arialLabelsFramesDict[framekey] = {};
     
             console.log("payload", payload);
             console.log("errorB64", errorB64);
@@ -574,6 +600,16 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                     ...arialLabelsFramesDict[framekey],  // Merge with the previous updates
                     ...formattedResponse                 // Overwrite or add new keys from formattedResponse
                 };
+                console.log("arialLabelsFramesDict", arialLabelsFramesDict);
+                console.log("DONE WITH API CALL");
+
+                // Remove sucess from exsisting
+                successB64 = null;
+                errorB64 = null;
+
+                chrome.tabs.sendMessage(request.tabId, { type: "SET_ARIA_LABELS", missingXpaths: arialLabelsFramesDict });
+
+
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -581,17 +617,16 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 arialLabelsFramesDict[framekey] = { error: 'Fetch error occurred' };
             });
     
-            fetchPromises.push(fetchPromise); // Add the promise to the array
+            globalFetchPromises.push(fetchPromise); // Add the promise to the array
         }
     
-        // Wait for all fetch requests to complete
-        Promise.all(fetchPromises)
-            .then(() => {
-                console.log("arialLabelsFramesDict", arialLabelsFramesDict);
-                console.log("tabId", tabId);
-                // Once we got all the frames we can get send it to fix the label
-                chrome.tabs.sendMessage(tabId, { type: "SET_ARIA_LABELS", missingXpaths: arialLabelsFramesDict });
-            });
+        // // Wait for all fetch requests to complete
+        // Promise.all(globalFetchPromises)
+        //     .then(() => {
+        //         console.log("arialLabelsFramesDict", arialLabelsFramesDict);
+        //         // Once we got all the frames we can get send it to fix the label
+        //         // chrome.tabs.sendMessage(tabId, { type: "SET_ARIA_LABELS", missingXpaths: arialLabelsFramesDict });
+        //     });
     }
     else if (request.type ="CLEAR_arialLabelsFramesDict")
     {
@@ -825,11 +860,17 @@ function mergeDictionaries(newestSCANINFODICT, previousSCANINFODICT, mergedMissi
             // If key exists in both newest and previous, merge the arrays
             const mergedArray = [...mergedFramesDict[key]]; // Copy existing array from newest
 
-            // Directly push all items from previous into mergedArray and mergedMissingList
+            // Keep track of xpaths that already exist in mergedArray
+            const existingXpaths = new Set(mergedArray.map(item => item.xpath));
+
+            // Iterate over items in previousSCANINFODICT for the same key
             previousSCANINFODICT[key].forEach(previousItem => {
-                mergedArray.push(previousItem); // Add the previousItem directly
-                mergedMissingList.push(previousItem); // Also add it to the missing list
-                console.log(`Added missing xpath: ${previousItem.xpath} from previous scan info`);
+                if (!existingXpaths.has(previousItem.xpath)) {
+                    // Only add items whose xpath is not already in mergedArray
+                    mergedArray.push(previousItem); // Add the previousItem
+                    mergedMissingList.push(previousItem); // Also add it to the missing list
+                    console.log(`Added missing xpath: ${previousItem.xpath} from previous scan info`);
+                }
             });
 
             // Update the mergedFramesDict with the merged array for this key

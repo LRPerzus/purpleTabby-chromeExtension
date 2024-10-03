@@ -122,7 +122,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         console.log('A11Y_FIX Screenshots Start');
         console.log('Example', elementsFoundInFrame);
-        const limitBatches = 3;
+        const limitBatches = 30;
         let batchesCount = 0
         console.log("LIMIT",limitBatches);
 
@@ -143,8 +143,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     try {
                         // Define an async function to handle the batch processing
                         const handleBatch = async (batch) => {
+                            let before = currBatchB64ImagesDict;
                             currBatchB64ImagesDict = await captureVisibleElements(batch, frame); // Capture the visible elements
-                            console.log('currBatchB64ImagesDict', currBatchB64ImagesDict);
+                            // check the currentbatch
+                            console.log('Did it change?',!(before === currBatchB64ImagesDict));
+                            delete before;
+
 
                             // Send message with the screenshots for the current batch
                             chrome.runtime.sendMessage({
