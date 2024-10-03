@@ -1,3 +1,5 @@
+let foundElements;
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     /* 
         This is used to send message to debug back into background.js
@@ -12,7 +14,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     else if (message.type === "FULL_A11yTree_DOM_XPATHS")
     {
-        const foundElements = a11yTreeToDOM();
+        foundElements = a11yTreeToDOM();
         const data =
         {
             foundElements:foundElements,

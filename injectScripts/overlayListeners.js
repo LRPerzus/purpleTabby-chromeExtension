@@ -1,5 +1,11 @@
 // Global value
 let currBatchB64ImagesDict; // this will be removed and added constantly
+let splitBatches;
+const limitBatches = 30;
+let batchesCount = 0;
+let totalBatches = 0;
+let finsihedBatches = 0;
+
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'HIGHLIGHT') {
@@ -122,9 +128,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         console.log('A11Y_FIX Screenshots Start');
         console.log('Example', elementsFoundInFrame);
-        const limitBatches = 30;
-        let batchesCount = 0
         console.log("LIMIT",limitBatches);
+
 
         // Once done another for loop
         // GET SCREENSHOT for the current frame
@@ -132,22 +137,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         .then(async () => {
             // Process frames one by one and ensure all batches are processed before moving to the next frame
             for (const [frame, elementsFoundList] of Object.entries(elementsFoundInFrame)) {
-                const splitBatches = splitIntoChunks(elementsFoundList, 10); // Split into chunks of 10
 
-                console.log('splitBatches', splitBatches);
+                splitBatches = splitIntoChunks(elementsFoundList, 10); // Split into chunks of 10
+                totalBatches += splitBatches.length;
 
                 // Use a for...of loop to iterate over batches in the current frame
                 for (const batch of splitBatches) {
                     console.log('Batch', batch);
-
                     try {
                         // Define an async function to handle the batch processing
                         const handleBatch = async (batch) => {
-                            let before = currBatchB64ImagesDict;
+                            // let before = currBatchB64ImagesDict;
                             currBatchB64ImagesDict = await captureVisibleElements(batch, frame); // Capture the visible elements
                             // check the currentbatch
-                            console.log('Did it change?',!(before === currBatchB64ImagesDict));
-                            delete before;
+                            // console.log('Did it change?',!(before === currBatchB64ImagesDict));
+                            // delete before;
 
 
                             // Send message with the screenshots for the current batch
@@ -172,6 +176,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 }
                 // All batches for the current frame have been processed before moving to the next frame
             }
+            
         })
         .catch((error) => {
             console.error('Failed to load html2canvas:', error);
@@ -184,11 +189,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.missingXpaths !== 'undefined') {
         const framesMissingXpathsDict = message.missingXpaths;
         const promises = []; // Array to hold promises
+        let xpaths;
+        finsihedBatches++;
+
 
         for (const frameKey in framesMissingXpathsDict) {
-            const xpaths = framesMissingXpathsDict[frameKey];
+            xpaths = framesMissingXpathsDict[frameKey];
             console.log("xpaths", xpaths);
-
             for (const xpath in xpaths) {
                 let ariaLabel = (xpaths[xpath]).replace("_negative","");
                 let bodyNode = document.body;
@@ -249,6 +256,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Wait for all promises to resolve
         Promise.all(promises).then(() => {
           console.log('All aria-labels set. Sending message to backend...');
+          console.log("totalBatches",totalBatches);
+          console.log("finsihedBatches",finsihedBatches);
+          if (finsihedBatches === totalBatches)
+          {
+            // Reset finsihedBatches
+            finsihedBatches = 0;
+            chrome.runtime.sendMessage({
+              type: 'A11Y_FIXES_COMPLETE',
+              tabId: message.tabId,
+            });
+          }
           chrome.runtime.sendMessage({ type: 'CLEAR_arialLabelsFramesDict', tabId: tabId }, () => {
               // Callback for first message. Now send the second message.
               chrome.runtime.sendMessage({ type: 'HIGHLIGHT_MISSING', tabId: tabId }, () => {

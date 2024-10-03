@@ -1,5 +1,8 @@
 let concurrencyLimit = 10; // must be same as line 133
 let elementLimit = 40;
+let base64Data;
+let frameResults;
+let results;
 
 // Function to load html2canvas from the local 'libs' folder
 function loadHtml2Canvas() {
@@ -183,14 +186,14 @@ async function captureVisibleElements(elementsFoundDict, frameKey) {
   const limitedElements = elementsFoundDict.slice(0, elementLimit);
 
   // Process elements and store them in allResults
-  const frameResults = await processElementsInBatches(limitedElements, concurrencyLimit);
+  frameResults = await processElementsInBatches(limitedElements, concurrencyLimit);
   allResults[frameKey] = frameResults;
 
   return allResults;
 }
 // Function to process elements in batches
 const processElementsInBatches = async (elements, concurrencyLimit) => {
-  const results = {
+  results = {
     success:{},
     error:{}
   };
@@ -199,7 +202,7 @@ const processElementsInBatches = async (elements, concurrencyLimit) => {
   const executing = batch.map(({ xpath, element }) =>
     captureElementScreenshot(element).then(result => {
       if (result !== null) { // if could not capture might add something to fix CNA HERE
-        const base64Data = result.split(',')[1];
+        base64Data = result.split(',')[1];
         results.success[xpath] = base64Data;
       }
       else

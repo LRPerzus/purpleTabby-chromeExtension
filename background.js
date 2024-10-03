@@ -2,7 +2,7 @@
 import {getFrameTree,processFrameTrees,settingAttributeNode} from "./background functions/frameTreesFuncs.js"
 import {collectDOMNodes} from "./background functions/domTreeFunc.js"
 import {setAttributeValue,areScansFinished} from "./background functions/common.js"
-import {storeDataForTab,clearLocalStorage,getFromLocal} from "./background functions/localStorageFunc.js"
+import {storeDataForTab,getFromLocal} from "./background functions/localStorageFunc.js"
 
 // Set Variables
 let firstClick = {};
@@ -239,7 +239,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         await detachDebugger(tabId);
         delete debuggerAttached[tabId];
     }
-
     else if (request.type === "GET_AX_TREE") {
         // console.log("Message received in background script:", request);
         try {
@@ -338,7 +337,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         await areScansFinished(request.tabId);
 
     }
-
     else if (request.type === "MISSING_FOUND")
     {
         // At this point the scan has finished
@@ -482,7 +480,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             chrome.tabs.sendMessage(tabId, { type: "START_RESCANNING" , tabId:tabId});
         }
     }
-
     else if (request.type === "A11YFIXES_INNIT")
     {
         const tabId = request.tabId;
@@ -541,9 +538,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         globalFetchPromises = []; // Array to hold fetch promises
         
         //Rest the arialabelFrameDict
-        arialLabelsFramesDict = {
-
-        };
+        arialLabelsFramesDict = {};
 
         for (const framekey of Object.keys(globalScreenshotsFramesDict)) {
             console.log("framekey", framekey);
@@ -559,8 +554,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             };
             
     
-            console.log("payload", payload);
-            console.log("errorB64", errorB64);
+            // console.log("payload", payload);
+            // console.log("errorB64", errorB64);
 
             // For error
             Object.keys(errorB64).forEach(xpathKey => {
@@ -611,7 +606,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 successB64 = null;
                 errorB64 = null;
 
-                chrome.tabs.sendMessage(request.tabId, { type: "SET_ARIA_LABELS", missingXpaths: arialLabelsFramesDict });
+                chrome.tabs.sendMessage(request.tabId, { type: "SET_ARIA_LABELS", missingXpaths: arialLabelsFramesDict, tabId:request.tabId });
 
 
             })
@@ -636,6 +631,14 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     {
         // clear ariaLabel
         arialLabelsFramesDict = {}; 
+    }
+    else if (request.type === "A11Y_FIXES_COMPLETE")
+    {
+        console.log("A11Y_FIXES_COMPLETE")
+        if (request.tabId)
+        {
+            scanningQueueDictionary[request.tabId].currentFixing = false;
+        }
     }
     
     return true; // Indicate that you will send a response asynchronously
