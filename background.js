@@ -348,7 +348,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         // previous errors data
         const previousMissingXpath = await getFromLocal(tabId,"missingXpath",false,request.siteurl);
         let mergedFramesDict;
-        let mergedMissingList = [];
+        let previousMissingList;
+        let mergedMissingList = request.data.missing;
         
         if (previousMissingXpath)
         {
@@ -356,12 +357,15 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             console.log("Previous data",previousMissingXpath.framesDict);
             console.log("New data",request.data.framesDict);
             // cause each is its own dict kinda
-            ({mergedFramesDict, mergedMissingList} = mergeDictionaries(request.data.framesDict, previousMissingXpath.framesDict, mergedMissingList));
+            ({mergedFramesDict, previousMissingList} = mergeDictionaries(request.data.framesDict, previousMissingXpath.framesDict, mergedMissingList));
+            mergedMissingList.push(previousMissingList);
+
+            //reset it
+            previousMissingList = null;
         }
         else 
         {
-            mergedFramesDict = request.data.framesDict,
-            mergedMissingList = request.data.missing;
+            mergedFramesDict = request.data.framesDict
         }
         
         const mergedMissingXpaaths = {
