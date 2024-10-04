@@ -79,6 +79,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     else if (request.type === "HIGHLIGHT_MISSING")
     {
         console.log("HIGHLIGHT_MISSING Received",request.tabId);
+        // To change the status
         if (settings[request.tabId] && request.status)
         {
             settings[request.tabId].highlight = request.status;
@@ -95,6 +96,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         }
         console.log("HIGHLIGHT_MISSING missingXpath",missingXpath)
 
+        // Status is true
         if (settings[request.tabId].highlight)
         {
             chrome.tabs.sendMessage(request.tabId, { type: "HIGHLIGHT", data:data.framesDict });
@@ -103,9 +105,15 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         {
             // TODO add a remove highlights
         }
+
+        // sendinng response
+        console.log("sending Response");
+        sendResponse({status:settings[request.tabId].highlight});
+        return true;
         
     }
-    else if (request.type === "OVERLAY_CREATED") {
+    else if (request.type === "OVERLAY_CREATED") 
+    {
         console.log("Overlay created, preparing to request AX tree and clickableElements.");
         const tabId = request.tabId;
         const siteUrl = request.siteUrl;
@@ -381,7 +389,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         if (scanningQueueDictionary[tabId] && scanningQueueDictionary[tabId].redo !== true)
         {
             // Remove
-            delete scanningQueueDictionary[tabId]
+            // delete scanningQueueDictionary[tabId]
 
             // Continue with end of scanning process
             try {
@@ -554,8 +562,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             };
             
     
-            // console.log("payload", payload);
-            // console.log("errorB64", errorB64);
+            console.log("payload", payload);
+            console.log("errorB64", errorB64);
 
             // For error
             Object.keys(errorB64).forEach(xpathKey => {
@@ -627,19 +635,23 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         //         // chrome.tabs.sendMessage(tabId, { type: "SET_ARIA_LABELS", missingXpaths: arialLabelsFramesDict });
         //     });
     }
-    else if (request.type ="CLEAR_arialLabelsFramesDict")
+    else if (request.type === "CLEAR_arialLabelsFramesDict")
     {
         // clear ariaLabel
         arialLabelsFramesDict = {}; 
+        sendResponse({ cleared: true });  // Acknowledge the message
     }
     else if (request.type === "A11Y_FIXES_COMPLETE")
     {
-        console.log("A11Y_FIXES_COMPLETE")
+        console.log("A11Y_FIXES_COMPLETE",request.tabId);
         if (request.tabId)
         {
-            scanningQueueDictionary[request.tabId].currentFixing = false;
+            console.log("scanningQueueDictionary[request.tabId]",scanningQueueDictionary[request.tabId]);
+            // scanningQueueDictionary[request.tabId].currentFixing = false;
         }
+        sendResponse({ success: true });
     }
+    
     
     return true; // Indicate that you will send a response asynchronously
 });

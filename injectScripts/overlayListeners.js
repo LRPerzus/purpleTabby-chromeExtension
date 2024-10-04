@@ -256,24 +256,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Wait for all promises to resolve
         Promise.all(promises).then(() => {
           console.log('All aria-labels set. Sending message to backend...');
-          console.log("totalBatches",totalBatches);
-          console.log("finsihedBatches",finsihedBatches);
-          if (finsihedBatches === totalBatches)
-          {
-            // Reset finsihedBatches
-            finsihedBatches = 0;
-            chrome.runtime.sendMessage({
-              type: 'A11Y_FIXES_COMPLETE',
-              tabId: message.tabId,
-            });
+          console.log("totalBatches", totalBatches);
+          console.log("finsihedBatches", finsihedBatches);
+          
+          if (finsihedBatches === totalBatches) {
+              console.log("HI Test");
+              // Reset finsihedBatches
+              finsihedBatches = 0;
+              chrome.runtime.sendMessage({ type: 'A11Y_FIXES_COMPLETE', tabId: message.tabId });
           }
-          chrome.runtime.sendMessage({ type: 'CLEAR_arialLabelsFramesDict', tabId: tabId }, () => {
-              // Callback for first message. Now send the second message.
-              chrome.runtime.sendMessage({ type: 'HIGHLIGHT_MISSING', tabId: tabId }, () => {
-                  console.log('Both messages sent.');
-              });
-          });
-      });      
+      
+          // Send messages without expecting any callback
+          chrome.runtime.sendMessage({ type: 'CLEAR_arialLabelsFramesDict', tabId: tabId });
+          chrome.runtime.sendMessage({ type: 'HIGHLIGHT_MISSING', tabId: tabId });
+          
+          console.log('Both messages sent.');
+      }).catch((error) => {
+          console.error("Error in Promise.all:", error);
+      });
     }
 }else if (message.type === 'CHECK_OVERLAY_LISTENERS_JS') {
     sendResponse({ status: 'OVERLAY_LISTENERS_READY' })
