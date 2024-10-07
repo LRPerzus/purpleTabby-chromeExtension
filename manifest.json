@@ -31,22 +31,22 @@
   ],
   "action": {
     "default_popup": "tabbyExtension.html",
-    "default_icon": "purpleA11yLogo.png"
-  }, 
+    "default_icon": "assets/default-extension-icon.png"
+  },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["./injectScripts/content.js",
-      "./injectScripts/getClickableItems.js",
-      "./injectScripts/scanningProcess.js",
-      "./injectScripts/a11yTreeListeners.js",
-      "./injectScripts/getClickableElementsListeners.js",
-      "./injectScripts/overlayListeners.js",
-      "./injectScripts/attachMutationObserver.js",
-      "./injectScripts/screenshotElement.js",
-      "./libs/html2canvas.min.js"
-    ]
+      "js": [
+        "./injectScripts/content.js",
+        "./injectScripts/getClickableItems.js",
+        "./injectScripts/scanningProcess.js",
+        "./injectScripts/a11yTreeListeners.js",
+        "./injectScripts/getClickableElementsListeners.js",
+        "./injectScripts/overlayListeners.js",
+        "./injectScripts/attachMutationObserver.js",
+        "./injectScripts/screenshotElement.js",
+        "./libs/html2canvas.min.js"
+      ]
     }
   ]
-
 }

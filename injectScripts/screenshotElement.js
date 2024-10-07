@@ -1,6 +1,8 @@
-// Set variables
-let concurrencyLimit = 25;
+let concurrencyLimit = 10; // must be same as line 133
 let elementLimit = 40;
+let base64Data;
+let frameResults;
+let results;
 
 // Function to load html2canvas from the local 'libs' folder
 function loadHtml2Canvas() {
@@ -24,79 +26,199 @@ function loadHtml2Canvas() {
       document.head.appendChild(script);
     });
   }
+
+// Function to check if the screenshot is blank
+function isCanvasBlank(canvas) {
+  const context = canvas.getContext('2d');
+  const pixelData = context.getImageData(0, 0, canvas.width, canvas.height).data;
+  
+  // Check for all white or transparent pixels
+  for (let i = 0; i < pixelData.length; i += 4) {
+      const r = pixelData[i];     // Red channel
+      const g = pixelData[i + 1]; // Green channel
+      const b = pixelData[i + 2]; // Blue channel
+      const a = pixelData[i + 3]; // Alpha channel
+      
+      // If the pixel is not white (255,255,255) and not fully transparent (a !== 0), return false
+      if (!(r === 255 && g === 255 && b === 255 && a === 255) && a !== 0) {
+          return false;
+      }
+  }
+  return true; // All pixels are either white or transparent
+}
+
+function createBase64FromImage(img) {
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width;
+  canvas.height = img.height;
+
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+
+  // Get the Base64 string from the canvas
+  const base64String = canvas.toDataURL('image/png');
+
+  console.log(base64String); // This will log the Base64 representation of the image
+  // You can add further logic here to use the Base64 string
+}
+
+
+// ---------------------------  WORKING ON FIXING THE CNA ---------------------------------------------------------------
+
+// Function to check if background has a url in it either in ::before or ::after
+function doesItHaveURLInBackground(element) {
+  // Helper function to check if a style contains a background URL
+  function checkBackgroundImage(style) {
+    const backgroundImage = style.getPropertyValue('background-image');
+    const urlMatch = backgroundImage.match(/url\(["']?(.+?)["']?\)/);
+    return urlMatch ? urlMatch[1] : null; // Return the URL or null
+  }
+
+  // Check the element itself
+  const elementStyle = window.getComputedStyle(element);
+  let backgroundUrl = checkBackgroundImage(elementStyle);
+  if (backgroundUrl) {
+    return backgroundUrl;
+  }
+
+  // Check ::before pseudo-element
+  const beforeStyle = window.getComputedStyle(element, '::before');
+  backgroundUrl = checkBackgroundImage(beforeStyle);
+  if (backgroundUrl) {
+    return backgroundUrl;
+  }
+
+  // Check ::after pseudo-element
+  const afterStyle = window.getComputedStyle(element, '::after');
+  backgroundUrl = checkBackgroundImage(afterStyle);
+  if (backgroundUrl) {
+    return backgroundUrl;
+  }
+
+  // Recursively check all children
+  const children = element.children;
+  for (let i = 0; i < children.length; i++) {
+    backgroundUrl = doesItHaveURLInBackground(children[i]);
+    if (backgroundUrl) {
+      return backgroundUrl;
+    }
+  }
+
+  // If no URL found anywhere
+  return null;
+}
+
   
 // Function to capture a screenshot of a specific element
 function captureElementScreenshot(element) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => { // No reject here
     const elementPreviousStyle = element.getAttribute("style");
     element.removeAttribute("style");
 
+    const backgroundImgUrl = doesItHaveURLInBackground(element);
+    if (backgroundImgUrl) {
+      console.log("background", backgroundImgUrl);
+    }
+
     if (window.html2canvas) {
-      window.html2canvas(element).then(canvas => {
-        const dataUrl = canvas.toDataURL('image/png');
-        element.setAttribute("style",elementPreviousStyle);
-        resolve(dataUrl);
-      }).catch(error => {
-        console.error('Error capturing screenshot:', error, "At:", element);
-        reject(error);
-      });
+      // Using a try-catch block to catch errors from html2canvas
+      try {
+        window.html2canvas(element, { useCORS: true, allowTaint: true })
+          .then(canvas => {
+            const isBlank = isCanvasBlank(canvas);
+            // Find the element with `type="image"`
+            const imageElement = element.matches('[type="image"]') ? element : element.querySelector('[type="image"]');
+
+            // Check if that element also has a `src` attribute
+            const hasTypeImageWithSrc = imageElement && imageElement.hasAttribute('src');        
+
+            let dataUrl = null; // Default to null
+            if (!isBlank) {
+              dataUrl = canvas.toDataURL('image/png');
+            } else if (imageElement && hasTypeImageWithSrc) {
+              // Get the Base64 representation of the image
+              const imgSrc = imageElement.getAttribute('src');
+              const img = new Image();
+              img.src = imgSrc;
+
+              // Create a canvas to draw the image
+              const imgCanvas = document.createElement('canvas');
+              imgCanvas.width = img.width;
+              imgCanvas.height = img.height;
+
+              const ctx = imgCanvas.getContext('2d');
+              ctx.drawImage(img, 0, 0);
+
+              // Get the Base64 string from the canvas
+              dataUrl = imgCanvas.toDataURL('image/png');
+            }
+
+            element.setAttribute("style", elementPreviousStyle);
+            resolve(dataUrl); // Resolve with the dataUrl or null
+          })
+          .catch(error => {
+            // Handle the error from html2canvas directly
+            console.error('Error capturing screenshot:', error.message, "At:", element);
+            // You might want to log the entire error object for more details
+            console.error(error);
+            resolve(null); // Resolve with null on error
+          });
+      } catch (error) {
+        // Handle any synchronous errors that might occur
+        console.error('Synchronous error when calling html2canvas:', error.message);
+        resolve("error"); // Resolve with null on synchronous error
+      }
     } else {
-      reject(new Error('html2canvas is not available'));
+      console.error('html2canvas is not available');
+      resolve(null); // Resolve with null if html2canvas is not available
     }
   });
 }
 
-async function captureVisibleElements(elementsFoundDict) {
-  // Dictionary to store screenshots from all frames
+
+async function captureVisibleElements(elementsFoundDict, frameKey) {
   let allResults = {};
+  console.log('Found elements for screenshot:', elementsFoundDict.length);
+  console.log('Concurrency limit:', concurrencyLimit);
+  console.log('Element limit:', elementLimit);
 
-  // Loop through each frame in the dictionary
-  for (const [frame, elementsFoundList] of Object.entries(elementsFoundDict)) {
-    console.log(`Processing frame: ${frame}`);
-    
-    // Check how many elements are found
-    console.log('Found elements for screenshot:', elementsFoundList.length);
-    console.log('Concurrency limit:', concurrencyLimit);
-    console.log('Element limit:', elementLimit);
+  // Limit the number of elements to elementLimit
+  const limitedElements = elementsFoundDict.slice(0, elementLimit);
 
-    // Limit the number of elements per frame to elementLimit
-    const limitedElements = elementsFoundList.slice(0, elementLimit);
+  // Process elements and store them in allResults
+  frameResults = await processElementsInBatches(limitedElements, concurrencyLimit);
+  allResults[frameKey] = frameResults;
 
-    // Function to process elements with concurrency limit
-    const processElements = async (elements, limit) => {
-      const results = {};
-      const executing = [];
-      
-      for (const { xpath, element } of elements) {
-        const p = captureElementScreenshot(element).then(result => {
-          const base64Data = result.split(',')[1];
-          results[xpath]= base64Data ;  // Store result as an object with xpath and screenshot
-        }).catch(error => {
-          console.error('Error in captureElementScreenshot:', error);
-        }).finally(() => {
-          executing.splice(executing.indexOf(p), 1);
-        });
-        
-        executing.push(p);
-        if (executing.length >= limit) {
-          await Promise.race(executing);
-        }
-      }
-      
-      await Promise.all(executing);
-      return results;
-    };
-
-    // Process elements in the current frame and store them in allResults under the corresponding frame
-    const frameResults = await processElements(limitedElements, concurrencyLimit);
-    allResults[frame] = frameResults;  // Store the results array for this frame
-  }
-
-  return allResults;  // Return the combined results for all frames
+  return allResults;
 }
-
-
+// Function to process elements in batches
+const processElementsInBatches = async (elements, concurrencyLimit) => {
+  results = {
+    success:{},
+    error:{}
+  };
+  const batch = elements.slice(0, concurrencyLimit); // Only take the first batch
   
+  const executing = batch.map(({ xpath, element }) =>
+    captureElementScreenshot(element).then(result => {
+      if (result !== null) { // if could not capture might add something to fix CNA HERE
+        base64Data = result.split(',')[1];
+        results.success[xpath] = base64Data;
+      }
+      else
+      {
+        results.error[xpath] = "error";
+      }
+    }).catch(error => {
+      console.error('Error in captureElementScreenshot:', error);
+    })
+  );
+  
+  await Promise.all(executing);
+  return results;
+};
+
+
 
 // Chrome extension message listener
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
