@@ -558,7 +558,7 @@ function flagElements() {
 
     // Process iframes
     const iframes = document.querySelectorAll('iframe');
-    iframes.forEach(iframe => {
+    iframes.forEach((iframe, index) => {
         injectStylesIntoFrame(iframe);
         try {
             const iframeDocument = iframe.contentDocument || iframe.contentWindow.document;
@@ -575,18 +575,16 @@ function flagElements() {
                 currentFlaggedElementsByDocument[iframeXPath] = iframeFlaggedElements;
             }
         } catch (error) {
-            customConsoleWarn("Cannot access iframe document: " + error);
+            console.warn(`Cannot access iframe document (${index}): ${error.message}`);
         }
     });
 
-    // Process frames similarly if needed...
-
-    // Collect XPaths of flagged elements per document
+    // Collect XPaths and outerHTMLs of flagged elements per document
     const flaggedXPathsByDocument = {};
 
     for (const docKey in currentFlaggedElementsByDocument) {
         const elements = currentFlaggedElementsByDocument[docKey];
-        const xpaths = [];
+        const flaggedInfo = []; // Array to hold flagged element info
         elements.forEach(flaggedElement => {
             const parentFlagged = flaggedElement.closest('[data-flagged="true"]');
             if (!parentFlagged || parentFlagged === flaggedElement) {
@@ -595,38 +593,28 @@ function flagElements() {
                     // For elements in iframes, adjust XPath
                     xpath = docKey + xpath;
                 }
-                if (xpath && !xpaths.includes(xpath)) {
-                    xpaths.push(xpath);
-                    allFlaggedElementsXPaths.push(xpath); // Add to the new array
+                if (xpath) {
+                    const outerHTML = flaggedElement.outerHTML; // Get outerHTML
+                    flaggedInfo.push({ xpath, code: outerHTML }); // Store xpath and outerHTML
+                    
+                    // Add to allFlaggedElementsXPaths
+                    allFlaggedElementsXPaths.push({ xpath, code: outerHTML });
                 }
             }
         });
-        flaggedXPathsByDocument[docKey] = xpaths;
+        flaggedXPathsByDocument[docKey] = flaggedInfo; // Store all flagged element info
     }
 
-    // Compute newly flagged XPaths by comparing with previousFlaggedXPathsByDocument
-    const newlyFlaggedXPathsByDocument = {};
-    for (const docKey in flaggedXPathsByDocument) {
-        const currentXPaths = flaggedXPathsByDocument[docKey];
-        const previousXPaths = previousFlaggedXPathsByDocument[docKey] || [];
-        const newlyFlaggedXPaths = currentXPaths.filter(xpath => !previousXPaths.includes(xpath));
-        
-        if (newlyFlaggedXPaths.length > 0) {
-            newlyFlaggedXPathsByDocument[docKey] = newlyFlaggedXPaths;
-        }
-    }
+    // Update previousFlaggedXPathsByDocument before finishing
+    previousFlaggedXPathsByDocument = { ...flaggedXPathsByDocument };
 
-    // Update previousFlaggedXPathsByDocument
-    previousFlaggedXPathsByDocument = flaggedXPathsByDocument;
-
-    // Update flaggedElementsByDocument
-    flaggedElementsByDocument = currentFlaggedElementsByDocument;
-
-    // Output the newly flagged XPaths
-    customConsoleWarn("Newly Flagged Elements XPaths by Document:", newlyFlaggedXPathsByDocument);
+    // Log both variables to verify they're populated
+    console.log("Updated previousFlaggedXPathsByDocument:", previousFlaggedXPathsByDocument);
+    console.log("All flagged elements XPaths:", allFlaggedElementsXPaths);
 
     console.timeEnd("Accessibility Check Time");
 }
+
 
 // Debounce function to limit the rate at which a function can fire
 function debounce(func, wait) {

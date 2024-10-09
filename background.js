@@ -346,8 +346,16 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     }
     else if (request.type === "MISSING_FOUND")
     {
+        chrome.action.setIcon(
+            {path:'assets/default-extension-icon.png'}
+        )
+
         // At this point the scan has finished
         const tabId = request.data.tabId;
+
+        // SET in the setting that the scan has been complete
+        scanningQueueDictionary[tabId].currentScanning = false;
+        
         console.log("TESING request.data.missing;",request.data.missing);
 
         // previous errors data
@@ -484,7 +492,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         {
             console.log("There was a another request of scanning during a scan");
             scanningQueueDictionary[tabId].redo = false;
-            scanningQueueDictionary[tabId].currentScanning = false;
             chrome.tabs.sendMessage(tabId, { type: "START_RESCANNING" , tabId:tabId});
         }
     }
