@@ -191,8 +191,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                         {
                             tabId = request.tabId;
                             console.log("Sending Can get messages to tabId:", tabId);
-                            chrome.tabs.sendMessage(tabId, { type: "Can_Get_Tree", tabId: tabId });
-                            chrome.tabs.sendMessage(tabId, { type: "Can_find_clickable", tabId: tabId });
+                            chrome.tabs.sendMessage(tabId, { type: "FIND_MISSING", tabId: tabId });
                             sendResponse({ success: true });
                         }
                         else
@@ -465,6 +464,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                         else if (settings[tabId].highlight) // Just highlight
                         {
                             console.log("MISSING_FOUND HIGHLIGHT")
+                            console.log("data",data);
                             chrome.tabs.sendMessage(tabId,{ type: "HIGHLIGHT", data:data.framesDict});
                         }
                         else

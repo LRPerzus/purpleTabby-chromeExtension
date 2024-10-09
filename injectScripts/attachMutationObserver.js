@@ -64,7 +64,8 @@ const callback = async (mutationList, observer) => {
       mutation.attributeName !== "purple_tabby_a11ytree" &&
       mutation.attributeName !== "style" &&
       mutation.attributeName !== "purple_tabby_missing" &&
-      mutation.attributeName !== "aria-label"
+      mutation.attributeName !== "aria-label" &&
+      mutation.attributeName !== "data-flagged"
     ) {
       console.log(mutation)
       // Attribute changes are considered significant for resetting the timeout

@@ -42,6 +42,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               )
             }
           } else {
+            console.log("Here right?");
             currentNode = document.evaluate(
               xpath,
               bodyNode,
@@ -50,7 +51,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               null
             )
           }
-
+          console.log("testing",currentNode);
           const element = currentNode.singleNodeValue
 
           if (element) {
