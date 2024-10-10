@@ -413,14 +413,15 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     {
         const tabId = request.tabId;
         const missingXpaths = await getFromLocal(tabId,"missingXpath",false,request.siteurl);
-        if (settings[request.tabId].A11yFix)
-        {
-            chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:missingXpaths.framesDict,tabId:tabId});
-        }
-        else
-        {
-            // TODO add a remove A11yFixes
-        }
+        chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:missingXpaths.framesDict,tabId:tabId});
+
+        // if (settings[request.tabId].A11yFix || settings[request.tabId].A11yFix === false)
+        // {
+        // }
+        // else
+        // {
+        //     // TODO add a remove A11yFixes
+        // }
 
         if (settings[request.tabId] && request.status)
         {
