@@ -1,7 +1,7 @@
 let foundElements;
 
 // New A11yTree Detection
-const allowNonClickableFlagging = false; // Change this to true to flag non-clickable images
+const allowNonClickableFlagging = true; // Change this to true to flag non-clickable images
 const landmarkElements = ['header', 'footer', 'nav', 'main', 'article', 'section', 'aside', 'form'];
 const loggingEnabled = false; // Set to true to enable console warnings
 
@@ -299,6 +299,12 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
         return false;
     }
 
+    // Skip non-clickable elements if allowNonClickableFlagging is false
+    if (!allowNonClickableFlagging && !hasPointerCursor(element)) {
+        customConsoleWarn("Element is not clickable and allowNonClickableFlagging is false, skipping flagging.");
+        return false;
+    }
+
     // Do not flag elements if any ancestor has aria-hidden="true"
     if (element.closest('[aria-hidden="true"]')) {
         customConsoleWarn("An ancestor element has aria-hidden='true', skipping flagging.");
@@ -584,8 +590,6 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
 
     return false; // Default case: do not flag
 }
-
-// DO NOT REMOVE THIS SO PLEASE AT LEAST COPY AND PASTE THIS
 function flagElements() {
     console.time("Accessibility Check Time");
 
@@ -667,8 +671,6 @@ function flagElements() {
 }
 
 
-
-
 // Debounce function to limit the rate at which a function can fire
 function debounce(func, wait) {
     let timeout;
@@ -710,3 +712,9 @@ function toggleHighlight(show) {
         }
     });
 }
+
+
+// // Initial flagging when the script first runs
+// flagElements();
+// toggleHighlight(window.showHighlights);
+// // console.log(flaggedElementsByDocument);

@@ -131,7 +131,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
                 element = currentNode.singleNodeValue;
                 if (element) {
-                    elementsFoundInFrame[frameKey].push({ xpath: xpath, element: element });
+                    element.setAttribute("aria-label","clickable Me");
                 }
             });
         }
@@ -143,7 +143,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         // Once done another for loop
         // GET SCREENSHOT for the current frame
-        loadHtml2Canvas()
+         /* loadHtml2Canvas()
         .then(async () => {
             // Process frames one by one and ensure all batches are processed before moving to the next frame
             for (const [frame, elementsFoundList] of Object.entries(elementsFoundInFrame)) {
@@ -191,6 +191,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         .catch((error) => {
             console.error('Failed to load html2canvas:', error);
         });
+        */
 
     }
   } else if (message.type === 'SET_ARIA_LABELS') {
