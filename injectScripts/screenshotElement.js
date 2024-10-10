@@ -65,7 +65,7 @@ function createBase64FromImage(img) {
 
 // ---------------------------  WORKING ON FIXING THE CNA ---------------------------------------------------------------
 
-// Function to check if background has a url in it either in ::before or ::after
+// Function to check if background has a url in it either in ::before, ::after, <svg>, or <img>
 function doesItHaveURLInBackground(element) {
   // Helper function to check if a style contains a background URL
   function checkBackgroundImage(style) {
@@ -74,11 +74,39 @@ function doesItHaveURLInBackground(element) {
     return urlMatch ? urlMatch[1] : null; // Return the URL or null
   }
 
+  // Helper function to check if an element is <img> and has a src attribute
+  function checkImageSrc(el) {
+    if (el.tagName.toLowerCase() === 'img') {
+      return el.getAttribute('src');
+    }
+    return null;
+  }
+
+  // Helper function to check if an element is <svg> and return the whole SVG code
+  function checkSVG(el) {
+    if (el.tagName.toLowerCase() === 'svg') {
+      return el.outerHTML; // Return the entire SVG markup
+    }
+    return null;
+  }
+
   // Check the element itself
   const elementStyle = window.getComputedStyle(element);
   let backgroundUrl = checkBackgroundImage(elementStyle);
   if (backgroundUrl) {
     return backgroundUrl;
+  }
+
+  // Check if it's an <img> element with a src attribute
+  let imageUrl = checkImageSrc(element);
+  if (imageUrl) {
+    return imageUrl;
+  }
+
+  // Check if it's an <svg> element and return its code
+  let svgCode = checkSVG(element);
+  if (svgCode) {
+    return svgCode;
   }
 
   // Check ::before pseudo-element
@@ -104,9 +132,10 @@ function doesItHaveURLInBackground(element) {
     }
   }
 
-  // If no URL found anywhere
+  // If no URL or SVG found anywhere
   return null;
 }
+
 
   
 // Function to capture a screenshot of a specific element
