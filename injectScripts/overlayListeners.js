@@ -5,6 +5,12 @@ const limitBatches = 30;
 let batchesCount = 0;
 let totalBatches = 0;
 let finsihedBatches = 0;
+let xpath;
+let xpaths;
+let bodyNode;
+let currentNode = undefined
+let elementsFoundInFrame
+
 
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -16,9 +22,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       for (const frameKey in framesMissingXpathsDict) {
         console.log('HIGHLIGHT frameKey', frameKey)
         framesMissingXpathsDict[frameKey].forEach((xpathObject) => {
-          const xpath = xpathObject.xpath
-          let bodyNode = document.body
-          let currentNode = undefined
+          xpath = xpathObject.xpath
+          bodyNode = document.body
+          currentNode = undefined
 
           if (frameKey !== '') {
             const frameWindowXpathResult = document.evaluate(
@@ -77,12 +83,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       from:"RESCANNING DUE TO MUTATION"
     });
   } else if (message.type === 'A11YFIXES_Start') {
-    console.log('A11YFIXES_Start message.missingXpaths', message.missingXpaths);
+    console.log('A11YFIXES_Start');
+    // console.log('A11YFIXES_Start message.missingXpaths', message.missingXpaths);
 
     if (message.missingXpaths !== 'undefined') {
         const framesMissingXpathsDict = message.missingXpaths;
         const tabId = message.tabId;
-        const elementsFoundInFrame = {};
+        elementsFoundInFrame = {}; // Reset it
+        let frameWindow;
+        let element;
 
         for (const frameKey in framesMissingXpathsDict) {
             elementsFoundInFrame[frameKey] = [];
@@ -99,7 +108,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         XPathResult.FIRST_ORDERED_NODE_TYPE,
                         null
                     );
-                    const frameWindow = frameWindowXpathResult.singleNodeValue;
+                    frameWindow = frameWindowXpathResult.singleNodeValue;
                     if (frameWindow) {
                         const frameContentDocument = frameWindow.contentDocument || frameWindow.contentWindow.document;
                         currentNode = document.evaluate(
@@ -120,7 +129,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     );
                 }
 
-                const element = currentNode.singleNodeValue;
+                element = currentNode.singleNodeValue;
                 if (element) {
                     elementsFoundInFrame[frameKey].push({ xpath: xpath, element: element });
                 }
@@ -166,9 +175,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         // Call the async function and wait for it to complete before moving to the next batch
                         if (batchesCount <= limitBatches)
                         {
-                          console.log("Under stil",batchesCount);
+                          // console.log("Under stil",batchesCount);
                           batchesCount++;
-                          console.log("now",batchesCount);
+                          // console.log("now",batchesCount);
                           await handleBatch(batch);
                         }
                     } catch (error) {
@@ -190,13 +199,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.missingXpaths !== 'undefined') {
         const framesMissingXpathsDict = message.missingXpaths;
         const promises = []; // Array to hold promises
-        let xpaths;
         finsihedBatches++;
 
 
         for (const frameKey in framesMissingXpathsDict) {
             xpaths = framesMissingXpathsDict[frameKey];
-            console.log("xpaths", xpaths);
+            // console.log("xpaths", xpaths);
             for (const xpath in xpaths) {
                 let ariaLabel = (xpaths[xpath]).replace("_negative","");
                 let bodyNode = document.body;

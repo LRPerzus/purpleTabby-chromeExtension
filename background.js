@@ -1,18 +1,16 @@
 // Imported Functions
-import {getFrameTree,processFrameTrees,settingAttributeNode} from "./background functions/frameTreesFuncs.js"
-import {collectDOMNodes} from "./background functions/domTreeFunc.js"
-import {setAttributeValue,areScansFinished} from "./background functions/common.js"
+// import {getFrameTree,processFrameTrees,settingAttributeNode} from "./background functions/frameTreesFuncs.js"
+// import {collectDOMNodes} from "./background functions/domTreeFunc.js"
+// import {setAttributeValue,areScansFinished} from "./background functions/common.js"
 import {storeDataForTab,getFromLocal} from "./background functions/localStorageFunc.js"
 
 // Set Variables
 let firstClick = {};
-let debuggerAttached = {};
+let scanButtonON = {};
 let settings = {};
 let scanningQueueDictionary = {};
 let arialLabelsFramesDict = {};
 let globalScreenshotsFramesDict;
-let globalFetchPromises = [];
-
 
 // --- Event Listeners from the injecte scripts to here
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
@@ -34,11 +32,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         
             const scriptChecks = [
                 { name: "content.js", message: "CHECK_CONTENT_JS", status: "CONTENT_READY" },
-                { name: "scanningProcess.js", message: "CHECK_SCANNING_PROCESS_JS", status: "SCANNING_PROCESS_READY" },
                 { name: "a11yTreeListeners.js", message: "CHECK_A11Y_TREE_LISTENERS_JS", status: "A11Y_LISTENERS_READY" },
-                { name: "getClickableElementsListeners.js", message: "CHECK_CLICKABLE_ELEMENTS_LISTENERS_JS", status: "CLICKABLE_ELEMENTS_READY" },
                 { name: "overlayListeners.js", message: "CHECK_OVERLAY_LISTENERS_JS", status: "OVERLAY_LISTENERS_READY" },
-                { name: "getClickableItems.js", message: "CHECK_GETCLICKABLE_JS", status: "GET_GETCLICKABL_READY" },
                 { name:"attachMutationObserver.js",message:"CHECK_MUTATIONOBSERVER_JS",status:"MUTATIONOBSERVER_READY"},
                 { name:"screenshotElement.js",message:"CHECK_SCREENSHOTELEMENT_JS",status:"SCREENSHOTELEMENT_READY"}
             ];
@@ -121,7 +116,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         const missingXpaths = await getFromLocal(tabId,"missingXpath",false,siteUrl);        ;
         console.log("OVERLAY_CREATED missingXpaths",missingXpaths);
 
-        if (missingXpaths !== undefined || (await isDebuggerAttached(request.tabId) === undefined && !debuggerAttached[tabId] && debuggerAttached[tabId] !== true))
+        if (missingXpaths !== undefined || (!scanButtonON[tabId] && scanButtonON[tabId] !== true))
         {
             chrome.runtime.sendMessage({type: "UPDATE_OVERLAY",data:missingXpaths,settings:settings[request.tabId],tabId:request.tabId});
         }
@@ -159,7 +154,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 console.log("scanningQueueDictionary[tabId]",scanningQueueDictionary[tabId]);
                 console.log("SHOULD IT SCAN",scanningQueueDictionary[tabId] && (scanningQueueDictionary[tabId].currentScanning === true || scanningQueueDictionary[tabId].currentFixing === true))
 
-                if (!(debuggerAttached[tabId] && debuggerAttached[tabId] === true))
+                if (!(scanButtonON[tabId] && scanButtonON[tabId] === true))
                 {
                     console.log("Debugger not attached");
                     sendResponse({ success: false, error: "Debugger not Attached" });
@@ -206,8 +201,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                     }
                     else
                     {
-                        chrome.tabs.sendMessage(tabId, { type: "Can_Get_Tree", tabId: tabId });
-                        chrome.tabs.sendMessage(tabId, { type: "Can_find_clickable", tabId: tabId });
+                        chrome.tabs.sendMessage(tabId, { type: "FIND_MISSING", tabId: tabId });
                         sendResponse({ success: true });
                     }
                 }
@@ -230,13 +224,10 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         {
             settings[tabId].debuggerAttach = request.status;
         }
-        if (!debuggerAttached[tabId])
+        if (!scanButtonON[tabId])
         {
             console.log("DEBUGGER_ATTACH");
-            await attachDebugger(tabId);
-            await enableAccessibility(tabId);
-            await enableDOMDomain(tabId)
-            debuggerAttached[tabId] = true;
+            scanButtonON[tabId] = true;
         }
     }
     else if(request.type === "DEBUGGER_DETTACH")
@@ -247,106 +238,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             settings[tabId].debuggerAttach = request.status;
         }
         console.log("Dettaching");
-        await detachDebugger(tabId);
-        delete debuggerAttached[tabId];
-    }
-    else if (request.type === "GET_AX_TREE") {
-        // console.log("Message received in background script:", request);
-        try {
-            const tabId = request.tabId;
-            console.log("When GET_AX_TREE is triggered debugger is:",await isDebuggerAttached(tabId));
-
-            if (debuggerAttached[tabId])
-            {
-                // Full DOM DICT TREE
-                const frameTreePromise = getFrameTree(tabId);
-                console.log("frameTreePromise",await frameTreePromise);
-                
-                // Run collectDOMNodes and processFrameTrees concurrently
-                const [domResults, frameTreeResults] = await Promise.all([
-                    collectDOMNodes(tabId),
-                    frameTreePromise.then(frameTree => processFrameTrees(tabId, frameTree))
-                ]).catch(error => {
-                    console.error("Error in Promise.all:", error);
-                });
-
-                // Access the results
-                const { nodeMap, resolveNodes, eventListnersList } = domResults;
-                const allFrameNames = frameTreeResults;
-                
-                const domDictionary = nodeMap; 
-                console.log("domDictionary",domDictionary); 
-                // console.log("resolveNodes",resolveNodes);
-                // console.log("eventListnersList",eventListnersList);
-
-                // Set Attribute tabby-has-listener = "true"
-                await addAttributeEventList(tabId,domDictionary,eventListnersList);
-
-                // Set Attribute purple_tabby_a11ytree
-                await settingAttributeNode(tabId, allFrameNames, domDictionary);
-
-            
-                // Find the Xpaths in the DOM
-                const data = {
-                    tabId:tabId,
-                }
-                // To force a download
-                // const json = JSON.stringify(fullA11yTree, null, 2);
-
-                // // Send the data to the content script or popup
-                // chrome.tabs.sendMessage(tabId,{
-                //     type: "DOWNLOAD_Name_A11yTree",
-                //     data: json
-                // });
-
-                chrome.tabs.sendMessage(tabId, { type: "FULL_A11yTree_DOM_XPATHS", data: data }); 
-                // Use chrome tab cause runtime is not the same
-                // Tabs are used to send back to another script 
-            }
-        } catch (error) {
-            console.error("Error processing AX Tree:", error, JSON.stringify(error));
-        }
-    }
-    else if (request.type === "A11yTree_DOM_XPATHS_DONE")
-    {
-        const noClicks = await getFromLocal(request.data.tabId,"noClicks")
-        console.log("A11y Tree noClicks:",noClicks)
-        console.log("A11yTree_DOM_XPATHS_DONE request.data.tabId",request.data.tabId)
-        storeDataForTab(request.data.tabId,request.data.foundElements,"foundElements",noClicks);
-        chrome.tabs.sendMessage(request.data.tabId,{ type: "A11yTree_Stored" });
-
-        const inStorage = await getFromLocal(request.data.tabId,"foundElements",noClicks);
-        console.log("inStorage foundElement",inStorage);
-        
-        const foundElement = request.data.foundElements;
-        const tabId = request.data.tabId;
-        console.log("foundElement",foundElement)
-
-        await areScansFinished(tabId);        
-    }
-    else if (request.type === "clickableElements_XPATHS_DONE")
-    {
-        let noClicks = await getFromLocal(request.tabId,"noClicks");
-        if (noClicks === undefined) // there is a possibility that it runs too fast faster than the localStorage collection
-        {
-            let count = 0
-            while (noClicks === undefined && count <= 3)
-            {
-                console.warn("noclicks for storage is not defined");
-                noClicks = await getFromLocal(request.tabId,"noClicks");
-                count++;
-            }
-        }
-
-        storeDataForTab(request.tabId,request.clickableElements,"clickableElements",noClicks)
-        // chrome.tabs.sendMessage(request.tabId,{ type: "clickable_stored" });
-
-        
-        const inStorage = await getFromLocal(request.tabId,"clickableElements",noClicks)
-        console.log("inStorage clickableElements",request.tabId,noClicks,inStorage);
-
-        await areScansFinished(request.tabId);
-
+        delete scanButtonON[tabId];
     }
     else if (request.type === "MISSING_FOUND")
     {
@@ -366,30 +258,30 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         // previous errors data
         const previousMissingXpath = await getFromLocal(tabId,"missingXpath",false,request.siteurl);
         let mergedFramesDict;
-        let previousMissingList;
+        let newInMissingList;
         let mergedMissingList = request.data.missing;
-        console.log("EH? HERE",mergedMissingList);
         
         if (previousMissingXpath)
         {
             console.log("THERE WAS PRIVUOUS DATA");
+            mergedMissingList = previousMissingXpath.missing;
             // console.log("Previous data",previousMissingXpath.framesDict);
             // console.log("New data",request.data.framesDict);
             // cause each is its own dict kinda
-            ({mergedFramesDict, previousMissingList} = mergeDictionaries(request.data.framesDict, previousMissingXpath.framesDict, mergedMissingList));
+            ({mergedFramesDict, newInMissingList} = mergeDictionaries(request.data.framesDict, previousMissingXpath.framesDict, mergedMissingList));
             // console.log("THE NEW STUFF mergedFramesDict",mergedFramesDict);
             // console.log("THE NEW STUFF previousMissingList",previousMissingList);
-            mergedMissingList.push(previousMissingList);
+            mergedMissingList.push(newInMissingList);
 
             //reset it
-            previousMissingList = null;
+            newInMissingList = null;
         }
         else 
         {
             mergedFramesDict = request.data.framesDict
         }
         
-        const mergedMissingXpaaths = {
+        let mergedMissingXpaaths = {
             framesDict:mergedFramesDict,
             missing : mergedMissingList,
             tabId : tabId
@@ -401,6 +293,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             // Delete the data
             mergedFramesDict = null;
             mergedMissingList = null;
+            chrome.tabs.sendMessage(tabId,{ type: "CLEAR_GLOBAL_VARIABLE_a11yTreeListeners"});
         });
       
         
@@ -427,6 +320,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                             if (mergedMissingXpaaths!== undefined)
                             {
                                 data = mergedMissingXpaaths;
+                                mergedMissingXpaaths = {}
+
                             }
                             else{
                                 data = "undefined"
@@ -443,7 +338,9 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                                     redo:false
                                 };
 
-                                chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict , tabId:tabId});
+                                chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict , tabId:tabId}).then(() => {
+                                    data = {};
+                                });;
                             }
                             else if (setting.highlight) // Just highlight
                             {
@@ -461,11 +358,11 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             
                     if (response && response.success) {
                         console.log("Popup status response received:", response);
-                        console.log("Stored in missingXpath:", request.data);
+                        console.log("Stored in missingXpath:", mergedMissingXpaaths);
                         // Send the data to the content script or popup
                         chrome.runtime.sendMessage({
                             type: "UPDATE_OVERLAY",
-                            data: request.data,
+                            data: mergedMissingXpaaths,
                             settings:settings[tabId],
                             tabId:tabId
                         });
@@ -474,6 +371,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                         if (mergedMissingXpaaths!== undefined)
                         {
                             data = mergedMissingXpaaths;
+                            mergedMissingXpaaths = {}
                         }
                         else{
                             data = "undefined"
@@ -481,7 +379,9 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
                         if (settings[tabId].A11yFix) // This one will continue with highlight later there is another highlight check
                         {
-                            chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict, tabId:tabId});
+                            chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict, tabId:tabId}).then(() => {
+                                data = {};
+                            });
                         }
                         else if (settings[tabId].highlight) // Just highlight
                         {
@@ -564,7 +464,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     else if (request.type === "GET_API_ARIALABELS") {
         console.log("GET_API_ARIALABELS", request.screenshotsFrameDict);
         globalScreenshotsFramesDict = request.screenshotsFrameDict;
-        globalFetchPromises = []; // Array to hold fetch promises
         
         //Rest the arialabelFrameDict
         arialLabelsFramesDict = {};
@@ -593,7 +492,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
     
             // Create a fetch promise and push it to the array
-            const fetchPromise = fetch('https://api.read-dev.pic.net.sg/process_a11y', {
+            fetch('https://api.read-dev.pic.net.sg/process_a11y', {
                 method: 'POST',
                 headers: {
                     'Accept': 'application/json',
@@ -645,16 +544,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                 arialLabelsFramesDict[framekey] = { error: 'Fetch error occurred' };
             });
     
-            globalFetchPromises.push(fetchPromise); // Add the promise to the array
         }
-    
-        // // Wait for all fetch requests to complete
-        // Promise.all(globalFetchPromises)
-        //     .then(() => {
-        //         console.log("arialLabelsFramesDict", arialLabelsFramesDict);
-        //         // Once we got all the frames we can get send it to fix the label
-        //         // chrome.tabs.sendMessage(tabId, { type: "SET_ARIA_LABELS", missingXpaths: arialLabelsFramesDict });
-        //     });
     }
     else if (request.type === "CLEAR_arialLabelsFramesDict")
     {
@@ -678,99 +568,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 });
 
 // -- Functions
-
-/* 
-    Function to attach attribute to elements with eventListners
-*/
-async function addAttributeEventList(tabId, domDictionary, eventListnersList) {
-    const promises = Object.keys(eventListnersList).map(async (backendDOMNodeId) => {
-        try {
-            // console.log("addAttributeEventList_backendDOMNodeId", backendDOMNodeId);
-            const correspondingNodeId = domDictionary[backendDOMNodeId];
-            if (!correspondingNodeId) {
-                console.error(`No corresponding node found for backendDOMNodeId: ${backendDOMNodeId}`);
-                return; // Skip this node
-            }
-            await setAttributeValue(tabId, correspondingNodeId, "tabby-has-listener");
-        } catch (error) {
-            console.error(`Failed to set attribute for backendDOMNodeId: ${backendDOMNodeId}`, error);
-        }
-    });
-
-    // Wait for all promises to resolve
-    await Promise.all(promises);
-}
-
-
-
-/* 
-    Function to attach debugger to a tab
-*/
-async function attachDebugger(tabId) {
-    console.log("attachDebugger tabId",tabId)
-    if (debuggerAttached[tabId]) return;
-
-    return new Promise((resolve, reject) => {
-        chrome.debugger.attach({ tabId }, "1.3", () => {
-            if (chrome.runtime.lastError) {
-                reject(chrome.runtime.lastError);
-            } else {
-                debuggerAttached[tabId] = true;
-                resolve();
-            }
-        });
-    });
-}
-
-/* 
-    Function to dettach debugger to a tab
-*/
-async function detachDebugger(tabId) {
-    if (!debuggerAttached[tabId]) return;
-
-    return new Promise((resolve, reject) => {
-        chrome.debugger.detach({ tabId }, () => {
-            if (chrome.runtime.lastError) {
-                reject(chrome.runtime.lastError);
-            } else {
-                debuggerAttached[tabId] = false;
-                resolve();
-            }
-        });
-    });
-}
-
-/* 
-    Function to enable Accessibility so that the A11yTree can get
-    using Debugger commands
-    Note* Debugger needs to attached before in order for commands to be sent
-*/
-async function enableAccessibility(tabId) {
-    return new Promise((resolve, reject) => {
-        chrome.debugger.sendCommand({ tabId }, "Accessibility.enable", {}, () => {
-            if (chrome.runtime.lastError) {
-                reject(chrome.runtime.lastError);
-            } else {
-                resolve();
-            }
-        });
-    });
-}
-
-/* 
-    Function to Enable the DOM domain 
-*/
-function enableDOMDomain(tabId) {
-    return new Promise((resolve, reject) => {
-      chrome.debugger.sendCommand({tabId: tabId}, 'DOM.enable', {}, () => {
-        if (chrome.runtime.lastError) {
-          return reject(chrome.runtime.lastError);
-        }
-        resolve();
-      });
-    });
-  }
-
 
 //function store and increase the number no of scans
 async function updateNoClicksTabID(tabId, change = false) {
@@ -804,41 +601,6 @@ async function updateNoClicksTabID(tabId, change = false) {
     }
 }
 
-
-// Function to clear local storage data for a specific tab
-async function clearDataForTab(tabId) {
-    // Define the key pattern for the tab
-    const keyPattern = `tab_${tabId}`;
-
-    // Retrieve all keys
-    chrome.storage.local.get(null, (items) => {
-        if (chrome.runtime.lastError) {
-            console.error(`Error retrieving storage items: ${chrome.runtime.lastError}`);
-            return;
-        }
-
-        // Filter keys that match the tab pattern
-        const keysToRemove = Object.keys(items).filter(key => key.startsWith(keyPattern));
-
-        // Remove all matching keys
-        if (keysToRemove.length > 0) {
-            chrome.storage.local.remove(keysToRemove, () => {
-                if (chrome.runtime.lastError) {
-                    console.error(`Error removing data for tab ${tabId}: ${chrome.runtime.lastError}`);
-                } else {
-                    console.log(`Data cleared for tab ${tabId}.`);
-                }
-            });
-        } else {
-            console.log(`No data found for tab ${tabId}.`);
-        }
-    });
-}  
-// Example: Clear local storage when the extension is installed or updated
-chrome.runtime.onInstalled.addListener(() => {
-// clearLocalStorage();
-});
-  
 // Function to send a message and wait for a specific response
 function sendMessageAndWait(tabId, messageType, expectedStatus) {
     return new Promise((resolve, reject) => {
@@ -876,19 +638,6 @@ function injectMissingScripts(tabId, missingScripts) {
             });
         });
     }));
-}
-// Function to check if a dubugger instance is attached to a tab
-async function isDebuggerAttached(tabId) {
-    chrome.debugger.getTargets((targets) => {
-        let attached = false;
-        for (const target of targets) {
-            if (target.tabId === tabId && target.attached) {
-                attached = true;
-                break;
-            }
-        }
-        return (attached);
-    });
 }
 
 function mergeDictionaries(newestSCANINFODICT, previousSCANINFODICT, mergedMissingList = []) {

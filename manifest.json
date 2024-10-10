@@ -38,10 +38,7 @@
       "matches": ["<all_urls>"],
       "js": [
         "./injectScripts/content.js",
-        "./injectScripts/getClickableItems.js",
-        "./injectScripts/scanningProcess.js",
         "./injectScripts/a11yTreeListeners.js",
-        "./injectScripts/getClickableElementsListeners.js",
         "./injectScripts/overlayListeners.js",
         "./injectScripts/attachMutationObserver.js",
         "./injectScripts/screenshotElement.js",

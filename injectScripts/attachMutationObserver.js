@@ -60,10 +60,10 @@ const callback = async (mutationList, observer) => {
     else if (mutation.type === "attributes" && 
       isVisibleFocusAble(mutation.target) && 
       // DO NOT TOUCH IF IT IS THE ATTRIBUTES WE ADDED IN
-      mutation.attributeName !== "tabby-has-listener" && 
-      mutation.attributeName !== "purple_tabby_a11ytree" &&
-      mutation.attributeName !== "style" &&
+      // mutation.attributeName !== "tabby-has-listener" && 
+      // mutation.attributeName !== "purple_tabby_a11ytree" &&
       mutation.attributeName !== "purple_tabby_missing" &&
+      mutation.attributeName !== "style" &&
       mutation.attributeName !== "aria-label" &&
       mutation.attributeName !== "data-flagged"
     ) {
@@ -159,3 +159,70 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ status: "MUTATIONOBSERVER_READY" });
   }
 });
+
+function isInOpenDetails(element) {
+  let parentDetails = element.closest('details');
+  return parentDetails ? parentDetails.open : true;
+}
+
+// Function to check if an element is visible
+const isVisibleFocusAble = (el) => {
+  if (!el)
+  {
+      return false;
+  }
+  if (el.nodeName !== undefined  && el.nodeName === "#text") // cause #text cannot getComputedStyle
+  {
+      return false;
+  }
+  try {
+      const style = window.getComputedStyle(el);
+      const rect = el.getBoundingClientRect();
+      return (
+          // Visible
+          style.display !== 'none' 
+          && style.visibility !== 'hidden' 
+          && rect.width > 0 && rect.height > 0 
+          // Focusable 
+          && !el.hasAttribute('disabled')
+          // <detail> tag will show it as visual so need to account for that
+          && isInOpenDetails(el)
+      );
+  } catch (error) {
+      console.log("Error in ELEMENT",el,error.message)
+      return false;
+  }
+};
+
+async function isItPointer(el, clickElements, framePath = "") {
+  const style = window.getComputedStyle(el);
+  const path = getXPath(el);
+
+  if ((style.cursor === 'pointer') && isVisibleFocusAble(el) && !el.parentElement.closest('[aria-hidden]') && el.getAttribute("aria-hidden") !== "true") {
+      if (path !== "skip") {
+          clickElements.push(
+              {
+                  path: path,
+                  framePath: framePath
+              }
+          );
+      }
+  }
+
+  if (el.shadowRoot) {
+      const shadowRootItems = el.shadowRoot.querySelectorAll('*');
+      shadowRootItems.forEach(element => {
+          try {
+              const style = window.getComputedStyle(element);
+              if (style.cursor === 'pointer' && isVisibleFocusAble(element) && !element.closest('[aria-hidden]')) {
+                  clickElements.push({
+                      path: getXPath(element),
+                      framePath: framePath
+                  });
+              }
+          } catch (error) {
+              console.error('Error in shadow root element:', error);
+          }
+      });
+  }
+}

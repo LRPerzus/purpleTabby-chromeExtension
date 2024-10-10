@@ -34,42 +34,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         chrome.runtime.sendMessage({ type: "MISSING_FOUND", data: data,siteUrl:currentSiteURL });
 
     }
-    else if (message.type === "Can_Get_Tree") {
-        console.log("Received Can_Get_Tree message");
-        const tabId = message.tabId;
-
-        // Handle the message and process the AX tree in background
-        chrome.runtime.sendMessage({ type: "GET_AX_TREE", tabId: tabId });
-    }
-    else if (message.type === "FULL_A11yTree_DOM_XPATHS")
-    {
-        foundElements = a11yTreeToDOM();
-        const data =
-        {
-            foundElements:foundElements,
-            tabId : message.data.tabId
-        }
-        chrome.runtime.sendMessage({ type: "A11yTree_DOM_XPATHS_DONE", data: data });
-    }
-    else if (message.type === "A11yTree_Stored")
-    {
-        chrome.runtime.sendMessage({ type: "A11yTree_Stored"});
-    }
-    /* 
-        Changes the overlay to add the xpath of the missing
-    */
-    else if (message.type === "AX_TREE")
-    {
-        const treeContainer = document.getElementById('treeContent');
-        if (treeContainer) {
-            treeContainer.textContent = JSON.stringify(message.data, null, 2);
-        } else {
-            console.error("Element with ID 'treeContent' not found.");
-        }
-    }
     else if (message.type === "CHECK_A11Y_TREE_LISTENERS_JS")
     {
         sendResponse({ status: "A11Y_LISTENERS_READY" });
+    }
+    else if (message.type === "CLEAR_GLOBAL_VARIABLE_a11yTreeListeners")
+    {
+        console.log("RESEITNG THE GLOBAL A11y VARIABLES")
+        flaggedElementsByDocument = {};
+        previousFlaggedXPathsByDocument = {};
+        previousAllFlaggedElementsXPaths = {};
     }
 
 });
