@@ -115,6 +115,7 @@ function captureElementScreenshot(element) {
     const elementPreviousStyle = element.getAttribute("style");
     element.removeAttribute("style");
 
+    // create a key value key and pair key is the image and the value is the xpath account for src = link inline images and svgs
     const backgroundImgUrl = doesItHaveURLInBackground(element);
     if (backgroundImgUrl) {
       console.log("background", backgroundImgUrl);
