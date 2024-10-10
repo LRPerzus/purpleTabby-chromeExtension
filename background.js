@@ -156,14 +156,16 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                         A11yFix:false,
                     }
                 }
+                console.log("scanningQueueDictionary[tabId]",scanningQueueDictionary[tabId]);
+                console.log("SHOULD IT SCAN",scanningQueueDictionary[tabId] && (scanningQueueDictionary[tabId].currentScanning === true || scanningQueueDictionary[tabId].currentFixing === true))
 
                 if (!(debuggerAttached[tabId] && debuggerAttached[tabId] === true))
                 {
                     console.log("Debugger not attached");
                     sendResponse({ success: false, error: "Debugger not Attached" });
                 }
-                else if (scanningQueueDictionary[tabId] 
-                    && (scanningQueueDictionary[tabId].currentScanning === true|| scanningQueueDictionary[tabId].currentFixing === true)
+                else if (scanningQueueDictionary[tabId] !== undefined
+                    && (scanningQueueDictionary[tabId].currentScanning === true || scanningQueueDictionary[tabId].currentFixing === true)
                 )
                 {
                     console.log("There is already a scan going into process.");
@@ -182,6 +184,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                         currentHiliging:false,
                         redo:false
                     };
+
+                    console.log("A SCAN STARTED",scanningQueueDictionary[tabId].currentScanning);
 
                     // Attaches the number of clicks
                     await updateNoClicksTabID(tabId,true);
@@ -355,6 +359,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
         // SET in the setting that the scan has been complete
         scanningQueueDictionary[tabId].currentScanning = false;
+        console.log("THE SCAN DID FINISH");
         
         console.log("TESING request.data.missing;",request.data.missing);
 
@@ -363,14 +368,17 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         let mergedFramesDict;
         let previousMissingList;
         let mergedMissingList = request.data.missing;
+        console.log("EH? HERE",mergedMissingList);
         
         if (previousMissingXpath)
         {
             console.log("THERE WAS PRIVUOUS DATA");
-            console.log("Previous data",previousMissingXpath.framesDict);
-            console.log("New data",request.data.framesDict);
+            // console.log("Previous data",previousMissingXpath.framesDict);
+            // console.log("New data",request.data.framesDict);
             // cause each is its own dict kinda
             ({mergedFramesDict, previousMissingList} = mergeDictionaries(request.data.framesDict, previousMissingXpath.framesDict, mergedMissingList));
+            // console.log("THE NEW STUFF mergedFramesDict",mergedFramesDict);
+            // console.log("THE NEW STUFF previousMissingList",previousMissingList);
             mergedMissingList.push(previousMissingList);
 
             //reset it
@@ -389,7 +397,13 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         console.log("mergedMissingXpaaths",mergedMissingXpaaths);
 
         // STORE MISSINGXAPATHS
-        storeDataForTab(request.data.tabId,mergedMissingXpaaths,"missingXpath",false,request.siteurl);
+        storeDataForTab(request.data.tabId,mergedMissingXpaaths,"missingXpath",false,request.siteurl).then( () => {
+            // Delete the data
+            mergedFramesDict = null;
+            mergedMissingList = null;
+        });
+      
+        
 
         // console.log("MISSING_FOUND scanningQueueDictionary[tabId].redo ",scanningQueueDictionary[tabId].redo );
         // Updates the scanningQueueDictionary
@@ -877,8 +891,14 @@ async function isDebuggerAttached(tabId) {
     });
 }
 
-function mergeDictionaries(newestSCANINFODICT, previousSCANINFODICT, mergedMissingList) {
-    const mergedFramesDict = { ...newestSCANINFODICT }; // Start with a copy of the newest scan info
+function mergeDictionaries(newestSCANINFODICT, previousSCANINFODICT, mergedMissingList = []) {
+    console.log("AT THE START OF mergeDictionaries", mergedMissingList);
+
+    // Create a new array to avoid modifying the same reference
+    const updatedMissingList = [...mergedMissingList]; // Copy the existing array
+
+    // Initialize mergedFramesDict as an empty object if newestSCANINFODICT is empty
+    const mergedFramesDict = newestSCANINFODICT ? { ...newestSCANINFODICT } : {};
 
     // Iterate over each key in previousSCANINFODICT
     for (let key in previousSCANINFODICT) {
@@ -886,16 +906,17 @@ function mergeDictionaries(newestSCANINFODICT, previousSCANINFODICT, mergedMissi
             // If key exists in both newest and previous, merge the arrays
             const mergedArray = [...mergedFramesDict[key]]; // Copy existing array from newest
 
-            // Keep track of xpaths that already exist in mergedArray
-            const existingXpaths = new Set(mergedArray.map(item => item.xpath));
+            // Keep track of existing xpaths and codes that are already in mergedArray
+            const existingEntries = new Set(mergedArray.map(item => `${item.xpath}-${item.code}`));
 
             // Iterate over items in previousSCANINFODICT for the same key
             previousSCANINFODICT[key].forEach(previousItem => {
-                if (!existingXpaths.has(previousItem.xpath)) {
-                    // Only add items whose xpath is not already in mergedArray
+                const entryIdentifier = `${previousItem.xpath}-${previousItem.code}`;
+                if (!existingEntries.has(entryIdentifier)) {
+                    // Only add items whose xpath and code combination is not already in mergedArray
                     mergedArray.push(previousItem); // Add the previousItem
-                    mergedMissingList.push(previousItem); // Also add it to the missing list
-                    console.log(`Added missing xpath: ${previousItem.xpath} from previous scan info`);
+                    updatedMissingList.push(previousItem); // Also add it to the missing list
+                    console.log(`Added missing xpath: ${previousItem.xpath} and code from previous scan info`);
                 }
             });
 
@@ -905,11 +926,14 @@ function mergeDictionaries(newestSCANINFODICT, previousSCANINFODICT, mergedMissi
             // If the key doesn't exist in the newest, copy it from previous and add all items to missing list
             mergedFramesDict[key] = [...previousSCANINFODICT[key]];
             previousSCANINFODICT[key].forEach(previousItem => {
-                mergedMissingList.push(previousItem);
-                console.log(`Added new key and missing xpath: ${previousItem.xpath}`);
+                updatedMissingList.push(previousItem);
+                console.log(`Added new key and missing xpath: ${previousItem.xpath} and code`);
             });
         }
     }
+    
+    console.log("AT THE END OF mergeDictionaries", updatedMissingList);
 
-    return { mergedFramesDict, mergedMissingList };
+    return { mergedFramesDict, mergedMissingList: updatedMissingList }; // Return both mergedFramesDict and updated missing list
 }
+

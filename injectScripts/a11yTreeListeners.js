@@ -7,7 +7,8 @@ const loggingEnabled = false; // Set to true to enable console warnings
 
 let flaggedElementsByDocument = {}; // Object mapping document root XPath to flagged elements
 let previousFlaggedXPathsByDocument = {}; // Object to hold previous flagged XPaths
-let allFlaggedElementsXPaths = []; // Array to store all flagged XPaths
+let previousAllFlaggedElementsXPaths = []; // Array to store all flagged XPaths
+
 
 let data;
 let currentSiteURL;
@@ -22,11 +23,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.log("FIND_MISSING");
         flagElements();
         console.log("previousFlaggedXPathsByDocument",previousFlaggedXPathsByDocument);
-        console.log("allFlaggedElementsXPaths",allFlaggedElementsXPaths)
+        console.log("previousAllFlaggedElementsXPaths",previousAllFlaggedElementsXPaths)
         const tabId = message.tabId;
         data = {
             tabId:tabId,
-            missing:allFlaggedElementsXPaths,
+            missing:previousAllFlaggedElementsXPaths,
             framesDict:previousFlaggedXPathsByDocument
         }
         currentSiteURL = window.location.href;
@@ -141,11 +142,19 @@ function customConsoleWarn(message, data) {
 
 function hasPointerCursor(element) {
     const computedStyle = element.ownerDocument.defaultView.getComputedStyle(element);
-    const hasPointerStyle = computedStyle.cursor === 'pointer' || computedStyle.cursor === 'default';
+    const hasPointerStyle = computedStyle.cursor === 'pointer';
     const hasOnClick = element.hasAttribute('onclick');
     const hasEventListeners = Object.keys(element).some(prop => prop.startsWith('on'));
-    return hasPointerStyle || hasOnClick || hasEventListeners;
+    
+    // Check if the element is inherently interactive
+    const isClickableRole = ['button', 'link', 'menuitem'].includes(element.getAttribute('role'));
+    const isNativeClickableElement = ['a', 'button', 'input'].includes(element.nodeName.toLowerCase()) &&
+                                     (element.nodeName.toLowerCase() !== 'a' || element.hasAttribute('href'));
+    const hasTabIndex = element.hasAttribute('tabindex') && element.getAttribute('tabindex') !== '-1';
+
+    return hasPointerStyle || hasOnClick || hasEventListeners || isClickableRole || isNativeClickableElement || hasTabIndex;
 }
+
 
 function getElementById(element, id) {
     return element.ownerDocument.getElementById(id);
@@ -195,67 +204,97 @@ function hasSummaryOrDetailsLabel(element) {
 }
 
 function hasSiblingWithAccessibleLabel(element) {
-    const sibling = element.nextElementSibling || element.previousElementSibling;
-    return sibling && hasAccessibleLabel(sibling);
+    // Check all siblings (previous and next)
+    let sibling = element.previousElementSibling;
+    while (sibling) {
+        if (hasAccessibleLabel(sibling)) {
+            return true;
+        }
+        sibling = sibling.previousElementSibling;
+    }
+
+    sibling = element.nextElementSibling;
+    while (sibling) {
+        if (hasAccessibleLabel(sibling)) {
+            return true;
+        }
+        sibling = sibling.nextElementSibling;
+    }
+
+    return false;
 }
 
 function hasSiblingOrParentAccessibleLabel(element) {
-    const parent = element.closest('a, button, [aria-label]');
+    // Check previous and next siblings
+    const previousSibling = element.previousElementSibling;
+    const nextSibling = element.nextElementSibling;
+    if ((previousSibling && hasAccessibleLabel(previousSibling)) ||
+        (nextSibling && hasAccessibleLabel(nextSibling))) {
+        return true;
+    }
+
+    // Check the parent element
+    const parent = element.parentElement;
     if (parent && hasAccessibleLabel(parent)) {
         return true;
     }
 
-    return hasSiblingWithAccessibleLabel(element);
+    return false;
 }
 
 function hasChildWithAccessibleText(element) {
-    return Array.from(element.children).some(child => {
+    // Check element children
+    const hasAccessibleChildElement = Array.from(element.children).some(child => {
+        // Skip children that are aria-hidden
+        if (child.getAttribute('aria-hidden') === 'true') {
+            return false;
+        }
         return child.textContent.trim().length > 0 || hasAccessibleLabel(child);
     });
+
+    // Check direct text nodes
+    const hasDirectAccessibleText = Array.from(element.childNodes).some(node => {
+        return node.nodeType === Node.TEXT_NODE && node.textContent.trim().length > 0;
+    });
+
+    return hasAccessibleChildElement || hasDirectAccessibleText;
 }
 
+
 function hasAllChildrenAccessible(element) {
-    // If the element has an accessible label or text content, consider it accessible
+    // If the element is aria-hidden, consider it accessible
+    if (element.getAttribute('aria-hidden') === 'true') {
+        return true;
+    }
+
+    // Check if the element itself has an accessible label or text content
     if (hasAccessibleLabel(element) || element.textContent.trim().length > 0) {
         return true;
     }
 
-    // If the element has children, check if all children are accessible
+    // If the element has children, ensure at least one of them is accessible
     if (element.children.length > 0) {
-        return Array.from(element.children).every(child => {
+        return Array.from(element.children).some(child => {
+            // If child is aria-hidden, skip it in the accessibility check
+            if (child.getAttribute('aria-hidden') === 'true') {
+                return true;
+            }
+            // Recursively check if the child or any of its descendants are accessible
             return hasAllChildrenAccessible(child);
         });
     }
 
-    // If the element has no accessible label, no text content, and no children, it's not accessible
+    // If the element and all its children have no accessible labels or text, it's not accessible
     return false;
 }
 
-// function getXPath(element) {
-//     if (!element) return null;
-//     if (element.id) {
-//         return `//*[@id="${element.id}"]`;
-//     }
-//     if (element === element.ownerDocument.body) {
-//         return "/html/body";
-//     }
-//     if (!element.parentNode || element.parentNode.nodeType !== 1) {
-//         return '';
-//     }
-
-//     const siblings = Array.from(element.parentNode.childNodes)
-//         .filter(node => node.nodeName === element.nodeName);
-//     const ix = siblings.indexOf(element) + 1;
-//     const siblingIndex = siblings.length > 1 ? `[${ix}]` : "";
-//     return `${getXPath(element.parentNode)}/${element.nodeName.toLowerCase()}${siblingIndex}`;
-// }
-
 const style = document.createElement('style');
 style.innerHTML = `
-    .highlight-flagged {
-        border: 4px solid purple !important;
-        box-shadow: 0 0 10px 5px rgba(255, 255, 255, 0.8), 0 0 10px rgba(144, 33, 166, 1) !important;
-        position: relative !important; /* Ensure positioning for the border */
+   .highlight-flagged {
+        outline: 4px solid rgba(128, 0, 128, 1) !important; /* Thicker primary outline with purple in rgba format */
+        box-shadow: 
+            0 0 25px 15px rgba(255, 255, 255, 1), /* White glow for contrast */
+            0 0 15px 10px rgba(144, 33, 166, 1) !important; /* Consistent purple glow in rgba format */
     }
 `;
 document.head.appendChild(style);
@@ -267,9 +306,10 @@ function injectStylesIntoFrame(frame) {
             const frameStyle = frameDocument.createElement('style');
             frameStyle.innerHTML = `
                 .highlight-flagged {
-                    border: 4px solid purple !important;
-                    box-shadow: 0 0 10px 5px rgba(255, 255, 255, 0.8), 0 0 10px rgba(144, 33, 166, 1) !important;
-                    position: relative !important;
+                        outline: 4px solid rgba(128, 0, 128, 1) !important; /* Thicker primary outline with purple in rgba format */
+                        box-shadow: 
+                            0 0 25px 15px rgba(255, 255, 255, 1), /* White glow for contrast */
+                            0 0 15px 10px rgba(144, 33, 166, 1) !important; /* Consistent purple glow in rgba format */
                 }
             `;
             frameDocument.head.appendChild(frameStyle);
@@ -285,12 +325,49 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
         return false;
     }
 
+    // Do not flag elements if any ancestor has aria-hidden="true"
+    if (element.closest('[aria-hidden="true"]')) {
+        customConsoleWarn("An ancestor element has aria-hidden='true', skipping flagging.");
+        return false;
+    }
+
+    // Skip elements with role="menuitem" if an accessible sibling, parent, or child is present
+    if (element.getAttribute('role') === 'menuitem') {
+        if (hasSiblingWithAccessibleLabel(element) || hasChildWithAccessibleText(element) || hasAccessibleLabel(element.parentElement)) {
+            customConsoleWarn("Menuitem element or its sibling/parent has an accessible label, skipping flagging.");
+            return false;
+        }
+    }
+
+    // Skip flagging child elements if the parent element has role="menuitem" and is accessible
+    const parentMenuItem = element.closest('[role="menuitem"]');
+    if (parentMenuItem && (hasAccessibleLabel(parentMenuItem) || hasChildWithAccessibleText(parentMenuItem))) {
+        customConsoleWarn("Parent menuitem element has an accessible label or child with accessible text, skipping flagging of its children.");
+        return false;
+    }
+
+    // Add the new condition for empty div or span elements without any accessible text or children with accessible labels
+    if ((element.nodeName.toLowerCase() === 'span' || element.nodeName.toLowerCase() === 'div') &&
+    element.children.length === 0 && element.textContent.trim().length === 0) {
+    const parent = element.parentElement;
+    if (parent) {
+        const hasAccessibleChild = Array.from(parent.children).some(child => 
+            child !== element && hasAccessibleLabel(child)
+        );
+
+        if (hasAccessibleChild) {
+            customConsoleWarn("Parent element has an accessible child, skipping flagging of empty span or div.");
+            return false;
+        }
+    }
+    }
+
     // Do not flag elements with aria-hidden="true"
     if (element.getAttribute('aria-hidden') === 'true') {
         customConsoleWarn("Element is aria-hidden, skipping flagging.");
         return false;
     }
-
+    
     // Do not flag elements with role="presentation"
     if (element.getAttribute('role') === 'presentation') {
         customConsoleWarn("Element has role='presentation', skipping flagging.");
@@ -341,14 +418,9 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
         }
     }
 
-    // Check if the element itself has an accessible label
-    if (hasAccessibleLabel(element) || element.textContent.trim().length > 0) {
-        customConsoleWarn("Element has an accessible label or visible text, skipping flagging.");
-        return false;
-    }
-
     // Check if the parent element has an accessible label
-    const parent = element.closest('[aria-label], [role="button"], a, button');
+    const parent = element.closest('[aria-label], [role="button"], [role="link"], a, button');
+
     if (parent && (hasAccessibleLabel(parent) || hasChildWithAccessibleText(parent))) {
         customConsoleWarn("Parent element has an accessible label or accessible child, skipping flagging.");
         return false;
@@ -539,7 +611,7 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
     return false; // Default case: do not flag
 }
 
-
+// DO NOT REMOVE THIS SO PLEASE AT LEAST COPY AND PASTE THIS
 function flagElements() {
     console.time("Accessibility Check Time");
 
@@ -596,9 +668,14 @@ function flagElements() {
                 if (xpath) {
                     const outerHTML = flaggedElement.outerHTML; // Get outerHTML
                     flaggedInfo.push({ xpath, code: outerHTML }); // Store xpath and outerHTML
-                    
-                    // Add to allFlaggedElementsXPaths
-                    allFlaggedElementsXPaths.push({ xpath, code: outerHTML });
+
+                    // Check if the xpath already exists in previousAllFlaggedElementsXPaths
+                    const alreadyExists = previousAllFlaggedElementsXPaths.some(entry => entry.xpath === xpath);
+
+                    if (!alreadyExists) {
+                        // Add to previousAllFlaggedElementsXPaths only if not already present
+                        previousAllFlaggedElementsXPaths.push({ xpath, code: outerHTML });
+                    }
                 }
             }
         });
@@ -610,10 +687,12 @@ function flagElements() {
 
     // Log both variables to verify they're populated
     console.log("Updated previousFlaggedXPathsByDocument:", previousFlaggedXPathsByDocument);
-    console.log("All flagged elements XPaths:", allFlaggedElementsXPaths);
+    console.log("All flagged elements XPaths:", previousAllFlaggedElementsXPaths);
 
     console.timeEnd("Accessibility Check Time");
 }
+
+
 
 
 // Debounce function to limit the rate at which a function can fire
@@ -625,9 +704,35 @@ function debounce(func, wait) {
     };
 }
 
-// Initial flagging when the script first runs
-// flagElements();
-// toggleHighlight(window.showHighlights);
-// console.log("flaggedElementsByDocument",flaggedElementsByDocument);
-// console.log("allFlaggedElementsXPaths",allFlaggedElementsXPaths);
-// console.log("previousFlaggedXPathsByDocument",previousFlaggedXPathsByDocument);
+// Toggle function
+window.showHighlights = true;
+function toggleHighlight(show) {
+    const flaggedElements = document.querySelectorAll('[data-flagged="true"]');
+    flaggedElements.forEach(flaggedElement => {
+        if (show) {
+            flaggedElement.classList.add('highlight-flagged');
+        } else {
+            flaggedElement.classList.remove('highlight-flagged');
+        }
+    });
+
+    // Handle iframes separately
+    const iframes = document.querySelectorAll('iframe');
+    iframes.forEach(iframe => {
+        try {
+            const frameDocument = iframe.contentDocument || iframe.contentWindow.document;
+            if (frameDocument) {
+                const frameFlaggedElements = frameDocument.querySelectorAll('[data-flagged="true"]');
+                frameFlaggedElements.forEach(flaggedElement => {
+                    if (show) {
+                        flaggedElement.classList.add('highlight-flagged');
+                    } else {
+                        flaggedElement.classList.remove('highlight-flagged');
+                    }
+                });
+            }
+        } catch (error) {
+            console.warn("Cannot access frame document:", error);
+        }
+    });
+}
