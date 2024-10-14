@@ -71,6 +71,10 @@ async function doesItHaveURLInBackground(element) {
   async function fetchSvgSymbolAndWrapInSvg(href) {
     const [svgUrl, symbolId] = href.split('#');
 
+    if (!svgUrl || !symbolId) {
+      return null; // Skip invalid href
+    }
+
     try {
       const response = await fetch(svgUrl);
       if (!response.ok) throw new Error(`Failed to fetch SVG: ${response.statusText}`);
@@ -87,14 +91,13 @@ async function doesItHaveURLInBackground(element) {
         svgWrapper.setAttribute("width", "16");
         svgWrapper.setAttribute("height", "16");
 
-        const paths = symbol.querySelectorAll('path');
-        paths.forEach(path => {
-          const clonedPath = path.cloneNode(true);
-          svgWrapper.appendChild(clonedPath);
-        });
+        // Clone all children from the symbol (paths, shapes, etc.) into the new svg
+        const children = symbol.children;
+        for (let i = 0; i < children.length; i++) {
+          svgWrapper.appendChild(children[i].cloneNode(true));
+        }
 
-        // const svgString = new XMLSerializer().serializeToString(svgWrapper);
-        return { type: 'svg', data: svgWrapper }; // Return object with type 'svg'
+        return { type: 'svg', data: svgWrapper }; // Return the wrapped SVG
       } else {
         console.log(`Symbol with id "${symbolId}" not found`);
         return null;
@@ -105,7 +108,7 @@ async function doesItHaveURLInBackground(element) {
     }
   }
 
-  // Check the element itself
+  // Check the element itself for background images
   const elementStyle = window.getComputedStyle(element);
   let backgroundUrl = checkBackgroundImage(elementStyle);
   if (backgroundUrl) {
@@ -118,19 +121,34 @@ async function doesItHaveURLInBackground(element) {
     return imageUrl; // Return the object if found
   }
 
-  // Check if it's an <svg> element and fetch the SVG symbol
+  // Check if it's an <svg> element containing a <use> element or paths
   if (element.tagName.toLowerCase() === 'svg') {
-    const useElements = element.querySelectorAll('use');
-    if (useElements.length > 0) {
-      for (const useElement of useElements) {
-        const href = useElement.getAttribute('xlink:href') || useElement.getAttribute('href');
-        if (href) {
-          const svgWrappedSymbol = await fetchSvgSymbolAndWrapInSvg(href);
-          if (svgWrappedSymbol) {
-            return svgWrappedSymbol; // Return the object for SVG
-          }
+    const useElement = element.querySelector('use');
+    if (useElement) {
+      const href = useElement.getAttribute('xlink:href') || useElement.getAttribute('href');
+      if (href) {
+        const svgWrappedSymbol = await fetchSvgSymbolAndWrapInSvg(href);
+        if (svgWrappedSymbol) {
+          return svgWrappedSymbol; // Return the object for wrapped SVG from use
         }
       }
+    }
+
+    // If the <svg> element contains direct content like <path>, <circle>, etc.
+    const svgContent = element.querySelectorAll('path, circle, rect, line, polyline, polygon, text');
+    if (svgContent.length > 0) {
+      const svgWrapper = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svgWrapper.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      svgWrapper.setAttribute("viewBox", element.getAttribute('viewBox') || "0 0 24 24");
+      svgWrapper.setAttribute("width", element.getAttribute('width') || "24");
+      svgWrapper.setAttribute("height", element.getAttribute('height') || "24");
+
+      // Clone all child elements (paths, etc.)
+      svgContent.forEach(content => {
+        svgWrapper.appendChild(content.cloneNode(true));
+      });
+
+      return { type: 'svg', data: svgWrapper }; // Return wrapped SVG element
     }
   }
 
@@ -160,6 +178,7 @@ async function doesItHaveURLInBackground(element) {
   // If no URL or SVG found anywhere
   return null;
 }
+
 
 
 

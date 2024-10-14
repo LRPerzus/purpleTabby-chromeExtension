@@ -59,17 +59,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const element = currentNode.singleNodeValue
 
           if (element) {
-            const previousStyle = element.getAttribute('purple_tabby_missing')
+            const previousStyle = element.getAttribute('purple_tabby_missing'); // if there was any pervious style of the element set
 
             if (previousStyle === null) {
               console.log('previous Border:', element.style.border)
               element.setAttribute('purple_tabby_missing', element.style.border)
-
-              // TODO KC: add shadow
-              element.style.border = '10px solid purple'
-              element.style.boxShadow =
-                '5px 5px 10px rgba(0, 0, 0, 0.5), inset 0px 0px 10px rgba(0, 0, 0, 0.8)'
             }
+
+             // TODO KC: add shadow
+             element.style.boxShadow = `
+             0 0 25px 15px rgba(255, 255, 255, 1),
+             0 0 15px 10px rgba(144, 33, 166, 1)`;
+
+             element.style.outline = "4px solid rgba(128, 0, 128, 1)"
           }
         })
       }

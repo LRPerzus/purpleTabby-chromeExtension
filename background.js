@@ -170,7 +170,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                     sendResponse({ success: false, error: "Scan already in progress" });
                 }
                 else { // All is good so can scan
-        
+                    
+                    console.log("ALL GOOD");
                     chrome.action.setIcon({path: 'assets/scanning-extension-icon.png'})
                     // set a dict of it is scanning
                     scanningQueueDictionary[tabId] = {
@@ -242,9 +243,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     }
     else if (request.type === "MISSING_FOUND")
     {
-        chrome.action.setIcon(
-            {path:'assets/default-extension-icon.png'}
-        )
+        chrome.action.setIcon({path:'assets/default-extension-icon.png'})
 
         // At this point the scan has finished
         const tabId = request.data.tabId;
@@ -413,7 +412,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     {
         const tabId = request.tabId;
         const missingXpaths = await getFromLocal(tabId,"missingXpath",false,request.siteurl);
-        console.log("A11YFIXES_INNIT missingXpaths",missingXpaths)
+        // console.log("A11YFIXES_INNIT missingXpaths",missingXpaths)
         chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:missingXpaths.framesDict,tabId:tabId});
 
         // if (settings[request.tabId].A11yFix || settings[request.tabId].A11yFix === false)
@@ -463,7 +462,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     {
         sendResponse({status: "connected"});
     }
-    else if (request.type === "GET_API_ARIALABELS") {
+    else if (request.type === "GET_API_ARIALABELS") 
+    {
         console.log("GET_API_ARIALABELS", request.screenshotsFrameDict);
         globalScreenshotsFramesDict = request.screenshotsFrameDict;
         
@@ -667,7 +667,7 @@ function mergeDictionaries(newestSCANINFODICT, previousSCANINFODICT, mergedMissi
                     // Only add items whose xpath and code combination is not already in mergedArray
                     mergedArray.push(previousItem); // Add the previousItem
                     updatedMissingList.push(previousItem); // Also add it to the missing list
-                    console.log(`Added missing xpath: ${previousItem.xpath} and code from previous scan info`);
+                    // console.log(`Added missing xpath: ${previousItem.xpath} and code from previous scan info`);
                 }
             });
 
