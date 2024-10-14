@@ -413,6 +413,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     {
         const tabId = request.tabId;
         const missingXpaths = await getFromLocal(tabId,"missingXpath",false,request.siteurl);
+        console.log("A11YFIXES_INNIT missingXpaths",missingXpaths)
         chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:missingXpaths.framesDict,tabId:tabId});
 
         // if (settings[request.tabId].A11yFix || settings[request.tabId].A11yFix === false)

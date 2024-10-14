@@ -48,7 +48,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               )
             }
           } else {
-            console.log("Here right?");
             currentNode = document.evaluate(
               xpath,
               bodyNode,
@@ -57,7 +56,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               null
             )
           }
-          console.log("testing",currentNode);
           const element = currentNode.singleNodeValue
 
           if (element) {
@@ -131,7 +129,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
                 element = currentNode.singleNodeValue;
                 if (element) {
-                    element.setAttribute("aria-label","clickable Me");
+                  elementsFoundInFrame[frameKey].push({ xpath: xpath, element: element });
                 }
             });
         }
@@ -143,7 +141,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         // Once done another for loop
         // GET SCREENSHOT for the current frame
-         /* loadHtml2Canvas()
+          loadHtml2Canvas()
         .then(async () => {
             // Process frames one by one and ensure all batches are processed before moving to the next frame
             for (const [frame, elementsFoundList] of Object.entries(elementsFoundInFrame)) {
@@ -191,7 +189,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         .catch((error) => {
             console.error('Failed to load html2canvas:', error);
         });
-        */
 
     }
   } else if (message.type === 'SET_ARIA_LABELS') {
@@ -251,7 +248,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         // console.log("setAriaLabel", ariaLabel);
                         if (ariaLabel === "") // If both the OCR and the type are _negative set it as could not be found lah
                         {
-                          ariaLabel = "Could not be determined";
+                          ariaLabel = "clickable element";
                         }
                         element.setAttribute("aria-label", ariaLabel);
                     }

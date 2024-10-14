@@ -3,6 +3,7 @@ let elementLimit = 40;
 let base64Data;
 let frameResults;
 let results;
+let linkSvgValidityDict = {};
 
 // Function to load html2canvas from the local 'libs' folder
 function loadHtml2Canvas() {
@@ -47,66 +48,90 @@ function isCanvasBlank(canvas) {
   return true; // All pixels are either white or transparent
 }
 
-function createBase64FromImage(img) {
-  const canvas = document.createElement('canvas');
-  canvas.width = img.width;
-  canvas.height = img.height;
-
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(img, 0, 0);
-
-  // Get the Base64 string from the canvas
-  const base64String = canvas.toDataURL('image/png');
-
-  console.log(base64String); // This will log the Base64 representation of the image
-  // You can add further logic here to use the Base64 string
-}
-
 
 // ---------------------------  WORKING ON FIXING THE CNA ---------------------------------------------------------------
-
-// Function to check if background has a url in it either in ::before, ::after, <svg>, or <img>
-function doesItHaveURLInBackground(element) {
+// Function to check if background has a URL in it either in ::before, ::after, <svg>, or <img>
+async function doesItHaveURLInBackground(element) {
   // Helper function to check if a style contains a background URL
   function checkBackgroundImage(style) {
     const backgroundImage = style.getPropertyValue('background-image');
     const urlMatch = backgroundImage.match(/url\(["']?(.+?)["']?\)/);
-    return urlMatch ? urlMatch[1] : null; // Return the URL or null
+    return urlMatch ? { type: 'link', data: urlMatch[1] } : null; // Return object
   }
 
   // Helper function to check if an element is <img> and has a src attribute
   function checkImageSrc(el) {
     if (el.tagName.toLowerCase() === 'img') {
-      return el.getAttribute('src');
+      return { type: 'link', data: el.getAttribute('src') }; // Return object
     }
     return null;
   }
 
-  // Helper function to check if an element is <svg> and return the whole SVG code
-  function checkSVG(el) {
-    if (el.tagName.toLowerCase() === 'svg') {
-      return el.outerHTML; // Return the entire SVG markup
+  // Helper function to fetch the SVG symbol and wrap it in an SVG element
+  async function fetchSvgSymbolAndWrapInSvg(href) {
+    const [svgUrl, symbolId] = href.split('#');
+
+    try {
+      const response = await fetch(svgUrl);
+      if (!response.ok) throw new Error(`Failed to fetch SVG: ${response.statusText}`);
+
+      const svgText = await response.text();
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = svgText;
+
+      const symbol = tempDiv.querySelector(`#${symbolId}`);
+      if (symbol) {
+        const svgWrapper = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svgWrapper.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+        svgWrapper.setAttribute("viewBox", "0 0 16 16");
+        svgWrapper.setAttribute("width", "16");
+        svgWrapper.setAttribute("height", "16");
+
+        const paths = symbol.querySelectorAll('path');
+        paths.forEach(path => {
+          const clonedPath = path.cloneNode(true);
+          svgWrapper.appendChild(clonedPath);
+        });
+
+        // const svgString = new XMLSerializer().serializeToString(svgWrapper);
+        return { type: 'svg', data: svgWrapper }; // Return object with type 'svg'
+      } else {
+        console.log(`Symbol with id "${symbolId}" not found`);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching SVG symbol:', error);
+      return null;
     }
-    return null;
   }
 
   // Check the element itself
   const elementStyle = window.getComputedStyle(element);
   let backgroundUrl = checkBackgroundImage(elementStyle);
   if (backgroundUrl) {
-    return backgroundUrl;
+    return backgroundUrl; // Return the object if found
   }
 
   // Check if it's an <img> element with a src attribute
   let imageUrl = checkImageSrc(element);
   if (imageUrl) {
-    return imageUrl;
+    return imageUrl; // Return the object if found
   }
 
-  // Check if it's an <svg> element and return its code
-  let svgCode = checkSVG(element);
-  if (svgCode) {
-    return svgCode;
+  // Check if it's an <svg> element and fetch the SVG symbol
+  if (element.tagName.toLowerCase() === 'svg') {
+    const useElements = element.querySelectorAll('use');
+    if (useElements.length > 0) {
+      for (const useElement of useElements) {
+        const href = useElement.getAttribute('xlink:href') || useElement.getAttribute('href');
+        if (href) {
+          const svgWrappedSymbol = await fetchSvgSymbolAndWrapInSvg(href);
+          if (svgWrappedSymbol) {
+            return svgWrappedSymbol; // Return the object for SVG
+          }
+        }
+      }
+    }
   }
 
   // Check ::before pseudo-element
@@ -126,9 +151,9 @@ function doesItHaveURLInBackground(element) {
   // Recursively check all children
   const children = element.children;
   for (let i = 0; i < children.length; i++) {
-    backgroundUrl = doesItHaveURLInBackground(children[i]);
-    if (backgroundUrl) {
-      return backgroundUrl;
+    const childBackgroundUrl = await doesItHaveURLInBackground(children[i]);
+    if (childBackgroundUrl) {
+      return childBackgroundUrl;
     }
   }
 
@@ -137,20 +162,141 @@ function doesItHaveURLInBackground(element) {
 }
 
 
+
+// Function to convert SVG element to PNG in memory
+async function convertSvgElementToPngInMemory(svgElement) {
+  try {
+    // Get the width and height from the SVG element
+    let width = svgElement.getAttribute('width') || svgElement.clientWidth || svgElement.getBBox().width 
+    let height = svgElement.getAttribute('height') || svgElement.clientHeight || svgElement.getBBox().height
+
+    // Serialize the SVG element to a string
+    const svgData = new XMLSerializer().serializeToString(svgElement);
+  
+    // Create a data URL for the SVG
+    const svgUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
+
+    // Create a canvas element
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext('2d');
+
+    // Create a new image object in memory
+    const img = new Image();
+
+    // Set the crossOrigin attribute if your SVG or any resources inside it are loaded from a different origin
+    img.crossOrigin = 'anonymous';
+
+    // Return a Promise that resolves with the PNG data URL
+    return await new Promise((resolve, reject) => {
+      img.onload = function() {
+        // Draw the image onto the canvas
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert the canvas to a PNG data URL
+        const pngDataUrl = canvas.toDataURL('image/png');
+
+        // Resolve the Promise with the PNG data URL
+        resolve(pngDataUrl);
+      };
+
+      img.onerror = function(err) {
+        // Reject the Promise if there's an error
+        reject(err);
+      };
+
+      // Set the source of the image object to the SVG URL
+      img.src = svgUrl;
+    });
+  } catch (error) {
+    console.error('Error during SVG to PNG conversion:', error);
+    return null;
+  }
+}
+
+async function fetchImageAsBase64(url) {
+  const controller = new AbortController(); // Create an AbortController
+  const timeoutId = setTimeout(() => controller.abort(), 1000); // Set a timeout to abort the fetch
+
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId); // Clear the timeout on successful fetch
+
+    // Check if the response is an image
+    const contentType = response.headers.get("Content-Type");
+    
+    // Handle SVG URLs
+    if (contentType && contentType.startsWith("image/svg+xml")) {
+      const svgText = await response.text();
+      const parser = new DOMParser();
+      const svgDocument = parser.parseFromString(svgText, "image/svg+xml");
+      const svgElement = svgDocument.documentElement;
+
+      // Convert SVG to PNG and return Base64
+      return await convertSvgElementToPngInMemory(svgElement);
+    }
+
+    // For other image types (JPEG, PNG, etc.)
+    if (!contentType || !contentType.startsWith("image/")) {
+      console.error(`Expected image, but received: ${contentType}`);
+      return false; // Return false if the content type is not an image
+    }
+
+    const blob = await response.blob();
+    const reader = new FileReader();
+    return new Promise((resolve) => {
+      reader.onloadend = () => resolve(reader.result); // Resolve with Base64 string
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Error fetching image:', error);
+    return false; // Return false if there's an error or timeout
+  }
+}
+
+// ----------------------------------------------------------------------------------------------------------------
+
+
+
   
 // Function to capture a screenshot of a specific element
 function captureElementScreenshot(element) {
-  return new Promise((resolve) => { // No reject here
+  return new Promise(async (resolve) => { // No reject here
     const elementPreviousStyle = element.getAttribute("style");
     element.removeAttribute("style");
-
-    // create a key value key and pair key is the image and the value is the xpath account for src = link inline images and svgs
-    const backgroundImgUrl = doesItHaveURLInBackground(element);
-    if (backgroundImgUrl) {
-      console.log("background", backgroundImgUrl);
+  
+    // Testing to see if the image has a link or an svg inherited in it
+    const testingIMG = await doesItHaveURLInBackground(element);
+    if (testingIMG){
+      console.log("testingIMG", testingIMG);
+      // check in the dictionary to reduce speed needed
+      if (linkSvgValidityDict[testingIMG.data] === false)
+      {
+        resolve(null);
+      }
+      if (testingIMG.type === "svg")
+      {
+        const png = await convertSvgElementToPngInMemory(testingIMG.data);
+        linkSvgValidityDict[testingIMG.data] = true;
+        console.log("PNG",png);
+        resolve(png);
+      }
+      else if (testingIMG.type === "link")
+      {
+        // check if valid link
+        const base64Image = await fetchImageAsBase64(testingIMG.data);
+        if (base64Image) {
+          linkSvgValidityDict[testingIMG.data] = true;
+          resolve(base64Image);
+        } else {
+          linkSvgValidityDict[testingIMG.data] = false;
+          resolve(null);
+        }
+      }
     }
-
-    if (window.html2canvas) {
+    else if (window.html2canvas) {
       // Using a try-catch block to catch errors from html2canvas
       try {
         window.html2canvas(element, { useCORS: true, allowTaint: true })
@@ -219,6 +365,7 @@ async function captureVisibleElements(elementsFoundDict, frameKey) {
   frameResults = await processElementsInBatches(limitedElements, concurrencyLimit);
   allResults[frameKey] = frameResults;
 
+  console.log("allResults",allResults);
   return allResults;
 }
 // Function to process elements in batches
