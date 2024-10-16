@@ -41,9 +41,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     else if (message.type === "CLEAR_GLOBAL_VARIABLE_a11yTreeListeners")
     {
         console.log("RESEITNG THE GLOBAL A11y VARIABLES")
-        flaggedElementsByDocument = {};
-        previousFlaggedXPathsByDocument = {};
-        previousAllFlaggedElementsXPaths = {};
+        // flaggedElementsByDocument = {};
+        // previousFlaggedXPathsByDocument = {};
+        previousAllFlaggedElementsXPaths = [];
     }
 
 });
@@ -590,16 +590,22 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
 
     return false; // Default case: do not flag
 }
+
 function flagElements() {
     console.time("Accessibility Check Time");
 
     const currentFlaggedElementsByDocument = {}; // Temporary object to hold current flagged elements
 
+
+    /* 
+        Collects all the elements and places then into an array
+        Then places the array in the correct frame
+    */ 
     // Process main document
     const currentFlaggedElements = [];
     const allElements = document.querySelectorAll('*');
     allElements.forEach(element => {
-        if (shouldFlagElement(element, allowNonClickableFlagging)) {
+        if (shouldFlagElement(element, allowNonClickableFlagging) || element.dataset.flagged === "true") {
             element.dataset.flagged = 'true'; // Mark element as flagged
             currentFlaggedElements.push(element);
         }
@@ -616,7 +622,7 @@ function flagElements() {
                 const iframeFlaggedElements = [];
                 const iframeElements = iframeDocument.querySelectorAll('*');
                 iframeElements.forEach(element => {
-                    if (shouldFlagElement(element, allowNonClickableFlagging)) {
+                    if (shouldFlagElement(element, allowNonClickableFlagging) || element.dataset.flagged === "true") {
                         element.dataset.flagged = 'true'; // Mark element as flagged
                         iframeFlaggedElements.push(element);
                     }
@@ -669,7 +675,6 @@ function flagElements() {
 
     console.timeEnd("Accessibility Check Time");
 }
-
 
 // Debounce function to limit the rate at which a function can fire
 function debounce(func, wait) {

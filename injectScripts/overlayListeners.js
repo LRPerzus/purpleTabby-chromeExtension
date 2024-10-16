@@ -18,7 +18,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('HIGHLIGHT message.data', message.data)
 
     if (message.data !== 'undefined') {
-      const framesMissingXpathsDict = message.data
+      const framesMissingXpathsDict = message.data.framesDict
       for (const frameKey in framesMissingXpathsDict) {
         console.log('HIGHLIGHT frameKey', frameKey)
         framesMissingXpathsDict[frameKey].forEach((xpathObject) => {
@@ -59,13 +59,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const element = currentNode.singleNodeValue
 
           if (element) {
-            const previousStyle = element.getAttribute('purple_tabby_missing'); // if there was any pervious style of the element set
-
-            if (previousStyle === null) {
-              console.log('previous Border:', element.style.border)
-              element.setAttribute('purple_tabby_missing', element.style.border)
-            }
-
              // TODO KC: add shadow
              element.style.boxShadow = `
              0 0 25px 15px rgba(255, 255, 255, 1),
@@ -76,18 +69,69 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         })
       }
     }
-  } else if (message.type === 'START_RESCANNING') {
-    chrome.runtime.sendMessage({
-      type: 'SCANING_START',
-      tabId: message.tabId,
-      from:"RESCANNING DUE TO MUTATION"
-    });
-  } else if (message.type === 'A11YFIXES_Start') {
+  }
+  else if (message.type === "REMOVE_HIGHLIGHTS")
+  {
+    console.log('REMOVE_HIGHLIGHTS message.data', message.data)
+
+    if (message.data !== 'undefined') {
+      const framesMissingXpathsDict = message.data.framesDict
+      for (const frameKey in framesMissingXpathsDict) {
+        console.log('HIGHLIGHT frameKey', frameKey)
+        framesMissingXpathsDict[frameKey].forEach((xpathObject) => {
+          xpath = xpathObject.xpath
+          bodyNode = document.body
+          currentNode = undefined
+
+          if (frameKey !== '') {
+            const frameWindowXpathResult = document.evaluate(
+              frameKey,
+              bodyNode,
+              null,
+              XPathResult.FIRST_ORDERED_NODE_TYPE,
+              null
+            )
+            const frameWindow = frameWindowXpathResult.singleNodeValue
+            if (frameWindow) {
+              const frameContentDocument =
+                frameWindow.contentDocument ||
+                frameWindow.contentWindow.document
+              currentNode = document.evaluate(
+                xpath,
+                frameContentDocument,
+                null,
+                XPathResult.FIRST_ORDERED_NODE_TYPE,
+                null
+              )
+            }
+          } else {
+            currentNode = document.evaluate(
+              xpath,
+              bodyNode,
+              null,
+              XPathResult.FIRST_ORDERED_NODE_TYPE,
+              null
+            )
+          }
+          const element = currentNode.singleNodeValue
+
+          if (element) {
+             // TODO KC: add shadow
+             element.style.boxShadow = ``;
+             element.style.outline = "";
+          }
+        })
+      }
+    }
+  }
+  else if (message.type === 'A11YFIXES_Start') {
     console.log('A11YFIXES_Start');
     // console.log('A11YFIXES_Start message.missingXpaths', message.missingXpaths);
 
     if (message.missingXpaths !== 'undefined') {
-        const framesMissingXpathsDict = message.missingXpaths;
+        console.log("message missingXpaths",message.missingXpaths);
+        const framesMissingXpathsDict = message.missingXpaths.framesDict;
+        console.log("framesMissingXpathsDict",framesMissingXpathsDict);
         const tabId = message.tabId;
         elementsFoundInFrame = {}; // Reset it
         let frameWindow;
@@ -193,7 +237,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
 
     }
-  } else if (message.type === 'SET_ARIA_LABELS') {
+  } 
+  else if (message.type === 'SET_ARIA_LABELS') {
     console.log('A11YFIXES_Start message.data', message.missingXpaths);
 
     if (message.missingXpaths !== 'undefined') {
@@ -284,7 +329,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           console.error("Error in Promise.all:", error);
       });
     }
-}else if (message.type === 'CHECK_OVERLAY_LISTENERS_JS') {
+  } 
+  else if (message.type === 'REMOVER_ARIA_LABELS')
+  {
+
+  }
+  else if (message.type === 'START_RESCANNING') {
+  chrome.runtime.sendMessage({
+    type: 'SCANING_START',
+    tabId: message.tabId,
+    from:"RESCANNING DUE TO MUTATION"
+  });
+  } 
+  else if (message.type === 'CHECK_OVERLAY_LISTENERS_JS') {
     sendResponse({ status: 'OVERLAY_LISTENERS_READY' })
   }
 })

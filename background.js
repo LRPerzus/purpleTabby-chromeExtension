@@ -1,7 +1,4 @@
 // Imported Functions
-// import {getFrameTree,processFrameTrees,settingAttributeNode} from "./background functions/frameTreesFuncs.js"
-// import {collectDOMNodes} from "./background functions/domTreeFunc.js"
-// import {setAttributeValue,areScansFinished} from "./background functions/common.js"
 import {storeDataForTab,getFromLocal} from "./background functions/localStorageFunc.js"
 
 // Set Variables
@@ -12,8 +9,19 @@ let scanningQueueDictionary = {};
 let arialLabelsFramesDict = {};
 let globalScreenshotsFramesDict;
 
-// --- Event Listeners from the injecte scripts to here
+// --- Event Listeners from the injected scripts to here
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+    /* 
+        PlUGIN_CLICKED is a listener for when the Plugin button aka the button on the top gets clicked.
+
+        Message comes from: 
+            -popup.js 
+
+        Function of this Listner:
+            1) Check to see if the injected scripts are injected correctly into the current site
+            2) Injects the scripts which are not injected properly
+            3) Sends message "PLUGIN_READY" back to popup.js to start updating the overlay with the settings required
+    */
     if (request.type === "PlUGIN_CLICKED") {
         const tabId = request.tabId;
         try {
@@ -71,34 +79,41 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             console.error("Error waiting for scripts:", error);
         }
     }
+
+    /* 
+        HIGHLIGHT_MISSING is a listener for when the page would like to highlight the missing elements
+
+        Message comes from: 
+            - injectedScripts/overlayListeners after the Fix for that batch the aria labels are complete
+            - eventListner.js
+        
+        Function of this Listener:
+            1) To get the missingXpaths stored in session storage
+            2) Set the global variable of the 
+        
+    */
     else if (request.type === "HIGHLIGHT_MISSING")
     {
         console.log("HIGHLIGHT_MISSING Received",request.tabId);
+        console.log("request.status",request.status);
         // To change the status
-        if (settings[request.tabId] && request.status)
+        if (settings[request.tabId] && request.status !== undefined)
         {
             settings[request.tabId].highlight = request.status;
             console.log("HIGHLIGHT_MISSING Changed status",request.status);
         }
-        const missingXpath = await getFromLocal(request.tabId,"missingXpath",false,request.siteUrl);
-        let data;
-        if (missingXpath !== undefined)
-        {
-            data = missingXpath;
-        }
-        else{
-            data = "undefined"
-        }
-        console.log("HIGHLIGHT_MISSING missingXpath",missingXpath)
 
+        const data = await getFromLocal(request.tabId,"missingXpath",false,request.siteUrl) || "undefined";
+        console.log("Highlighting Status",settings[request.tabId].highlight)
         // Status is true
         if (settings[request.tabId].highlight)
         {
-            chrome.tabs.sendMessage(request.tabId, { type: "HIGHLIGHT", data:data.framesDict });
+            chrome.tabs.sendMessage(request.tabId, { type: "HIGHLIGHT", data:data });
         }
         else
         {
             // TODO add a remove highlights
+            chrome.tabs.sendMessage(request.tabId, { type: "REMOVE_HIGHLIGHTS", data:data });
         }
 
         // sendinng response
@@ -106,6 +121,30 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         sendResponse({status:settings[request.tabId].highlight});
         return true;
         
+    }
+    else if (request.type === "A11YFIXES_INNIT")
+    {
+        const tabId = request.tabId;
+        const missingXpaths = await getFromLocal(tabId,"missingXpath",false,request.siteurl) || "undefined";
+        // console.log("A11YFIXES_INNIT missingXpaths",missingXpaths)
+
+        // Change the status first
+        if (settings[request.tabId] && request.status)
+        {
+            settings[request.tabId].A11yFix = request.status;
+        }
+
+        // Once status change check if it wants to start or remove the Fixes
+        if (settings[request.tabId].A11yFix || settings[request.tabId].A11yFix === false) // currently not 
+        {
+            chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:missingXpaths,tabId:tabId});
+        }
+        else
+        {
+            // TODO add a remove A11yFixes
+        }
+
+       
     }
     else if (request.type === "OVERLAY_CREATED") 
     {
@@ -122,7 +161,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         }
         else
         {
-            chrome.runtime.sendMessage({ type: "SCANNING_INNIT", tabId:tabId});        
+            // chrome.runtime.sendMessage({ type: "SCANNING_INNIT", tabId:tabId});        
         }
         // Return true to indicate the response will be sent asynchronously
         return true;
@@ -191,8 +230,16 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                         {
                             tabId = request.tabId;
                             console.log("Sending Can get messages to tabId:", tabId);
-                            chrome.tabs.sendMessage(tabId, { type: "FIND_MISSING", tabId: tabId });
+                            chrome.tabs.sendMessage(tabId, { type: "FIND_MISSING", tabId: tabId }, (response) => {
+                                if (chrome.runtime.lastError) {
+                                    scanningQueueDictionary[tabId].currentScanning = false;
+                                    console.log("Went by too fast");
+                                } else {
+                                    console.log(`Message sent successfully to tab ${tabId}`, response);
+                                }
+                            });
                             sendResponse({ success: true });
+                           
                         }
                         else
                         {
@@ -202,7 +249,15 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                     }
                     else
                     {
-                        chrome.tabs.sendMessage(tabId, { type: "FIND_MISSING", tabId: tabId });
+                        chrome.tabs.sendMessage(tabId, { type: "FIND_MISSING", tabId: tabId }, (response) => {
+                            if (chrome.runtime.lastError) {
+                                scanningQueueDictionary[tabId].currentScanning = false;
+                                console.log("Went by too fast");
+                            } else {
+                                console.log(`Message sent successfully to tab ${tabId}`, response);
+                            }
+                        });
+                        
                         sendResponse({ success: true });
                     }
                 }
@@ -255,30 +310,32 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         console.log("TESING request.data.missing;",request.data.missing);
 
         // previous errors data
-        const previousMissingXpath = await getFromLocal(tabId,"missingXpath",false,request.siteurl);
         let mergedFramesDict;
-        let newInMissingList;
         let mergedMissingList = request.data.missing;
         
-        if (previousMissingXpath)
-        {
-            console.log("THERE WAS PRIVUOUS DATA");
-            mergedMissingList = previousMissingXpath.missing;
-            // console.log("Previous data",previousMissingXpath.framesDict);
-            // console.log("New data",request.data.framesDict);
-            // cause each is its own dict kinda
-            ({mergedFramesDict, newInMissingList} = mergeDictionaries(request.data.framesDict, previousMissingXpath.framesDict, mergedMissingList));
-            // console.log("THE NEW STUFF mergedFramesDict",mergedFramesDict);
-            // console.log("THE NEW STUFF previousMissingList",previousMissingList);
-            mergedMissingList.push(newInMissingList);
+        mergedFramesDict = request.data.framesDict
 
-            //reset it
-            newInMissingList = null;
-        }
-        else 
-        {
-            mergedFramesDict = request.data.framesDict
-        }
+        // if (previousMissingXpath)
+        // {
+        //     console.log("THERE WAS PRIVUOUS DATA");
+        //     console.log("Previous data",previousMissingXpath.framesDict);
+        //     console.log("New data",request.data.framesDict);
+        //     // cause each is its own dict kinda
+        //     mergedMissingList = 
+        //     console.log("THE NEW STUFF mergedFramesDict",mergedFramesDict);
+        //     // console.log("THE NEW STUFF previousMissingList",previousMissingList);
+        //     if (newInMissingList)
+        //     {
+        //         mergedMissingList.push(newInMissingList);
+        //     }
+
+        //     //reset it
+        //     newInMissingList = null;
+        // }
+        // else 
+        // {
+        //     mergedFramesDict = request.data.framesDict
+        // }
         
         let mergedMissingXpaaths = {
             framesDict:mergedFramesDict,
@@ -294,8 +351,10 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             mergedMissingList = null;
             chrome.tabs.sendMessage(tabId,{ type: "CLEAR_GLOBAL_VARIABLE_a11yTreeListeners"});
         });
-      
         
+        console.log("B4 scanningQueueDictionary[tabId].currentScanning",scanningQueueDictionary[tabId].currentScanning );
+        scanningQueueDictionary[tabId].currentScanning = false; // Update the dict to tell it scan is done
+        console.log("After scanningQueueDictionary[tabId].currentScanning",scanningQueueDictionary[tabId].currentScanning );
 
         // console.log("MISSING_FOUND scanningQueueDictionary[tabId].redo ",scanningQueueDictionary[tabId].redo );
         // Updates the scanningQueueDictionary
@@ -315,36 +374,22 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                             console.log("setting", setting);
 
 
-                            let data;
-                            if (mergedMissingXpaaths!== undefined)
-                            {
-                                data = mergedMissingXpaaths;
-                                mergedMissingXpaaths = {}
-
-                            }
-                            else{
-                                data = "undefined"
-                            }
+                            let data = await getFromLocal(tabId,"missingXpath",false,request.siteurl) || "undefined";
 
                             if (setting.A11yFix) // This one will continue with highlight later there is another highlight check
                             {
                                 console.log("A11YFIXES_Start");
                                 // Update scanningQueueDictionary to tell it to not do a scan once it starts this
-                                scanningQueueDictionary[tabId] = {
-                                    currentScanning:false,
-                                    currentFixing:true,
-                                    currentHiligting:false,
-                                    redo:false
-                                };
+                                scanningQueueDictionary[tabId].currentFixing = true
 
-                                chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict , tabId:tabId}).then(() => {
+                                chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data , tabId:tabId}).then(() => {
                                     data = {};
                                 });;
                             }
                             else if (setting.highlight) // Just highlight
                             {
                                 console.log("MISSING_FOUND HIGHLIGHT")
-                                chrome.tabs.sendMessage(tabId,{ type: "HIGHLIGHT", data:data.framesDict});
+                                chrome.tabs.sendMessage(tabId,{ type: "HIGHLIGHT", data:data});
                             }
                             else
                             {
@@ -366,19 +411,13 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                             tabId:tabId
                         });
 
-                        let data;
-                        if (mergedMissingXpaaths!== undefined)
-                        {
-                            data = mergedMissingXpaaths;
-                            mergedMissingXpaaths = {}
-                        }
-                        else{
-                            data = "undefined"
-                        }
+                        let data = await getFromLocal(tabId,"missingXpath",false,request.siteurl) || "undefined";
+
 
                         if (settings[tabId].A11yFix) // This one will continue with highlight later there is another highlight check
                         {
-                            chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data.framesDict, tabId:tabId}).then(() => {
+                            scanningQueueDictionary[tabId].currentFixing = true
+                            chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data, tabId:tabId}).then(() => {
                                 data = {};
                             });
                         }
@@ -386,7 +425,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                         {
                             console.log("MISSING_FOUND HIGHLIGHT")
                             console.log("data",data);
-                            chrome.tabs.sendMessage(tabId,{ type: "HIGHLIGHT", data:data.framesDict});
+                            chrome.tabs.sendMessage(tabId,{ type: "HIGHLIGHT", data:data});
                         }
                         else
                         {
@@ -407,27 +446,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             scanningQueueDictionary[tabId].redo = false;
             chrome.tabs.sendMessage(tabId, { type: "START_RESCANNING" , tabId:tabId});
         }
-    }
-    else if (request.type === "A11YFIXES_INNIT")
-    {
-        const tabId = request.tabId;
-        const missingXpaths = await getFromLocal(tabId,"missingXpath",false,request.siteurl);
-        // console.log("A11YFIXES_INNIT missingXpaths",missingXpaths)
-        chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:missingXpaths.framesDict,tabId:tabId});
-
-        // if (settings[request.tabId].A11yFix || settings[request.tabId].A11yFix === false)
-        // {
-        // }
-        // else
-        // {
-        //     // TODO add a remove A11yFixes
-        // }
-
-        if (settings[request.tabId] && request.status)
-        {
-            settings[request.tabId].A11yFix = request.status;
-        }
-        console.log("A11YFIXES_INNIT missingXpaths:",missingXpaths);
     }
     else if (request.type === "ERROR_REFRESHNEED")
     {
@@ -642,32 +660,50 @@ function injectMissingScripts(tabId, missingScripts) {
     }));
 }
 
+function getAllObjects(previousScanInfoDict) {
+    const allObjects = [];
+
+    for (const frame in previousScanInfoDict) {
+        if (previousScanInfoDict.hasOwnProperty(frame)) {
+            const elements = previousScanInfoDict[frame];
+            allObjects.push(...elements);  // Add each element from the frame to the allObjects array
+        }
+    }
+
+    return allObjects;
+}
+
 function mergeDictionaries(newestSCANINFODICT, previousSCANINFODICT, mergedMissingList = []) {
     console.log("AT THE START OF mergeDictionaries", mergedMissingList);
 
-    // Create a new array to avoid modifying the same reference
     const updatedMissingList = [...mergedMissingList]; // Copy the existing array
-
-    // Initialize mergedFramesDict as an empty object if newestSCANINFODICT is empty
     const mergedFramesDict = newestSCANINFODICT ? { ...newestSCANINFODICT } : {};
 
     // Iterate over each key in previousSCANINFODICT
     for (let key in previousSCANINFODICT) {
         if (mergedFramesDict[key]) {
-            // If key exists in both newest and previous, merge the arrays
-            const mergedArray = [...mergedFramesDict[key]]; // Copy existing array from newest
-
-            // Keep track of existing xpaths and codes that are already in mergedArray
-            const existingEntries = new Set(mergedArray.map(item => `${item.xpath}-${item.code}`));
+            const mergedArray = [...mergedFramesDict[key]];
+            const existingEntriesByCode = new Map(mergedArray.map(item => [item.code, item])); // Create a Map using only the code as key
 
             // Iterate over items in previousSCANINFODICT for the same key
             previousSCANINFODICT[key].forEach(previousItem => {
-                const entryIdentifier = `${previousItem.xpath}-${previousItem.code}`;
-                if (!existingEntries.has(entryIdentifier)) {
-                    // Only add items whose xpath and code combination is not already in mergedArray
-                    mergedArray.push(previousItem); // Add the previousItem
-                    updatedMissingList.push(previousItem); // Also add it to the missing list
-                    // console.log(`Added missing xpath: ${previousItem.xpath} and code from previous scan info`);
+                const previousCode = previousItem.code;
+                const previousXPath = previousItem.xpath;
+
+                if (existingEntriesByCode.has(previousCode)) {
+                    // If the code exists in the newest dictionary, check if the xpath differs
+                    const existingItem = existingEntriesByCode.get(previousCode);
+                    
+                    if (existingItem.xpath !== previousXPath) {
+                        // Update the xpath if it differs
+                        existingItem.xpath = previousXPath;
+                        console.log(`Updated xpath for existing code: ${previousCode}`);
+                    }
+                } else {
+                    // Add to mergedArray and updatedMissingList if the code doesn't exist in the newest
+                    mergedArray.push(previousItem);
+                    updatedMissingList.push(previousItem);
+                    console.log(`Added missing xpath: ${previousXPath} and code from previous scan info`);
                 }
             });
 
@@ -682,9 +718,8 @@ function mergeDictionaries(newestSCANINFODICT, previousSCANINFODICT, mergedMissi
             });
         }
     }
-    
+
     console.log("AT THE END OF mergeDictionaries", updatedMissingList);
 
     return { mergedFramesDict, mergedMissingList: updatedMissingList }; // Return both mergedFramesDict and updated missing list
 }
-

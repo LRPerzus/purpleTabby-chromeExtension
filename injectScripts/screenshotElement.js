@@ -26,7 +26,7 @@ function loadHtml2Canvas() {
       };
       document.head.appendChild(script);
     });
-  }
+}
 
 // Function to check if the screenshot is blank
 function isCanvasBlank(canvas) {
@@ -47,7 +47,6 @@ function isCanvasBlank(canvas) {
   }
   return true; // All pixels are either white or transparent
 }
-
 
 // ---------------------------  WORKING ON FIXING THE CNA ---------------------------------------------------------------
 // Function to check if background has a URL in it either in ::before, ::after, <svg>, or <img>
@@ -179,9 +178,6 @@ async function doesItHaveURLInBackground(element) {
   return null;
 }
 
-
-
-
 // Function to convert SVG element to PNG in memory
 async function convertSvgElementToPngInMemory(svgElement) {
   try {
@@ -275,16 +271,19 @@ async function fetchImageAsBase64(url) {
   }
 }
 
-// ----------------------------------------------------------------------------------------------------------------
-
-
-
+// -----------------------------------------------------------------------------------------------------------------------
   
 // Function to capture a screenshot of a specific element
 function captureElementScreenshot(element) {
   return new Promise(async (resolve) => { // No reject here
     const elementPreviousStyle = element.getAttribute("style");
     element.removeAttribute("style");
+
+    // Check if the element is visiable even
+    if (!isVisibleFocusAble(element))
+    {
+      resolve(null);
+    }
   
     // Testing to see if the image has a link or an svg inherited in it
     const testingIMG = await doesItHaveURLInBackground(element);
