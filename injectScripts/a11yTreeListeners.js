@@ -248,7 +248,7 @@ function hasChildWithAccessibleText(element) {
     const hasAccessibleChildElement = Array.from(element.children).some(child => {
         // Skip children that are aria-hidden
         if (child.getAttribute('aria-hidden') === 'true') {
-            return false;
+            return true;
         }
         return isAccessibleText(child.textContent) || hasAccessibleLabel(child) || hasCSSContent(child);
     });
