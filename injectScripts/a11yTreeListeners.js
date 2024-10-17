@@ -102,8 +102,13 @@ function a11yTreeToDOM()
     
 }
 
-
+/* 
+    Note when copying over from the gist there are things u should do:
+    1) copy the flagElements cause the current version and the gist are vastly different
+    2) Remove getXpath from the copied over gist
+*/
 // -------------------- New A11yTree Detection -------------------
+
 function customConsoleWarn(message, data) {
     if (loggingEnabled) {
         if (data) {
@@ -119,16 +124,38 @@ function hasPointerCursor(element) {
     const hasPointerStyle = computedStyle.cursor === 'pointer';
     const hasOnClick = element.hasAttribute('onclick');
     const hasEventListeners = Object.keys(element).some(prop => prop.startsWith('on'));
-    
+
     // Check if the element is inherently interactive
     const isClickableRole = ['button', 'link', 'menuitem'].includes(element.getAttribute('role'));
     const isNativeClickableElement = ['a', 'button', 'input'].includes(element.nodeName.toLowerCase()) &&
-                                     (element.nodeName.toLowerCase() !== 'a' || element.hasAttribute('href'));
+        (element.nodeName.toLowerCase() !== 'a' || element.hasAttribute('href'));
     const hasTabIndex = element.hasAttribute('tabindex') && element.getAttribute('tabindex') !== '-1';
 
     return hasPointerStyle || hasOnClick || hasEventListeners || isClickableRole || isNativeClickableElement || hasTabIndex;
 }
 
+function isAccessibleText(value) {
+    if (!value || value.trim().length === 0) {
+        return false;
+    }
+
+    const trimmedValue = value.trim();
+
+    // Check if the text contains any private use characters
+    const privateUseRegex = /\p{Private_Use}/u;
+    if (privateUseRegex.test(trimmedValue)) {
+        return false;
+    }
+
+    // Check if the text contains at least one letter or number
+    const accessibleTextRegex = /[\p{L}\p{N}]/u;
+    if (accessibleTextRegex.test(trimmedValue)) {
+        return true;
+    }
+
+    // If it doesn't contain letters or numbers, consider it not accessible
+    return false;
+}
 
 function getElementById(element, id) {
     return element.ownerDocument.getElementById(id);
@@ -165,11 +192,11 @@ function hasAccessibleLabel(element) {
     const altText = element.getAttribute('alt');
     const title = element.getAttribute('title');
 
-    return (ariaLabel && ariaLabel.trim().length > 0) ||
-           (ariaLabelledByText && ariaLabelledByText.length > 0) ||
-           (ariaDescribedByText && ariaDescribedByText.length > 0) ||
-           (altText && altText.trim().length > 0) ||
-           (title && title.trim().length > 0);
+    return (isAccessibleText(ariaLabel)) ||
+        (isAccessibleText(ariaLabelledByText)) ||
+        (isAccessibleText(ariaDescribedByText)) ||
+        (isAccessibleText(altText)) ||
+        (isAccessibleText(title));
 }
 
 function hasSummaryOrDetailsLabel(element) {
@@ -223,17 +250,19 @@ function hasChildWithAccessibleText(element) {
         if (child.getAttribute('aria-hidden') === 'true') {
             return false;
         }
-        return child.textContent.trim().length > 0 || hasAccessibleLabel(child);
+        return isAccessibleText(child.textContent) || hasAccessibleLabel(child) || hasCSSContent(child);
     });
 
     // Check direct text nodes
     const hasDirectAccessibleText = Array.from(element.childNodes).some(node => {
-        return node.nodeType === Node.TEXT_NODE && node.textContent.trim().length > 0;
+        if (node.nodeType === Node.TEXT_NODE) {
+            return isAccessibleText(node.textContent);
+        }
+        return false;
     });
 
     return hasAccessibleChildElement || hasDirectAccessibleText;
 }
-
 
 function hasAllChildrenAccessible(element) {
     // If the element is aria-hidden, consider it accessible
@@ -241,8 +270,8 @@ function hasAllChildrenAccessible(element) {
         return true;
     }
 
-    // Check if the element itself has an accessible label or text content
-    if (hasAccessibleLabel(element) || element.textContent.trim().length > 0) {
+    // Check if the element itself has an accessible label, text content, or CSS content
+    if (hasAccessibleLabel(element) || isAccessibleText(element.textContent) || hasCSSContent(element)) {
         return true;
     }
 
@@ -293,9 +322,42 @@ function injectStylesIntoFrame(frame) {
     }
 }
 
+function hasCSSContent(element) {
+    const beforeContent = window.getComputedStyle(element, '::before').getPropertyValue('content');
+    const afterContent = window.getComputedStyle(element, '::after').getPropertyValue('content');
+
+    function isAccessibleContent(value) {
+        if (!value || value === 'none' || value === 'normal') {
+            return false;
+        }
+        // Remove quotes from the content value
+        const unquotedValue = value.replace(/^['"]|['"]$/g, '').trim();
+
+        // Use the isAccessibleText function
+        return isAccessibleText(unquotedValue);
+    }
+
+    return isAccessibleContent(beforeContent) || isAccessibleContent(afterContent);
+}
+
+function isElementTooSmall(element) {
+
+    // Get the bounding rectangle of the element
+    const rect = element.getBoundingClientRect();
+    
+    // Check if width or height is less than 1
+    return rect.width < 1 || rect.height < 1;
+}
+
 function shouldFlagElement(element, allowNonClickableFlagging) {
+    
     if (!element || !(element instanceof Element)) {
         customConsoleWarn("Element is null or not a valid Element.");
+        return false;
+    }
+
+    if (isElementTooSmall(element))
+    {
         return false;
     }
 
@@ -309,6 +371,35 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
     if (element.closest('[aria-hidden="true"]')) {
         customConsoleWarn("An ancestor element has aria-hidden='true', skipping flagging.");
         return false;
+    }
+
+    let parents = element.parentElement;
+
+    // Causing false negative of svg
+    if (parents) {
+        // Check if the parent has an accessible label
+        if (hasAccessibleLabel(parents) || hasChildWithAccessibleText(parents)) {
+            customConsoleWarn("Parent element has an accessible label, skipping flagging of this element.");
+            return false;
+        }
+        // Check if any sibling has an accessible label
+        // const siblings = Array.from(parents.children);
+        // const hasAccessibleSibling = siblings.some(sibling =>
+        //     sibling !== element && (hasAccessibleLabel(sibling) || hasChildWithAccessibleText(sibling))
+        // );
+        // if (hasAccessibleSibling) {
+        //     customConsoleWarn("A sibling element has an accessible label, skipping flagging.");
+        //     return false;
+        // }
+    }
+    
+
+    while (parents) {
+        if (['div', 'section', 'article', 'nav'].includes(parents.nodeName.toLowerCase()) && hasAccessibleLabel(parents)) {
+            customConsoleWarn("Ancestor element with contextual role has an accessible label, skipping flagging.");
+            return false;
+        }
+        parents = parents.parentElement;
     }
 
     // Skip elements with role="menuitem" if an accessible sibling, parent, or child is present
@@ -328,18 +419,18 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
 
     // Add the new condition for empty div or span elements without any accessible text or children with accessible labels
     if ((element.nodeName.toLowerCase() === 'span' || element.nodeName.toLowerCase() === 'div') &&
-    element.children.length === 0 && element.textContent.trim().length === 0) {
-    const parent = element.parentElement;
-    if (parent) {
-        const hasAccessibleChild = Array.from(parent.children).some(child => 
-            child !== element && hasAccessibleLabel(child)
-        );
+        element.children.length === 0 && element.textContent.trim().length === 0) {
+        const parent = element.parentElement;
+        if (parent) {
+            const hasAccessibleChild = Array.from(parent.children).some(child =>
+                child !== element && hasAccessibleLabel(child)
+            );
 
-        if (hasAccessibleChild) {
-            customConsoleWarn("Parent element has an accessible child, skipping flagging of empty span or div.");
-            return false;
+            if (hasAccessibleChild) {
+                customConsoleWarn("Parent element has an accessible child, skipping flagging of empty span or div.");
+                return false;
+            }
         }
-    }
     }
 
     // Do not flag elements with aria-hidden="true"
@@ -347,7 +438,7 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
         customConsoleWarn("Element is aria-hidden, skipping flagging.");
         return false;
     }
-    
+
     // Do not flag elements with role="presentation"
     if (element.getAttribute('role') === 'presentation') {
         customConsoleWarn("Element has role='presentation', skipping flagging.");
@@ -373,22 +464,64 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
     }
 
     // Skip empty <div> or <span> elements without any accessible text or children with accessible labels, unless they have a pointer cursor
-    if ((element.nodeName.toLowerCase() === 'div' || element.nodeName.toLowerCase() === 'span') && element.children.length === 0 && element.textContent.trim().length === 0) {
+    if ((element.nodeName.toLowerCase() === 'div' || element.nodeName.toLowerCase() === 'span') &&
+        element.children.length === 0 && element.textContent.trim().length === 0) {
+
         if (!hasPointerCursor(element)) {
             customConsoleWarn("Empty div or span without accessible text and without pointer cursor, skipping flagging.");
             return false;
         }
-    
-        // Additional check: Ensure parent element with accessible label is not overlooked
-        const parentWithAccessibleLabel = element.closest('[aria-label], [role="button"], a, button');
-        if (parentWithAccessibleLabel && (hasAccessibleLabel(parentWithAccessibleLabel) || hasChildWithAccessibleText(parentWithAccessibleLabel))) {
-            customConsoleWarn("Parent element has an accessible label, skipping flagging of empty clickable div or span.");
-            return false;
+
+        // **New background-image check**
+        const backgroundImage = window.getComputedStyle(element).getPropertyValue('background-image');
+        if (backgroundImage && backgroundImage !== 'none') {
+            customConsoleWarn("Element has a background image.");
+
+            // Check if the element has accessible labels or text content
+            if (!hasAccessibleLabel(element) && !hasChildWithAccessibleText(element) && !isAccessibleText(element.textContent)) {
+                customConsoleWarn("Flagging element with background image but without accessible label or text.");
+                return true; // Flag the element
+            } else {
+                customConsoleWarn("Element with background image has accessible label or text, skipping flagging.");
+                return false; // Do not flag
+            }
         }
-    
+
+        // **Proceed with ancestor traversal if no background image is found**
+        // Traverse ancestors to check for interactive elements with accessible labels
+        let ancestor = element.parentElement;
+        let depth = 0;
+        const maxDepth = 4; // Limit the depth to prevent skipping elements incorrectly
+        while (ancestor && depth < maxDepth) {
+            // Determine if ancestor is interactive
+            const isAncestorInteractive = hasPointerCursor(ancestor) ||
+                ancestor.hasAttribute('onclick') ||
+                ancestor.hasAttribute('role') ||
+                (ancestor.hasAttribute('tabindex') && ancestor.getAttribute('tabindex') !== '-1') ||
+                ancestor.hasAttribute('jsaction') ||
+                ancestor.hasAttribute('jscontroller');
+
+            if (isAncestorInteractive) {
+                // Check if ancestor has accessible label or text content
+                if (hasAccessibleLabel(ancestor) || isAccessibleText(ancestor.textContent) || hasChildWithAccessibleText(ancestor)) {
+                    customConsoleWarn("Ancestor interactive element has accessible label or text content, skipping flagging.");
+                    return false;
+                } else {
+                    // Ancestor is interactive but lacks accessible labeling
+                    customConsoleWarn("Ancestor interactive element lacks accessible label, continue flagging.");
+                    break; // Do not skip flagging
+                }
+            }
+            ancestor = ancestor.parentElement;
+            depth++;
+        }
+
+        // If no interactive ancestor with accessible label is found, flag the element
         customConsoleWarn("Flagging clickable div or span with pointer cursor and no accessible text.");
+        console.log("Is this you?",element);
         return true;
     }
+
 
     // Skip elements with role="menuitem" and ensure accessibility label for any nested elements
     if (element.getAttribute('role') === 'menuitem') {
@@ -435,7 +568,7 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
         customConsoleWarn("Element is a landmark element.");
         return false;
     }
-    
+
     // Prevent flagging <svg> or <icon> if a sibling or parent has an accessible label or if it is part of a button-like element
     if ((element.nodeName.toLowerCase() === 'svg' || element.nodeName.toLowerCase() === 'icon') && (element.getAttribute('focusable') === 'false' || hasSiblingOrParentAccessibleLabel(element) || element.closest('[role="button"]') || element.closest('button'))) {
         customConsoleWarn("Sibling or parent element has an accessible label or svg is part of a button, skipping flagging of svg or icon.");
@@ -451,7 +584,7 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
     }
 
     if (element.nodeName.toLowerCase() === 'button') {
-        const hasAccessibleLabelForButton = hasAccessibleLabel(element) || element.textContent.trim().length > 0;
+        const hasAccessibleLabelForButton = hasAccessibleLabel(element) || isAccessibleText(element.textContent);
         if (hasAccessibleLabelForButton) {
             customConsoleWarn("Button has an accessible label, skipping flagging.");
             return false;
@@ -471,36 +604,36 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
 
     if (element.nodeName.toLowerCase() === 'a') {
         const img = element.querySelector('img');
-    
+
         // Log to verify visibility and pointer checks
         customConsoleWarn("Processing <a> element.");
-    
+
         // Ensure this <a> does not have an accessible label
         const linkHasAccessibleLabel = hasAccessibleLabel(element);
-    
+
         // Ensure the <img> inside <a> does not have an accessible label
         const imgHasAccessibleLabel = img ? hasAccessibleLabel(img) : false;
-    
+
         // Log to verify if <img> has accessible label
         if (img) {
             customConsoleWarn("Found <img> inside <a>. Accessible label: " + imgHasAccessibleLabel);
         } else {
             customConsoleWarn("No <img> found inside <a>.");
         }
-    
+
         // Flag if both <a> and <img> inside lack accessible labels
         if (!linkHasAccessibleLabel && img && !imgHasAccessibleLabel) {
             customConsoleWarn("Flagging <a> with inaccessible <img>.");
             return true;
         }
-    
+
         // Skip flagging if <a> has an accessible label or all children are accessible
         if (linkHasAccessibleLabel || hasAllChildrenAccessible(element)) {
             customConsoleWarn("Hyperlink has an accessible label, skipping flagging.");
             return false;
         }
     }
-    
+
     // Modify this section for generic elements
     if (['span', 'div', 'icon', 'svg', 'button'].includes(element.nodeName.toLowerCase())) {
         if (element.nodeName.toLowerCase() === 'icon' || element.nodeName.toLowerCase() === 'svg') {
@@ -530,8 +663,9 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
             return false;
         }
 
-        if (element.textContent.trim().length > 0) {
-            customConsoleWarn("Div has valid text content.");
+        // Update this condition to include hasChildWithAccessibleText
+        if (element.textContent.trim().length > 0 || hasChildWithAccessibleText(element)) {
+            customConsoleWarn("Div has valid text content or child with accessible text.");
             return false;
         }
 
@@ -555,8 +689,8 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
             }
         }
 
-        if (hasPointerCursor(element) && !hasAccessibleLabel(element)) {
-            customConsoleWarn("Clickable div without accessible label.");
+        if (hasPointerCursor(element) && !hasAccessibleLabel(element) && !isAccessibleText(element.textContent)) {
+            customConsoleWarn("Clickable div without accessible label or text content.");
             return true;
         }
     }
@@ -588,6 +722,11 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
         return false;
     }
 
+    if (hasCSSContent(element)) {
+        customConsoleWarn("Element has CSS ::before or ::after content, skipping flagging.");
+        return false;
+    }
+
     return false; // Default case: do not flag
 }
 
@@ -595,7 +734,6 @@ function flagElements() {
     console.time("Accessibility Check Time");
 
     const currentFlaggedElementsByDocument = {}; // Temporary object to hold current flagged elements
-
 
     /* 
         Collects all the elements and places then into an array
@@ -713,13 +851,7 @@ function toggleHighlight(show) {
                 });
             }
         } catch (error) {
-            console.warn("Cannot access frame document:", error);
+            customConsoleWarn("Cannot access frame document:", error);
         }
     });
 }
-
-
-// // Initial flagging when the script first runs
-// flagElements();
-// toggleHighlight(window.showHighlights);
-// // console.log(flaggedElementsByDocument);
