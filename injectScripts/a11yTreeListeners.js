@@ -509,7 +509,7 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
                 } else {
                     // Ancestor is interactive but lacks accessible labeling
                     customConsoleWarn("Ancestor interactive element lacks accessible label, continue flagging.");
-                    break; // Do not skip flagging
+                    // Do not skip flagging
                 }
             }
             ancestor = ancestor.parentElement;
