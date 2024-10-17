@@ -22,7 +22,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       for (const frameKey in framesMissingXpathsDict) {
         console.log('HIGHLIGHT frameKey', frameKey)
         framesMissingXpathsDict[frameKey].forEach((xpathObject) => {
-          xpath = xpathObject.xpath
+          xpath = getXPathBeforeSVG(xpathObject.xpath)
           bodyNode = document.body
           currentNode = undefined
 
@@ -77,9 +77,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.data !== 'undefined') {
       const framesMissingXpathsDict = message.data.framesDict
       for (const frameKey in framesMissingXpathsDict) {
-        console.log('HIGHLIGHT frameKey', frameKey)
+        console.log('REMOVE_HIGHLIGHTS frameKey', frameKey)
         framesMissingXpathsDict[frameKey].forEach((xpathObject) => {
-          xpath = xpathObject.xpath
+          xpath = getXPathBeforeSVG(xpathObject.xpath)
           bodyNode = document.body
           currentNode = undefined
 
@@ -354,4 +354,23 @@ function splitIntoChunks(array, chunkSize) {
       result.push(array.slice(i, i + chunkSize));
   }
   return result;
+}
+
+function getXPathBeforeSVG(fullXPath) {
+  // Split the XPath by '/' to get individual components
+  const xpathParts = fullXPath.split('/');
+
+  // Check if the last part is 'svg'
+  const lastPart = xpathParts[xpathParts.length - 1];
+  
+  if (lastPart.startsWith('svg')) {
+      // Remove the last part (which is the SVG)
+      xpathParts.pop();
+      
+      // Join the remaining parts back together to form the XPath before SVG
+      return xpathParts.join('/');
+  }
+  
+  // If the last part is not 'svg', return the original XPath
+  return fullXPath;
 }

@@ -518,7 +518,6 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
 
         // If no interactive ancestor with accessible label is found, flag the element
         customConsoleWarn("Flagging clickable div or span with pointer cursor and no accessible text.");
-        console.log("Is this you?",element);
         return true;
     }
 
@@ -603,6 +602,7 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
     }
 
     if (element.nodeName.toLowerCase() === 'a') {
+        console.log("<A> LINK START?");
         const img = element.querySelector('img');
 
         // Log to verify visibility and pointer checks
@@ -620,6 +620,7 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
         } else {
             customConsoleWarn("No <img> found inside <a>.");
         }
+        
 
         // Flag if both <a> and <img> inside lack accessible labels
         if (!linkHasAccessibleLabel && img && !imgHasAccessibleLabel) {
@@ -821,37 +822,4 @@ function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(() => func.apply(this, args), wait);
     };
-}
-
-// Toggle function
-window.showHighlights = true;
-function toggleHighlight(show) {
-    const flaggedElements = document.querySelectorAll('[data-flagged="true"]');
-    flaggedElements.forEach(flaggedElement => {
-        if (show) {
-            flaggedElement.classList.add('highlight-flagged');
-        } else {
-            flaggedElement.classList.remove('highlight-flagged');
-        }
-    });
-
-    // Handle iframes separately
-    const iframes = document.querySelectorAll('iframe');
-    iframes.forEach(iframe => {
-        try {
-            const frameDocument = iframe.contentDocument || iframe.contentWindow.document;
-            if (frameDocument) {
-                const frameFlaggedElements = frameDocument.querySelectorAll('[data-flagged="true"]');
-                frameFlaggedElements.forEach(flaggedElement => {
-                    if (show) {
-                        flaggedElement.classList.add('highlight-flagged');
-                    } else {
-                        flaggedElement.classList.remove('highlight-flagged');
-                    }
-                });
-            }
-        } catch (error) {
-            customConsoleWarn("Cannot access frame document:", error);
-        }
-    });
 }
