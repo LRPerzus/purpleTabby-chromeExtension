@@ -140,7 +140,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         for (const frameKey in framesMissingXpathsDict) {
             elementsFoundInFrame[frameKey] = [];
             framesMissingXpathsDict[frameKey].forEach((xpathObject) => {
-                const xpath = xpathObject.xpath;
+                const xpath = (xpathObject.xpath).split("/svg");
                 let bodyNode = document.body;
                 let currentNode = undefined;
 
@@ -156,7 +156,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     if (frameWindow) {
                         const frameContentDocument = frameWindow.contentDocument || frameWindow.contentWindow.document;
                         currentNode = document.evaluate(
-                            xpath,
+                            xpath[0],
                             frameContentDocument,
                             null,
                             XPathResult.FIRST_ORDERED_NODE_TYPE,
@@ -165,7 +165,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     }
                 } else {
                     currentNode = document.evaluate(
-                        xpath,
+                        xpath[0],
                         bodyNode,
                         null,
                         XPathResult.FIRST_ORDERED_NODE_TYPE,
@@ -174,8 +174,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 }
 
                 element = currentNode.singleNodeValue;
+                if (xpath.length > 1) // that means there is an svg
+                {
+                  const position = getSvgIndex(xpath[1]);
+                  element = element.querySelectorAll("svg")[position];
+                  console.log("TESTING Element SVG",element)
+                };
+
                 if (element) {
-                  elementsFoundInFrame[frameKey].push({ xpath: xpath, element: element });
+                  elementsFoundInFrame[frameKey].push({ xpath: xpathObject.xpath, element: element });
                 }
             });
         }
@@ -187,7 +194,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         // Once done another for loop
         // GET SCREENSHOT for the current frame
-          loadHtml2Canvas()
+        loadHtml2Canvas()
         .then(async () => {
             // Process frames one by one and ensure all batches are processed before moving to the next frame
             for (const [frame, elementsFoundList] of Object.entries(elementsFoundInFrame)) {
@@ -246,14 +253,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const promises = []; // Array to hold promises
         finsihedBatches++;
 
-
         for (const frameKey in framesMissingXpathsDict) {
             xpaths = framesMissingXpathsDict[frameKey];
             // console.log("xpaths", xpaths);
-            for (const xpath in xpaths) {
+            for (let xpath in xpaths) {
                 let ariaLabel = (xpaths[xpath]).replace("_negative","");
                 let bodyNode = document.body;
                 let currentNode = undefined;
+                
+                xpath = xpath.split("/svg");
+                console.log("SET_ARIA_LABELS xpath",xpath);
 
                 const promise = new Promise((resolve) => {
                     if (frameKey !== '') {
@@ -271,7 +280,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                                 frameWindow.contentDocument ||
                                 frameWindow.contentWindow.document;
                             currentNode = document.evaluate(
-                                xpath,
+                                xpath[0],
                                 frameContentDocument,
                                 null,
                                 XPathResult.FIRST_ORDERED_NODE_TYPE,
@@ -280,7 +289,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         }
                     } else {
                         currentNode = document.evaluate(
-                            xpath,
+                            xpath[0],
                             bodyNode,
                             null,
                             XPathResult.FIRST_ORDERED_NODE_TYPE,
@@ -289,7 +298,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     }
 
                     // console.log("LR TESTING currentNode",currentNode);
-                    const element = currentNode.singleNodeValue;
+                    let element = currentNode.singleNodeValue;
+                    console.log("EH???? xpath.length",xpath.length);
+                    if (xpath.length > 1) // that means there is an svg
+                    {
+                      console.log("end IS SVG");
+                      const position = getSvgIndex(xpath[1]);
+                      element = element.querySelectorAll("svg")[position];
+                    };
+                    // console.log("SET ARIA LABEL element",element);
+
 
                     if (element) {
                         // console.log("setAriaLabel", ariaLabel);
@@ -373,4 +391,9 @@ function getXPathBeforeSVG(fullXPath) {
   
   // If the last part is not 'svg', return the original XPath
   return fullXPath;
+}
+
+function getSvgIndex(xpathSegment) {
+  const match = xpathSegment.match(/\[(\d+)\]/);
+  return match ? parseInt(match[1], 10) - 1 : 0; // Convert to 0-indexed
 }

@@ -382,7 +382,9 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
             customConsoleWarn("Parent element has an accessible label, skipping flagging of this element.");
             return false;
         }
-        // Check if any sibling has an accessible label
+        
+        /* TODO: Ask if this condition is needed cause this is what is causing the hamburger to not */
+        // Check if any sibling (that is not an interactable) has an accessible label
         // const siblings = Array.from(parents.children);
         // const hasAccessibleSibling = siblings.some(sibling =>
         //     sibling !== element && (hasAccessibleLabel(sibling) || hasChildWithAccessibleText(sibling))

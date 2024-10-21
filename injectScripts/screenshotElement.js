@@ -182,8 +182,8 @@ async function doesItHaveURLInBackground(element) {
 async function convertSvgElementToPngInMemory(svgElement) {
   try {
     // Get the width and height from the SVG element
-    let width = svgElement.getAttribute('width') || svgElement.clientWidth || svgElement.getBBox().width 
-    let height = svgElement.getAttribute('height') || svgElement.clientHeight || svgElement.getBBox().height
+    let width = parseInt(svgElement.getAttribute('width')) || svgElement.clientWidth || svgElement.getBBox().width;
+    let height = parseInt(svgElement.getAttribute('height')) || svgElement.clientHeight || svgElement.getBBox().height;
 
     // Serialize the SVG element to a string
     const svgData = new XMLSerializer().serializeToString(svgElement);
