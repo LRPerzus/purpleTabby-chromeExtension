@@ -128,20 +128,24 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         const missingXpaths = await getFromLocal(tabId,"missingXpath",false,request.siteurl) || "undefined";
         // console.log("A11YFIXES_INNIT missingXpaths",missingXpaths)
 
+        console.log("A11YFIXES_INNIT",request.status);
         // Change the status first
-        if (settings[request.tabId] && request.status)
+        if (settings[request.tabId] && request.status !== undefined)
         {
             settings[request.tabId].A11yFix = request.status;
         }
+        console.log("AFTER",settings[request.tabId].A11yFix);
 
         // Once status change check if it wants to start or remove the Fixes
-        if (settings[request.tabId].A11yFix || settings[request.tabId].A11yFix === false) // currently not 
+        if (settings[request.tabId].A11yFix) 
         {
             chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:missingXpaths,tabId:tabId});
         }
         else
         {
             // TODO add a remove A11yFixes
+            console.log("PLZ REMOVE");
+            chrome.tabs.sendMessage(tabId,{ type: "REMOVER_ARIA_LABELS", missingXpaths:missingXpaths,tabId:tabId});
         }
 
        

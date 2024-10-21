@@ -260,7 +260,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 let ariaLabel = (xpaths[xpath]).replace("_negative","");
                 let bodyNode = document.body;
                 let currentNode = undefined;
-                
+
                 xpath = xpath.split("/svg");
                 console.log("SET_ARIA_LABELS xpath",xpath);
 
@@ -350,7 +350,62 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } 
   else if (message.type === 'REMOVER_ARIA_LABELS')
   {
+    console.log('REMOVER_ARIA_LABELS message.data', message.missingXpaths)
 
+    if (message.data !== 'undefined') {
+      const framesMissingXpathsDict = message.missingXpaths.framesDict
+      for (const frameKey in framesMissingXpathsDict) {
+        console.log('REMOVE_HIGHLIGHTS frameKey', frameKey)
+        framesMissingXpathsDict[frameKey].forEach((xpathObject) => {
+          let xpath = xpathObject.xpath.split("/svg");
+          bodyNode = document.body
+          currentNode = undefined
+
+          if (frameKey !== '') {
+            const frameWindowXpathResult = document.evaluate(
+              frameKey,
+              bodyNode,
+              null,
+              XPathResult.FIRST_ORDERED_NODE_TYPE,
+              null
+            )
+            const frameWindow = frameWindowXpathResult.singleNodeValue
+            if (frameWindow) {
+              const frameContentDocument =
+                frameWindow.contentDocument ||
+                frameWindow.contentWindow.document
+              currentNode = document.evaluate(
+                xpath[0],
+                frameContentDocument,
+                null,
+                XPathResult.FIRST_ORDERED_NODE_TYPE,
+                null
+              )
+            }
+          } else {
+            currentNode = document.evaluate(
+              xpath[0],
+              bodyNode,
+              null,
+              XPathResult.FIRST_ORDERED_NODE_TYPE,
+              null
+            )
+          }
+
+          let element = currentNode.singleNodeValue;
+          
+          if (xpath.length > 1)
+          {
+            const position = getSvgIndex(xpath[1]);
+            element = element.querySelectorAll("svg")[position];
+          }
+
+          if (element) {
+             element.removeAttribute("aria-label");
+          }
+        })
+      }
+    }
   }
   else if (message.type === 'START_RESCANNING') {
   chrome.runtime.sendMessage({
