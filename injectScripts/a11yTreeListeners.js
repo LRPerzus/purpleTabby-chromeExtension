@@ -176,10 +176,10 @@ function getAriaLabelledByText(element) {
 function getAriaDescribedByText(element) {
     const describedById = element.getAttribute('aria-describedby');
     if (describedById) {
-        const describedByElement = getElementById(element, describedById);
+        const describedByElement = document.getElementById(describedById);
         if (describedByElement) {
-            const ariaLabel = describedByElement.getAttribute('aria-label');
-            return ariaLabel ? ariaLabel.trim() : describedByElement.textContent.trim();
+            console.log("getAriaDescribedByText",describedByElement.textContent.trim());
+            return describedByElement.textContent.trim();
         }
     }
     return '';
@@ -395,14 +395,19 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
         // }
     }
     
-
     while (parents) {
         if (['div', 'section', 'article', 'nav'].includes(parents.nodeName.toLowerCase()) && hasAccessibleLabel(parents)) {
             customConsoleWarn("Ancestor element with contextual role has an accessible label, skipping flagging.");
+            if (element.id === "testing")
+            {
+                console.log("ISSUE HERE",element);
+                console.log("PARENT IS",parents);
+            }
             return false;
         }
         parents = parents.parentElement;
     }
+
 
     // Skip elements with role="menuitem" if an accessible sibling, parent, or child is present
     if (element.getAttribute('role') === 'menuitem') {

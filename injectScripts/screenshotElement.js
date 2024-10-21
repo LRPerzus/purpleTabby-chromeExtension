@@ -67,7 +67,7 @@ async function doesItHaveURLInBackground(element) {
   }
 
   // Helper function to fetch the SVG symbol and wrap it in an SVG element
-  async function fetchSvgSymbolAndWrapInSvg(href) {
+  async function fetchSvgSymbolAndWrapInSvg(href,width,height,viewBox) {
     const [svgUrl, symbolId] = href.split('#');
 
     if (!svgUrl || !symbolId) {
@@ -86,9 +86,17 @@ async function doesItHaveURLInBackground(element) {
       if (symbol) {
         const svgWrapper = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svgWrapper.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-        svgWrapper.setAttribute("viewBox", "0 0 16 16");
-        svgWrapper.setAttribute("width", "16");
-        svgWrapper.setAttribute("height", "16");
+        if (viewBox)
+        {
+          svgWrapper.setAttribute("viewBox", viewBox);
+        }
+        else 
+        {
+          svgWrapper.setAttribute("viewBox", `0 0 ${width} ${height}`);
+
+        }
+        svgWrapper.setAttribute("width", width);
+        svgWrapper.setAttribute("height", height);
 
         // Clone all children from the symbol (paths, shapes, etc.) into the new svg
         const children = symbol.children;
@@ -125,8 +133,12 @@ async function doesItHaveURLInBackground(element) {
     const useElement = element.querySelector('use');
     if (useElement) {
       const href = useElement.getAttribute('xlink:href') || useElement.getAttribute('href');
+      let width = parseInt(element.getAttribute('width')) || element.clientWidth || element.getBBox().width;
+      let height = parseInt(element.getAttribute('height')) || element.clientHeight || element.getBBox().height;
+      let viewBox = element.getAttribute('viewBox') || null;
+
       if (href) {
-        const svgWrappedSymbol = await fetchSvgSymbolAndWrapInSvg(href);
+        const svgWrappedSymbol = await fetchSvgSymbolAndWrapInSvg(href,width,height,viewBox);
         if (svgWrappedSymbol) {
           return svgWrappedSymbol; // Return the object for wrapped SVG from use
         }
