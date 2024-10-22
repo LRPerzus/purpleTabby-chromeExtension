@@ -328,7 +328,15 @@ function captureElementScreenshot(element) {
       }
     }
     else if (window.html2canvas) {
-      // Using a try-catch block to catch errors from html2canvas
+      // if the element has no other elements in it then its just a white background with nothing
+      if (element.innerHTML === "") 
+      {
+        console.log("ERRR HELLO?",element.innerHTML);
+        resolve(null);
+      }
+      else
+      {
+         // Using a try-catch block to catch errors from html2canvas
       try {
         window.html2canvas(element, { useCORS: true, allowTaint: true })
           .then(canvas => {
@@ -375,13 +383,14 @@ function captureElementScreenshot(element) {
         console.error('Synchronous error when calling html2canvas:', error.message);
         resolve("error"); // Resolve with null on synchronous error
       }
+      }
+     
     } else {
       console.error('html2canvas is not available');
       resolve(null); // Resolve with null if html2canvas is not available
     }
   });
 }
-
 
 async function captureVisibleElements(elementsFoundDict, frameKey) {
   let allResults = {};
