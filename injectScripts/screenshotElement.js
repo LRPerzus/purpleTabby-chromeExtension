@@ -300,7 +300,7 @@ function captureElementScreenshot(element) {
     // Testing to see if the image has a link or an svg inherited in it
     const testingIMG = await doesItHaveURLInBackground(element);
     if (testingIMG){
-      console.log("testingIMG", testingIMG);
+      // console.log("testingIMG", testingIMG);
       // check in the dictionary to reduce speed needed
       if (linkSvgValidityDict[testingIMG.data] === false)
       {
@@ -318,6 +318,7 @@ function captureElementScreenshot(element) {
         // check if valid link
         const base64Image = await fetchImageAsBase64(testingIMG.data);
         if (base64Image) {
+          console.log("LINK B64",base64Image);
           linkSvgValidityDict[testingIMG.data] = true;
           resolve(base64Image);
         } else {

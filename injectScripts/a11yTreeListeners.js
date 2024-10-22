@@ -173,28 +173,14 @@ function getAriaLabelledByText(element) {
     return '';
 }
 
-function getAriaDescribedByText(element) {
-    const describedById = element.getAttribute('aria-describedby');
-    if (describedById) {
-        const describedByElement = document.getElementById(describedById);
-        if (describedByElement) {
-            console.log("getAriaDescribedByText",describedByElement.textContent.trim());
-            return describedByElement.textContent.trim();
-        }
-    }
-    return '';
-}
-
 function hasAccessibleLabel(element) {
     const ariaLabel = element.getAttribute('aria-label');
     const ariaLabelledByText = getAriaLabelledByText(element);
-    const ariaDescribedByText = getAriaDescribedByText(element);
     const altText = element.getAttribute('alt');
     const title = element.getAttribute('title');
 
     return (isAccessibleText(ariaLabel)) ||
         (isAccessibleText(ariaLabelledByText)) ||
-        (isAccessibleText(ariaDescribedByText)) ||
         (isAccessibleText(altText)) ||
         (isAccessibleText(title));
 }
@@ -682,8 +668,7 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
             const altText = img.getAttribute('alt');
             const ariaLabel = img.getAttribute('aria-label');
             const ariaLabelledByText = getAriaLabelledByText(img);
-            const ariaDescribedByText = getAriaDescribedByText(img);
-            if (altText !== null || ariaLabel || ariaLabelledByText || ariaDescribedByText) {
+            if (altText !== null || ariaLabel || ariaLabelledByText) {
                 customConsoleWarn("Div contains an accessible img or an img with an alt attribute (even if empty).");
                 return false;
             }
@@ -708,16 +693,15 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
         const altText = imgElement.getAttribute('alt');
         const ariaLabel = imgElement.getAttribute('aria-label');
         const ariaLabelledByText = getAriaLabelledByText(imgElement);
-        const ariaDescribedByText = getAriaDescribedByText(imgElement);
 
         if (!allowNonClickableFlagging) {
-            if (!imgElement.closest('a') && !imgElement.closest('button') && !hasPointerCursor(imgElement) && !(altText !== null) && !(ariaLabel && ariaLabel.trim().length > 0) && !(ariaLabelledByText && ariaLabelledByText.length > 0) && !(ariaDescribedByText && ariaDescribedByText.length > 0)) {
+            if (!imgElement.closest('a') && !imgElement.closest('button') && !hasPointerCursor(imgElement) && !(altText !== null) && !(ariaLabel && ariaLabel.trim().length > 0) && !(ariaLabelledByText && ariaLabelledByText.length > 0)) {
                 customConsoleWarn("Non-clickable image ignored.");
                 return false;
             }
         }
 
-        if (!imgElement.closest('a') && !imgElement.closest('button') && !(altText !== null) && !(ariaLabel && ariaLabel.trim().length > 0) && !(ariaLabelledByText && ariaLabelledByText.length > 0) && !(ariaDescribedByText && ariaDescribedByText.length > 0)) {
+        if (!imgElement.closest('a') && !imgElement.closest('button') && !(altText !== null) && !(ariaLabel && ariaLabel.trim().length > 0) && !(ariaLabelledByText && ariaLabelledByText.length > 0)) {
             customConsoleWarn("Flagging img or picture without accessible label.");
             return true;
         }
