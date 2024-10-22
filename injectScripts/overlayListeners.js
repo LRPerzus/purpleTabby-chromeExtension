@@ -23,7 +23,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.log('HIGHLIGHT frameKey', frameKey)
         framesMissingXpathsDict[frameKey].forEach((xpathObject) => {
           xpath = getXPathBeforeSVG(xpathObject.xpath)
-          bodyNode = document.body
+          bodyNode = document
           currentNode = undefined
 
           if (frameKey !== '') {
@@ -35,7 +35,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               null
             )
             const frameWindow = frameWindowXpathResult.singleNodeValue
+            console.log("frameWindow",frameWindow);
             if (frameWindow) {
+              xpath = xpath.replace(frameKey+"/","")
               const frameContentDocument =
                 frameWindow.contentDocument ||
                 frameWindow.contentWindow.document

@@ -336,11 +336,15 @@ function isElementTooSmall(element) {
 }
 
 function shouldFlagElement(element, allowNonClickableFlagging) {
-    
-    if (!element || !(element instanceof Element)) {
-        customConsoleWarn("Element is null or not a valid Element.");
-        return false;
-    }
+    // if (!element || !(element instanceof Element)) {
+    //     customConsoleWarn("Element is null or not a valid Element.");
+    //     return false;
+    // }
+
+    // if (element.nodeName.toLowerCase() === "a")
+    // {
+    //     console.log("AM I AT LEAST HERE?");
+    // }
 
     if (isElementTooSmall(element))
     {
@@ -348,11 +352,11 @@ function shouldFlagElement(element, allowNonClickableFlagging) {
     }
 
     // Skip non-clickable elements if allowNonClickableFlagging is false
-    if (!allowNonClickableFlagging && !hasPointerCursor(element)) {
+    if (allowNonClickableFlagging && !hasPointerCursor(element)) {
         customConsoleWarn("Element is not clickable and allowNonClickableFlagging is false, skipping flagging.");
         return false;
     }
-
+    
     // Do not flag elements if any ancestor has aria-hidden="true"
     if (element.closest('[aria-hidden="true"]')) {
         customConsoleWarn("An ancestor element has aria-hidden='true', skipping flagging.");
@@ -733,8 +737,10 @@ function flagElements() {
     */ 
     // Process main document
     const currentFlaggedElements = [];
-    const allElements = document.querySelectorAll('*');
+    let allElements = Array.from(document.querySelectorAll('*'));
+    console.log("allElements",allElements);
     allElements.forEach(element => {
+        // if it selects a frameset
         if (shouldFlagElement(element, allowNonClickableFlagging) || element.dataset.flagged === "true") {
             element.dataset.flagged = 'true'; // Mark element as flagged
             currentFlaggedElements.push(element);
@@ -764,6 +770,32 @@ function flagElements() {
             console.warn(`Cannot access iframe document (${index}): ${error.message}`);
         }
     });
+
+    // Process frames
+    const frames = document.querySelectorAll('frame');
+    frames.forEach((frame, index) => {
+        // injectStylesIntoFrame(frame);
+        console.log("frames",frame);
+        try {
+            const iframeDocument = frame.contentDocument || frame.contentWindow.document;
+            if (iframeDocument) {
+                const iframeFlaggedElements = [];
+                const iframeElements = iframeDocument.querySelectorAll('*');
+                iframeElements.forEach(element => {
+                    if (shouldFlagElement(element, allowNonClickableFlagging) || element.dataset.flagged === "true") {
+                        element.dataset.flagged = 'true'; // Mark element as flagged
+                        iframeFlaggedElements.push(element);
+                    }
+                });
+                const iframeXPath = getXPath(frame);
+                currentFlaggedElementsByDocument[iframeXPath] = iframeFlaggedElements;
+            }
+        } catch (error) {
+            console.warn(`Cannot access iframe document (${index}): ${error.message}`);
+        }
+    });
+
+    
 
     // Collect XPaths and outerHTMLs of flagged elements per document
     const flaggedXPathsByDocument = {};

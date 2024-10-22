@@ -4,12 +4,25 @@ import {storeDataForTab,getFromLocal} from "./background functions/localStorageF
 // Set Variables
 let firstClick = {};
 let scanButtonON = {};
-let settings = {};
+let settings;
 let scanningQueueDictionary = {};
 let arialLabelsFramesDict = {};
 let globalScreenshotsFramesDict;
 
-// --- Event Listeners from the injected scripts to here
+// -- On download the settings are set on upload or download
+chrome.runtime.onInstalled.addListener(async () => {
+    settings = {
+        highlight:false,
+        debuggerAttach:false ,
+        A11yFix:false,
+    };
+
+    await setSetting("Tabbee_settings",JSON.stringify(settings));
+    console.log("Setting on refresh/download",settings);
+})
+
+
+// --- Event Listeners from the injected scr`ipts to here
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     /* 
         PlUGIN_CLICKED is a listener for when the Plugin button aka the button on the top gets clicked.
@@ -27,16 +40,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         try {
            // give the settings to change
              // Set the settingStatus
-            if (!settings[tabId])
-            {
-                settings[tabId] = 
-                {
-                    highlight:false,
-                    debuggerAttach:false ,
-                    A11yFix:false,
-                }
-            }
-            chrome.runtime.sendMessage({ type: "SAVED_SETTINGS", settings: settings[tabId] })
+            chrome.runtime.sendMessage({ type: "SAVED_SETTINGS", settings: settings })
         
             const scriptChecks = [
                 { name: "content.js", message: "CHECK_CONTENT_JS", status: "CONTENT_READY" },
@@ -97,16 +101,16 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         console.log("HIGHLIGHT_MISSING Received",request.tabId);
         console.log("request.status",request.status);
         // To change the status
-        if (settings[request.tabId] && request.status !== undefined)
+        if (settings && request.status !== undefined)
         {
-            settings[request.tabId].highlight = request.status;
+            settings.highlight = request.status;
             console.log("HIGHLIGHT_MISSING Changed status",request.status);
         }
 
         const data = await getFromLocal(request.tabId,"missingXpath",false,request.siteUrl) || "undefined";
-        console.log("Highlighting Status",settings[request.tabId].highlight)
+        await setSetting("Tabbee_settings",JSON.stringify(settings));
         // Status is true
-        if (settings[request.tabId].highlight)
+        if (settings.highlight)
         {
             chrome.tabs.sendMessage(request.tabId, { type: "HIGHLIGHT", data:data });
         }
@@ -118,7 +122,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
         // sendinng response
         console.log("sending Response");
-        sendResponse({status:settings[request.tabId].highlight});
+        sendResponse({status:settings.highlight});
         return true;
         
     }
@@ -130,14 +134,14 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
         console.log("A11YFIXES_INNIT",request.status);
         // Change the status first
-        if (settings[request.tabId] && request.status !== undefined)
+        if (settings && request.status !== undefined)
         {
-            settings[request.tabId].A11yFix = request.status;
+            settings.A11yFix = request.status;
         }
-        console.log("AFTER",settings[request.tabId].A11yFix);
+        await setSetting("Tabbee_settings",JSON.stringify(settings));
 
         // Once status change check if it wants to start or remove the Fixes
-        if (settings[request.tabId].A11yFix) 
+        if (settings.A11yFix) 
         {
             chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:missingXpaths,tabId:tabId});
         }
@@ -184,20 +188,10 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
             if (tabId)
             {
-                // Set the settingStatus
-                if (!settings[tabId])
-                {
-                    settings[tabId] = 
-                    {
-                        highlight:false,
-                        debuggerAttach:false ,
-                        A11yFix:false,
-                    }
-                }
                 console.log("scanningQueueDictionary[tabId]",scanningQueueDictionary[tabId]);
-                console.log("SHOULD IT SCAN",scanningQueueDictionary[tabId] && (scanningQueueDictionary[tabId].currentScanning === true || scanningQueueDictionary[tabId].currentFixing === true))
+                // console.log("SHOULD IT SCAN",scanningQueueDictionary[tabId] && (scanningQueueDictionary[tabId].currentScanning === true || scanningQueueDictionary[tabId].currentFixing === true))
 
-                if (!(scanButtonON[tabId] && scanButtonON[tabId] === true))
+                if (!(settings && settings.debuggerAttach === true))
                 {
                     console.log("Debugger not attached");
                     sendResponse({ success: false, error: "Debugger not Attached" });
@@ -279,26 +273,28 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     }
     else if(request.type === "DEBUGGER_ATTACH")
     {
-        const tabId = request.tabId;
-        if (settings[request.tabId])
+        // const tabId = request.tabId;
+        if (settings)
         {
-            settings[tabId].debuggerAttach = request.status;
+            settings.debuggerAttach = request.status;
         }
-        if (!scanButtonON[tabId])
-        {
-            console.log("DEBUGGER_ATTACH");
-            scanButtonON[tabId] = true;
-        }
+        // if (!scanButtonON[tabId])
+        // {
+        //     console.log("DEBUGGER_ATTACH");
+        //     scanButtonON[tabId] = true;
+        // }
+
+        console.log("UPDATED DEBUGGER_ATTACH",settings);
+        await setSetting("Tabbee_settings",JSON.stringify(settings));
     }
     else if(request.type === "DEBUGGER_DETTACH")
     {
-        const tabId = request.tabId;
-        if (settings[request.tabId])
+        if (settings)
         {
-            settings[tabId].debuggerAttach = request.status;
+            settings.debuggerAttach = request.status;
         }
         console.log("Dettaching");
-        delete scanButtonON[tabId];
+        await setSetting("Tabbee_settings",JSON.stringify(settings));
     }
     else if (request.type === "MISSING_FOUND")
     {
@@ -374,7 +370,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                         if ( chrome.runtime.lastError.message.includes("Receiving end does not exist."))
                         {
                             console.log("POPUP IS NOT OPEN");
-                            const setting = settings[tabId];
+                            const setting = settings;
                             console.log("setting", setting);
 
 
@@ -411,21 +407,21 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
                         chrome.runtime.sendMessage({
                             type: "UPDATE_OVERLAY",
                             data: mergedMissingXpaaths,
-                            settings:settings[tabId],
+                            settings:settings,
                             tabId:tabId
                         });
 
                         let data = await getFromLocal(tabId,"missingXpath",false,request.siteurl) || "undefined";
 
 
-                        if (settings[tabId].A11yFix) // This one will continue with highlight later there is another highlight check
+                        if (settings.A11yFix) // This one will continue with highlight later there is another highlight check
                         {
                             scanningQueueDictionary[tabId].currentFixing = true
                             chrome.tabs.sendMessage(tabId,{ type: "A11YFIXES_Start", missingXpaths:data, tabId:tabId}).then(() => {
                                 data = {};
                             });
                         }
-                        else if (settings[tabId].highlight) // Just highlight
+                        else if (settings.highlight) // Just highlight
                         {
                             console.log("MISSING_FOUND HIGHLIGHT")
                             console.log("data",data);
@@ -664,66 +660,26 @@ function injectMissingScripts(tabId, missingScripts) {
     }));
 }
 
-function getAllObjects(previousScanInfoDict) {
-    const allObjects = [];
-
-    for (const frame in previousScanInfoDict) {
-        if (previousScanInfoDict.hasOwnProperty(frame)) {
-            const elements = previousScanInfoDict[frame];
-            allObjects.push(...elements);  // Add each element from the frame to the allObjects array
-        }
-    }
-
-    return allObjects;
+// Function to set a value in chrome.storage.local
+async function setSetting(key, value) {
+    return new Promise((resolve, reject) => {
+        chrome.storage.local.set({ [key]: value }, function() {
+            if (chrome.runtime.lastError) {
+                return reject(chrome.runtime.lastError);
+            }
+            resolve();
+        });
+    });
 }
 
-function mergeDictionaries(newestSCANINFODICT, previousSCANINFODICT, mergedMissingList = []) {
-    console.log("AT THE START OF mergeDictionaries", mergedMissingList);
-
-    const updatedMissingList = [...mergedMissingList]; // Copy the existing array
-    const mergedFramesDict = newestSCANINFODICT ? { ...newestSCANINFODICT } : {};
-
-    // Iterate over each key in previousSCANINFODICT
-    for (let key in previousSCANINFODICT) {
-        if (mergedFramesDict[key]) {
-            const mergedArray = [...mergedFramesDict[key]];
-            const existingEntriesByCode = new Map(mergedArray.map(item => [item.code, item])); // Create a Map using only the code as key
-
-            // Iterate over items in previousSCANINFODICT for the same key
-            previousSCANINFODICT[key].forEach(previousItem => {
-                const previousCode = previousItem.code;
-                const previousXPath = previousItem.xpath;
-
-                if (existingEntriesByCode.has(previousCode)) {
-                    // If the code exists in the newest dictionary, check if the xpath differs
-                    const existingItem = existingEntriesByCode.get(previousCode);
-                    
-                    if (existingItem.xpath !== previousXPath) {
-                        // Update the xpath if it differs
-                        existingItem.xpath = previousXPath;
-                        console.log(`Updated xpath for existing code: ${previousCode}`);
-                    }
-                } else {
-                    // Add to mergedArray and updatedMissingList if the code doesn't exist in the newest
-                    mergedArray.push(previousItem);
-                    updatedMissingList.push(previousItem);
-                    console.log(`Added missing xpath: ${previousXPath} and code from previous scan info`);
-                }
-            });
-
-            // Update the mergedFramesDict with the merged array for this key
-            mergedFramesDict[key] = mergedArray;
-        } else {
-            // If the key doesn't exist in the newest, copy it from previous and add all items to missing list
-            mergedFramesDict[key] = [...previousSCANINFODICT[key]];
-            previousSCANINFODICT[key].forEach(previousItem => {
-                updatedMissingList.push(previousItem);
-                console.log(`Added new key and missing xpath: ${previousItem.xpath} and code`);
-            });
-        }
-    }
-
-    console.log("AT THE END OF mergeDictionaries", updatedMissingList);
-
-    return { mergedFramesDict, mergedMissingList: updatedMissingList }; // Return both mergedFramesDict and updated missing list
+// Function to get a value from chrome.storage.local
+async function getSetting(key) {
+    return new Promise((resolve, reject) => {
+        chrome.storage.local.get([key], function(result) {
+            if (chrome.runtime.lastError) {
+                return reject(chrome.runtime.lastError);
+            }
+            resolve(result[key]);
+        });
+    });
 }
