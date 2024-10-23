@@ -141,16 +141,50 @@ const startObserving = () => {
   }, 1000);
 };
 
+function checkAllFramesLoaded() {
+  const frames = document.querySelectorAll('frame');
+  if (frames.length === 0) {
+      // No frames, start observing immediately
+      console.log("No frames found, starting observation.");
+      startObserving();
+      return;
+  }
+
+  let loadedFrames = 0;
+
+  frames.forEach((frame) => {
+      if (frame.contentWindow.document.readyState === 'complete') {
+          loadedFrames++;
+      } else {
+          frame.addEventListener('load', () => {
+              loadedFrames++;
+              if (loadedFrames === frames.length) {
+                  console.log('All frames loaded, starting observation.');
+                  startObserving();
+              }
+          });
+      }
+  });
+
+  // If all frames are already loaded
+  if (loadedFrames === frames.length) {
+      console.log('All frames already loaded, starting observation.');
+      startObserving();
+      chrome.runtime.sendMessage({ type: "SCANING_START" , from:"MUTATION OBSERVER"});
+  }
+}
+
 // Check if document is already loaded or wait for DOMContentLoaded
 if (document.readyState === 'loading') {
+  console.log("Document is loading...");
   document.addEventListener('DOMContentLoaded', () => {
-    console.log("DOMContentLoaded fired, starting observation.");
-    startObserving();
+      console.log("DOMContentLoaded fired, checking frames.");
+      checkAllFramesLoaded();
   });
 } else {
-  // Document already loaded, start immediately
-  console.log("Document already loaded, starting observation.");
-  startObserving();
+  // Document already loaded
+  console.log("Document already loaded, checking frames.");
+  checkAllFramesLoaded();
 }
 
 // Chrome extension message listener

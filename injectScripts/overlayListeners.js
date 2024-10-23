@@ -37,7 +37,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             const frameWindow = frameWindowXpathResult.singleNodeValue
             console.log("frameWindow",frameWindow);
             if (frameWindow) {
-              xpath = xpath.replace(frameKey+"/","")
+              xpath = xpath.replace(frameKey+"/","") // just in case frameKey is in the xpath
               const frameContentDocument =
                 frameWindow.contentDocument ||
                 frameWindow.contentWindow.document
@@ -95,6 +95,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             )
             const frameWindow = frameWindowXpathResult.singleNodeValue
             if (frameWindow) {
+              xpath = xpath.replace(frameKey+"/","") // just in case frameKey is in the xpath
               const frameContentDocument =
                 frameWindow.contentDocument ||
                 frameWindow.contentWindow.document
@@ -156,6 +157,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     );
                     frameWindow = frameWindowXpathResult.singleNodeValue;
                     if (frameWindow) {
+                        xpath[0] = xpath[0].replace(frameKey+"/","") // just in case frameKey is in the xpath
                         const frameContentDocument = frameWindow.contentDocument || frameWindow.contentWindow.document;
                         currentNode = document.evaluate(
                             xpath[0],
@@ -278,6 +280,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         const frameWindow = frameWindowXpathResult.singleNodeValue;
 
                         if (frameWindow) {
+                          xpath[0] = xpath[0].replace(frameKey+"/","") // just in case frameKey is in the xpath
                             const frameContentDocument =
                                 frameWindow.contentDocument ||
                                 frameWindow.contentWindow.document;
@@ -373,6 +376,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             )
             const frameWindow = frameWindowXpathResult.singleNodeValue
             if (frameWindow) {
+              xpath[0] = xpath[0].replace(frameKey+"/","") // just in case frameKey is in the xpath
               const frameContentDocument =
                 frameWindow.contentDocument ||
                 frameWindow.contentWindow.document

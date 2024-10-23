@@ -782,10 +782,16 @@ function flagElements() {
                 const iframeFlaggedElements = [];
                 const iframeElements = iframeDocument.querySelectorAll('*');
                 iframeElements.forEach(element => {
-                    if (shouldFlagElement(element, allowNonClickableFlagging) || element.dataset.flagged === "true") {
-                        element.dataset.flagged = 'true'; // Mark element as flagged
-                        iframeFlaggedElements.push(element);
+                    console.log("elements nodeName in frame",element.nodeName);
+                    try {
+                        if (shouldFlagElement(element, allowNonClickableFlagging) || element.dataset.flagged === "true") {
+                            element.dataset.flagged = 'true'; // Mark element as flagged
+                            iframeFlaggedElements.push(element);
+                        }
+                    } catch (error) {
+                        console.log("ERRORS",error.message);
                     }
+
                 });
                 const iframeXPath = getXPath(frame);
                 currentFlaggedElementsByDocument[iframeXPath] = iframeFlaggedElements;

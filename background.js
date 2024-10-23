@@ -11,16 +11,23 @@ let globalScreenshotsFramesDict;
 
 // -- On download the settings are set on upload or download
 chrome.runtime.onInstalled.addListener(async () => {
-    settings = {
-        highlight:false,
-        debuggerAttach:false ,
-        A11yFix:false,
-    };
-
-    await setSetting("Tabbee_settings",JSON.stringify(settings));
-    console.log("Setting on refresh/download",settings);
+    if (await getSetting("Tabbee_settings"))
+    {
+        settings = JSON.parse(await getSetting("Tabbee_settings"));
+        console.log("Previous Set Settings",settings);
+    }
+    else 
+    {
+        settings = {
+            highlight:false,
+            debuggerAttach:false ,
+            A11yFix:false,
+        };
+    
+        await setSetting("Tabbee_settings",JSON.stringify(settings));
+        console.log("Setting on refresh/download",settings);
+    }
 })
-
 
 // --- Event Listeners from the injected scr`ipts to here
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
@@ -34,9 +41,28 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             1) Check to see if the injected scripts are injected correctly into the current site
             2) Injects the scripts which are not injected properly
             3) Sends message "PLUGIN_READY" back to popup.js to start updating the overlay with the settings required
+
+        Send Messgage:
+        - PLUGIN_READY this is send back to the overlay to tell it to start doing a scan
     */
     if (request.type === "PlUGIN_CLICKED") {
         const tabId = request.tabId;
+        if (await getSetting("Tabbee_settings"))
+        {
+            settings = JSON.parse(await getSetting("Tabbee_settings"));
+            console.log("Previous Set Settings",settings);
+        }
+        else 
+        {
+            settings = {
+                highlight:false,
+                debuggerAttach:false ,
+                A11yFix:false,
+            };
+        
+            await setSetting("Tabbee_settings",JSON.stringify(settings));
+            console.log("Setting on refresh/download",settings);
+        }
         try {
            // give the settings to change
              // Set the settingStatus
@@ -93,7 +119,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         
         Function of this Listener:
             1) To get the missingXpaths stored in session storage
-            2) Set the global variable of the 
+            2) Set the stored Settings of the variable highlight
         
     */
     else if (request.type === "HIGHLIGHT_MISSING")
@@ -126,6 +152,18 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         return true;
         
     }
+     /* 
+        A11YFIXES_INNIT is a listener for when the page would like to add ARIA-LABEL t the missing elements
+
+        Message comes from: 
+            - eventListner.js from the switch with A11y Fix
+            - 
+        
+        Function of this Listener:
+            1) To get the missingXpaths stored in session storage
+            2) Set the stored Settings of the variable highlight
+        
+    */
     else if (request.type === "A11YFIXES_INNIT")
     {
         const tabId = request.tabId;
@@ -154,6 +192,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
        
     }
+
+
     else if (request.type === "OVERLAY_CREATED") 
     {
         console.log("Overlay created, preparing to request AX tree and clickableElements.");
