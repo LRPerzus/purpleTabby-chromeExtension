@@ -119,9 +119,9 @@ const config = {childList: true, subtree: true , attributes:true};
 // subtree is needed to look into the children nodes of the attached section
 
 // Function to start observing once the DOM is fully loaded
-const startObserving = () => {
+const startObserving = (targetElement = document.documentElement) => {
   // Select the node that will be observed for mutations
-  const targetNode = document.documentElement; // Or use document.body
+  const targetNode = targetElement; // Or use document.body
 
   // Start observing the target node for configured mutations
   observer.observe(targetNode, config);
@@ -153,17 +153,7 @@ function checkAllFramesLoaded() {
   let loadedFrames = 0;
 
   frames.forEach((frame) => {
-      if (frame.contentWindow.document.readyState === 'complete') {
-          loadedFrames++;
-      } else {
-          frame.addEventListener('load', () => {
-              loadedFrames++;
-              if (loadedFrames === frames.length) {
-                  console.log('All frames loaded, starting observation.');
-                  startObserving();
-              }
-          });
-      }
+    startObserving(frame.contentDocument)
   });
 
   // If all frames are already loaded
